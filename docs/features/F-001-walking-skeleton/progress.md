@@ -310,3 +310,22 @@ Then steps 3–13 in the plan's §Steps table, in order. Steps 1–6 need no Doc
 **Blockers / open questions:** none technical. OQ26, OQ27 and OQ28 remain open with Myanma Railways and are confined by the approved provisional-rules waiver.
 
 **State of the branch:** build and tests green; committed and pushed; no uncommitted work.
+
+---
+
+## 2026-09-20 12:21 Asia/Yangon — codex — T-004
+
+**Stage:** 4 (IMPLEMENT). Step 4 blocked before code changes.
+**Commit:** no implementation commit; the last completed implementation checkpoint is `21d236b6f8f64df66265e8c80d2e83e65cbcbe85`.
+
+**Done this session:**
+- Began plan step 4 by resolving the approved abstraction signatures against ADR-0004 and ADR-0012.
+- Found a plan/package mismatch and made no step-4 code change or workaround.
+
+**Evidence:** ADR-0012 §Decision item 2 requires module context interfaces to expose their module `DbSet`s, and `plan.md` step 4 requires `INetworkDbContext`. `src/YCR.Application/YCR.Application.csproj` references only `YCR.Domain`; `Directory.Packages.props` has no `Microsoft.EntityFrameworkCore` pin; and `plan.md` §New packages lists the SQL Server and Design packages only for Infrastructure. The step-5 `Microsoft.EntityFrameworkCore.SqlServer` dependency cannot flow backward from Infrastructure to the Application project that Infrastructure references.
+
+**Next step (exact):** tech lead decides whether to add a centrally pinned `Microsoft.EntityFrameworkCore` package reference to `YCR.Application` and records it in `plan.md` §New packages, or amends the approved `INetworkDbContext` shape. Then resume plan step 4 from `IIdGenerator`, `IAuditWriter`, `ICurrentUser`, `Permissions`, `PagedResult`, and `INetworkDbContext`.
+
+**Blockers / open questions:** ENGINEERING BLOCKER — the approved plan is missing the direct EF Core package required for `INetworkDbContext` in the Application project. No business OQ is added. OQ26, OQ27 and OQ28 remain unchanged.
+
+**State of the branch:** last completed checkpoint builds and tests green; this progress entry is the only uncommitted change.
