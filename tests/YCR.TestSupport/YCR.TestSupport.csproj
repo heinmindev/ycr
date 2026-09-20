@@ -7,6 +7,12 @@
   -->
   <ItemGroup>
     <ProjectReference Include="../../src/YCR.Infrastructure/YCR.Infrastructure.csproj" />
+    <!--
+      Testcontainers.MsSql starts the pinned container (plan step 7).
+      Microsoft.Data.SqlClient is not pinned here: it arrives with the EF Core SQL Server
+      provider through YCR.Infrastructure, and central transitive pinning fixes its version.
+    -->
+    <PackageReference Include="Testcontainers.MsSql" />
   </ItemGroup>
 
 </Project>

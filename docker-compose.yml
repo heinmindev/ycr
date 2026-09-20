@@ -1,0 +1,70 @@
+# Local development SQL Server (AGENTS.md §Commands: `docker compose up -d`).
+#
+# Automated tests do NOT use this file: they start their own container through
+# Testcontainers (tests/YCR.TestSupport). What the two share is the image pin.
+#
+# ENGINEERING DECISION — spec E4: the image below is pinned by tag AND digest and must be
+# byte-identical to YCR.TestSupport.SqlServerImage.Reference. A YAML file cannot import a C#
+# constant, so SqlServerImagePinTests reads this file and fails the build if the two drift.
+# Never replace it with a floating tag.
+#
+# Credentials come from the environment — copy .env.example to .env and set them. No password
+# is defaulted here, so a missing value stops compose instead of silently creating a known one.
+
+name: ycr
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-CU27-ubuntu-22.04@sha256:4402d880dd4c34bfa7d8705e56a86cd6c88da80a1f6bbbe741f999e76264a090
+    container_name: ycr-sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      # Stated explicitly: the audit ledger (ADR-0017 item 1) is an edition-sensitive feature,
+      # so local development runs the same edition the tests verify against.
+      MSSQL_PID: "Developer"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?set MSSQL_SA_PASSWORD in .env}
+    ports:
+      - "${MSSQL_PORT:-1433}:1433"
+    volumes:
+      - ycr-sqlserver-data:/var/opt/mssql
+      - ./docker/sqlserver:/docker/sqlserver:ro
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$$MSSQL_SA_PASSWORD" -C -b -Q "SELECT 1" > /dev/null
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  # Creates the database and the two logins the application and the migrator use (plan P9).
+  # Runs once, after the server is healthy, and exits. Roles and grants are NOT created here:
+  # they belong to the Security_AppDatabaseRole migration, so no credential enters a migration
+  # file and no grant escapes review.
+  sqlserver-init:
+    image: mcr.microsoft.com/mssql/server:2022-CU27-ubuntu-22.04@sha256:4402d880dd4c34bfa7d8705e56a86cd6c88da80a1f6bbbe741f999e76264a090
+    container_name: ycr-sqlserver-init
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    environment:
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?set MSSQL_SA_PASSWORD in .env}
+      YCR_DATABASE: ${YCR_DATABASE:-YCR}
+      YCR_APP_PASSWORD: ${YCR_APP_PASSWORD:?set YCR_APP_PASSWORD in .env}
+      YCR_MIGRATOR_PASSWORD: ${YCR_MIGRATOR_PASSWORD:?set YCR_MIGRATOR_PASSWORD in .env}
+    volumes:
+      - ./docker/sqlserver:/docker/sqlserver:ro
+    restart: "no"
+    entrypoint:
+      - /bin/bash
+      - -c
+      - >
+        /opt/mssql-tools18/bin/sqlcmd
+        -S sqlserver -U sa -P "$$MSSQL_SA_PASSWORD" -C -b
+        -v YcrDatabase="$$YCR_DATABASE"
+        -v YcrAppPassword="$$YCR_APP_PASSWORD"
+        -v YcrMigratorPassword="$$YCR_MIGRATOR_PASSWORD"
+        -i /docker/sqlserver/init-principals.sql
+
+volumes:
+  ycr-sqlserver-data:

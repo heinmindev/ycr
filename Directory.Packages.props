@@ -34,4 +34,8 @@
     <PackageVersion Include="TngTech.ArchUnitNET.xUnitV3" Version="0.13.4" />
   </ItemGroup>
 
+  <ItemGroup Label="Container-backed tests (plan step 7; spec E4 digest-pinned SQL Server 2022)">
+    <PackageVersion Include="Testcontainers.MsSql" Version="4.15.0" />
+  </ItemGroup>
+
 </Project>

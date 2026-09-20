@@ -367,13 +367,15 @@ The architecture test enforces the **allowlist**, not merely the namespace, so a
 | `Microsoft.EntityFrameworkCore.Design` | Infrastructure | Migration tooling and `dotnet ef migrations bundle` (P1) |
 | `FluentValidation` + `FluentValidation.DependencyInjectionExtensions` | Api | `docs/20` §3 names FluentValidation behind an endpoint filter. The bundled `FluentValidation.AspNetCore` package is deprecated, so the filter is wired by hand |
 | `Microsoft.AspNetCore.Mvc.Testing` | Api.Tests | `WebApplicationFactory`, required by `docs/20` §3 |
-| `Testcontainers.MsSql` | TestSupport | `docs/20` §3 requires Testcontainers against `mssql/server:2022` |
+| `Testcontainers.MsSql` 4.15.0 | TestSupport | `docs/20` §3 requires Testcontainers against `mssql/server:2022`. Pinned at step 7. In 4.15 the image is a required constructor argument, so the E4 reference cannot be defaulted away |
 | `TngTech.ArchUnitNET` + `TngTech.ArchUnitNET.xUnitV3` 0.13.4 | ArchitectureTests | Type-dependency rules for ADR-0012 §Enforcement and ADR-0020 item 4. **V5 resolved in step 1:** `NetArchTest.Rules` last shipped 1.3.2 in May 2021 with no .NET 10 signal, so the P4 fallback applies. ArchUnitNET last shipped 2026-08-20 and has an xUnit v3 package matching P3 |
 | `xunit.v3`, `xunit.runner.visualstudio`, `Microsoft.NET.Test.Sdk` | all test projects | Test framework. **xUnit v3**, pinned in `Directory.Packages.props` (P3) |
 | `Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore` | Api | `/health/ready` must report database connectivity (`docs/02` §Reliability) |
 | `Microsoft.Extensions.Hosting` 10.0.12 | Worker | Added in step 1. `Microsoft.NET.Sdk.Worker` does not reference it implicitly on .NET 10, so the generated global usings do not compile without it |
 
-**Deliberately not added.** `FluentAssertions` — its v8 licence change makes it commercial for some uses, the same class of concern that made ADR-0004 reject MediatR; plain xUnit assertions are used instead (P3). `AutoMapper` — forbidden by `docs/20` §4. Any OpenTelemetry exporter — spec §8 asks only for baseline instrumentation, and ASP.NET Core's built-in metrics cover it (P8). `Respawn` — each test class gets its own database on the shared container, so no reset library is needed.
+**Not a package, recorded here because step 7 depends on it.** `.config/dotnet-tools.json` pins **`dotnet-ef` 10.0.12** as a local tool. The fixture shells out to `dotnet ef migrations bundle` (P1), so without the manifest the bundle would be built by whatever version happens to be installed globally on the machine or the CI runner — which would make V6 a statement about one laptop rather than about the repository.
+
+**Deliberately not added.** `Microsoft.Data.SqlClient` — `YCR.TestSupport` uses `SqlConnection` for database provisioning, but the type arrives with the EF Core SQL Server provider through `YCR.Infrastructure` and central transitive pinning fixes its version; a second explicit pin could only drift from the provider's own requirement. `FluentAssertions` — its v8 licence change makes it commercial for some uses, the same class of concern that made ADR-0004 reject MediatR; plain xUnit assertions are used instead (P3). `AutoMapper` — forbidden by `docs/20` §4. Any OpenTelemetry exporter — spec §8 asks only for baseline instrumentation, and ASP.NET Core's built-in metrics cover it (P8). `Respawn` — each test class gets its own database on the shared container, so no reset library is needed.
 
 ---
 
