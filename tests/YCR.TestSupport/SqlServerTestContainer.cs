@@ -129,11 +129,20 @@ public sealed class SqlServerTestContainer : IAsyncDisposable
     }
 
     /// <summary>Connection string for <paramref name="database"/> under the migrator credential.</summary>
+    /// <remarks>
+    /// <c>Current Language</c> is pinned on every connection (hein's ruling, 2026-09-20). SQL
+    /// Server localises error messages by session language, and
+    /// <c>SqlServerUniqueConstraintTranslator</c> reads the violated constraint's name out of the
+    /// message text because no API exposes it. A session in another language would silently stop
+    /// producing translations. Pinning it here, in compose and in CI keeps that dependency true
+    /// rather than accidental.
+    /// </remarks>
     public string ConnectionStringFor(string database) =>
         new SqlConnectionStringBuilder(_container.GetConnectionString())
         {
             InitialCatalog = database,
-            TrustServerCertificate = true
+            TrustServerCertificate = true,
+            CurrentLanguage = SqlServerImage.SessionLanguage
         }.ConnectionString;
 
     /// <summary>Removes the generated passwords from text before it reaches a message or a log.</summary>

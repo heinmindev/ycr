@@ -195,35 +195,21 @@ public sealed class LedgerMigrationTests(SqlServerFixture fixture) : IAsyncLifet
     }
 
     /// <summary>
-    /// Hein's ruling, 2026-09-20: an entity must never become an audit payload. The parameters are
-    /// <c>object?</c>, so this is caught at runtime — loudly, on the first call, rather than by
-    /// writing a row that can never be redacted.
+    /// Hein's ruling, 2026-09-20: an entity must never become an audit payload, and this is now
+    /// enforced by the type system — <c>Record</c> takes <c>IAuditSnapshot?</c>, so passing an
+    /// aggregate does not compile. There is no runtime rejection left to test.
     /// </summary>
+    /// <remarks>
+    /// What is worth asserting is that the compile barrier is real and stays real: if an entity
+    /// ever implemented <c>IAuditSnapshot</c>, the guarantee would quietly disappear and every
+    /// call site would keep compiling. The architecture test covers placement and record-ness;
+    /// this covers the aggregate specifically.
+    /// </remarks>
     [Fact]
-    public async Task AuditWriter_WhenHandedAnEntityAsASnapshot_Refuses()
+    public void Station_IsNotAnAuditSnapshot_SoPassingItCannotCompile()
     {
-        var station = Station.Create(
-            Guid.CreateVersion7(),
-            StationCode.Create("TMW").Value,
-            BilingualName.Create("Thamaing", "သမိုင်း").Value,
-            DateTimeOffset.UtcNow);
-
-        await using var provider = BuildProvider(new StubCurrentUser { CorrelationId = "corr-entity" });
-        await using var scope = provider.CreateAsyncScope();
-        var writer = scope.ServiceProvider.GetRequiredService<IAuditWriter>();
-
-        var failure = Assert.Throws<ArgumentException>(() => writer.Record(
-            "Network.StationCreated",
-            NetworkAuditSubjects.Station,
-            station.Id,
-            before: null,
-            after: station));
-
-        Assert.Equal("after", failure.ParamName);
-        Assert.Contains("audit snapshot record", failure.Message, StringComparison.Ordinal);
-
-        // Nothing was tracked, so nothing can reach the ledger on a later save.
-        Assert.Equal(0, await ScalarAsync<int>("SELECT COUNT(*) FROM [audit].[AuditEvents];"));
+        Assert.False(typeof(IAuditSnapshot).IsAssignableFrom(typeof(Station)));
+        Assert.True(typeof(IAuditSnapshot).IsAssignableFrom(typeof(StationAuditSnapshot)));
     }
 
     [Fact]

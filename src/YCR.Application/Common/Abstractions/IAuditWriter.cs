@@ -12,9 +12,10 @@ namespace YCR.Application.Common.Abstractions;
 /// derived from a CLR type name: a rename or a namespace move would silently change the meaning
 /// of rows already written to an append-only table.</item>
 /// <item><paramref name="before"/> and <paramref name="after"/> are explicit audit snapshot
-/// records, never entities. An entity would drag its whole surface — navigations, lazily added
-/// fields, eventually something secret — into a row that can never be redacted. Changing a
-/// snapshot's shape requires bumping <c>PayloadVersion</c> (ADR-0021 rule 3).</item>
+/// records, never entities — enforced by <see cref="IAuditSnapshot"/>, so passing an aggregate
+/// does not compile. An entity would drag its whole surface — navigations, lazily added fields,
+/// eventually something secret — into a row that can never be redacted. Changing a snapshot's
+/// shape requires bumping <c>PayloadVersion</c> (ADR-0021 rule 3).</item>
 /// <item>There is no <c>authorizedByPermission</c> parameter. It is derived server-side from the
 /// endpoint's required permission through <see cref="ICurrentUser"/>, so a handler cannot state
 /// an authority it did not actually have.</item>
@@ -35,7 +36,7 @@ public interface IAuditWriter
         string action,
         string subjectType,
         Guid? subjectId,
-        object? before,
-        object? after,
+        IAuditSnapshot? before,
+        IAuditSnapshot? after,
         string? reasonCode = null);
 }

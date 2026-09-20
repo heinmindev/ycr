@@ -1,3 +1,4 @@
+using YCR.Application.Common.Abstractions;
 using YCR.Domain.Network;
 
 namespace YCR.Application.Network;
@@ -25,6 +26,7 @@ namespace YCR.Application.Network;
 /// <param name="NameMy">Myanmar-script name.</param>
 /// <param name="IsActive">Whether the station was active in this state.</param>
 public sealed record StationAuditSnapshot(string Code, string NameEn, string NameMy, bool IsActive)
+    : IAuditSnapshot
 {
     /// <summary>Takes a snapshot of <paramref name="station"/> as it stands now.</summary>
     public static StationAuditSnapshot From(Station station)

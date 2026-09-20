@@ -61,8 +61,8 @@ internal sealed class AuditWriter(
         string action,
         string subjectType,
         Guid? subjectId,
-        object? before,
-        object? after,
+        IAuditSnapshot? before,
+        IAuditSnapshot? after,
         string? reasonCode = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(action);
@@ -77,8 +77,8 @@ internal sealed class AuditWriter(
             ActorRole = SerializeRoles(currentUser.Roles),
             SubjectType = subjectType,
             SubjectId = subjectId,
-            BeforeJson = SerializeSnapshot(before, nameof(before)),
-            AfterJson = SerializeSnapshot(after, nameof(after)),
+            BeforeJson = SerializeSnapshot(before),
+            AfterJson = SerializeSnapshot(after),
             CorrelationId = currentUser.CorrelationId,
             ClientIp = currentUser.ClientIp,
             ReasonCode = reasonCode,
@@ -95,31 +95,18 @@ internal sealed class AuditWriter(
     private static string? SerializeRoles(IReadOnlyCollection<string> roles) =>
         roles.Count == 0 ? null : JsonSerializer.Serialize(roles, PayloadOptions);
 
-    /// <summary>
-    /// Serialises a snapshot record, refusing a domain entity.
-    /// </summary>
+    /// <summary>Serialises a snapshot record by its runtime type.</summary>
     /// <remarks>
-    /// BUSINESS DECISION (hein, 2026-09-20): audit payloads are snapshot records, never entities.
-    /// The parameter type is <c>object?</c>, so this is a runtime guard rather than a compile-time
-    /// one — it fails loudly on the first call instead of writing an un-redactable row. Typing the
-    /// parameters as a snapshot marker interface would make the mistake impossible to compile at
-    /// all; that is a cheap change if it is wanted.
+    /// The explicit <c>GetType()</c> is load-bearing, not defensive. The parameter's static type
+    /// is <see cref="IAuditSnapshot"/>, which declares no members, so the generic overload would
+    /// serialise against the interface and write <c>{}</c> into every payload — a silent, total
+    /// loss of audit state in a table that can never be corrected. Passing the runtime type is
+    /// what makes the marker interface safe to use here.
+    /// <para>
+    /// There is no entity check any more: <see cref="IAuditSnapshot"/> makes an entity impossible
+    /// to pass (hein's ruling, 2026-09-20), and an architecture test enforces what may implement it.
+    /// </para>
     /// </remarks>
-    private static string? SerializeSnapshot(object? snapshot, string parameterName)
-    {
-        if (snapshot is null)
-        {
-            return null;
-        }
-
-        if (snapshot is Entity)
-        {
-            throw new ArgumentException(
-                $"'{parameterName}' must be an audit snapshot record, not the '{snapshot.GetType().Name}' entity. "
-                + "An entity serialises its whole surface into an append-only row that can never be redacted.",
-                parameterName);
-        }
-
-        return JsonSerializer.Serialize(snapshot, PayloadOptions);
-    }
+    private static string? SerializeSnapshot(IAuditSnapshot? snapshot) =>
+        snapshot is null ? null : JsonSerializer.Serialize(snapshot, snapshot.GetType(), PayloadOptions);
 }

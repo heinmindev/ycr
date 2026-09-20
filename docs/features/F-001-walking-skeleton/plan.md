@@ -430,7 +430,7 @@ Each step ends with `dotnet test YCR.sln` green. No step leaves the branch red. 
 | 10 | Application handlers: `CreateStation`, `DeactivateStation` (`IsActive` concurrency token), `GetStation`, `ListStations`, DI scanning | All `YCR.Application.Tests` rows (S1, S3, S5–S8, S13, S14, S20, S27) |
 | 11 | API: `Program`, ProblemDetails, `ResultExtensions`, `ValidationFilter`, permission policy provider, scheme guard, contracts, `StationEndpoints`, health | All `YCR.Api.Tests` rows (S2, S4, S9–S12, S21b, S24, S25) |
 | 12 | Trunk-only categories: ADR-0006 fragmentation control (E5) and the SQL Server 2019 guard test | S23, S19 |
-| 13 | `.github/workflows/ci.yml`: restore, build, test against the pinned images, gitleaks. Push `feature/F-001` to `origin` and **prove the run green**, recording the run URL in `progress.md` | S26, evidenced by a green GitHub Actions run URL on `origin` for `feature/F-001` |
+| 13 | `.github/workflows/ci.yml`: restore, build, test against the pinned images, gitleaks. **Every connection string CI creates must carry `Current Language=us_english`** (hein's ruling, 2026-09-20 — see step 9). Push `feature/F-001` to `origin` and **prove the run green**, recording the run URL in `progress.md` | S26, evidenced by a green GitHub Actions run URL on `origin` for `feature/F-001` |
 
 **Why step 6 moved.** The boundary rules now exist before the code that could break them, so every later step is guarded as it lands rather than audited afterwards. At step 6 the rules over `src/` pass vacuously — `YCR.Api` is still empty — but the `Violations` fixtures prove the rules have teeth from that moment, which is precisely what makes the vacuous pass trustworthy.
 

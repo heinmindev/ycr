@@ -9,6 +9,13 @@
 -- variables from the environment, so no credential is written in this file.
 --
 -- Idempotent: `docker compose up -d` may run it many times against the same volume.
+--
+-- Both logins pin DEFAULT_LANGUAGE = us_english (hein's ruling, 2026-09-20). SQL Server
+-- localises error messages by session language, and SqlServerUniqueConstraintTranslator reads a
+-- violated constraint's name out of the message text because no API exposes it. The application
+-- connection string pins `Current Language=us_english` for the same reason; the login default is
+-- the belt to that braces, covering any tool that connects without naming a language.
+-- See .env.example for the connection strings.
 
 SET NOCOUNT ON;
 SET XACT_ABORT ON;
@@ -27,6 +34,7 @@ BEGIN
     CREATE LOGIN [ycr_migrator] WITH
         PASSWORD = '$(YcrMigratorPassword)',
         CHECK_POLICY = ON,
+        DEFAULT_LANGUAGE = us_english,
         DEFAULT_DATABASE = [$(YcrDatabase)];
 END
 GO
@@ -42,6 +50,7 @@ BEGIN
     CREATE LOGIN [ycr_app] WITH
         PASSWORD = '$(YcrAppPassword)',
         CHECK_POLICY = ON,
+        DEFAULT_LANGUAGE = us_english,
         DEFAULT_DATABASE = [$(YcrDatabase)];
 END
 GO

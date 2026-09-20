@@ -31,4 +31,17 @@ public static class SqlServerImage
 
     /// <summary>The reference to pass to Docker: tag for legibility, digest for identity.</summary>
     public const string Reference = Tag + "@" + Digest;
+
+    /// <summary>
+    /// The session language pinned on every connection string and login (hein's ruling,
+    /// 2026-09-20).
+    /// </summary>
+    /// <remarks>
+    /// SQL Server localises error messages by session language.
+    /// <c>SqlServerUniqueConstraintTranslator</c> reads a violated constraint's name out of the
+    /// message text, because SQL Server exposes it nowhere else, so the translator only works on
+    /// an English session. Pinning the language turns that from an accident of the environment
+    /// into a stated dependency, in compose, in the test fixture and in CI alike.
+    /// </remarks>
+    public const string SessionLanguage = "us_english";
 }

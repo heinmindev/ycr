@@ -154,6 +154,87 @@ public sealed class ArchitectureRuleTests
             .IsAssignableFrom(typeof(SourceUsingAuthenticationHandler)));
     }
 
+    /// <summary>
+    /// Hein's ruling, 2026-09-20: every <c>IAuditSnapshot</c> must be a record and must live in
+    /// <c>YCR.Application.&lt;Module&gt;</c>, never in <c>YCR.Domain</c>.
+    /// </summary>
+    /// <remarks>
+    /// Written with reflection rather than as an ArchUnit rule because "is a record" is not a
+    /// dependency fact — it is detected by the compiler-generated <c>&lt;Clone&gt;$</c> member,
+    /// which ArchUnit's fluent API does not express.
+    /// </remarks>
+    [Fact]
+    public void AuditSnapshots_AreRecordsInAnApplicationModuleNamespace()
+    {
+        var sourceViolations = AuditSnapshotViolationsIn(SourceAssemblies);
+        Assert.Empty(sourceViolations);
+
+        // The fixtures prove each half of the rule bites, so the empty result above is trustworthy
+        // rather than merely vacuous.
+        var planted = AuditSnapshotViolationsIn([typeof(ArchitectureRuleTests).Assembly]);
+        Assert.Contains(planted, violation => violation.Contains(nameof(Violations.NonRecordAuditSnapshot), StringComparison.Ordinal));
+        Assert.Contains(planted, violation => violation.Contains(nameof(Violations.MisplacedAuditSnapshot), StringComparison.Ordinal));
+        Assert.Contains(planted, violation => violation.Contains("DomainAuditSnapshot", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void AuditSnapshots_ExistAtAllSoTheRuleIsNotVacuous()
+    {
+        var snapshots = SourceAssemblies
+            .SelectMany(assembly => assembly.GetTypes())
+            .Where(type => typeof(YCR.Application.Common.Abstractions.IAuditSnapshot).IsAssignableFrom(type))
+            .Where(type => type is { IsInterface: false, IsAbstract: false })
+            .ToArray();
+
+        Assert.NotEmpty(snapshots);
+    }
+
+    private static readonly ReflectionAssembly[] SourceAssemblies =
+    [
+        typeof(YCR.Domain.Common.Result).Assembly,
+        typeof(YCR.Application.Network.INetworkDbContext).Assembly,
+        typeof(YCR.Infrastructure.Persistence.YcrDbContext).Assembly,
+        ReflectionAssembly.Load("YCR.Api")
+    ];
+
+    private static string[] AuditSnapshotViolationsIn(IEnumerable<ReflectionAssembly> assemblies)
+    {
+        var moduleNamespaces = ArchitectureRules.Modules
+            .Select(module => $"YCR.Application.{module}")
+            .ToArray();
+
+        return [.. assemblies
+            .SelectMany(assembly => assembly.GetTypes())
+            .Where(type => typeof(YCR.Application.Common.Abstractions.IAuditSnapshot).IsAssignableFrom(type))
+            .Where(type => type is { IsInterface: false, IsAbstract: false })
+            .SelectMany(type =>
+            {
+                var problems = new List<string>();
+
+                // A record carries a compiler-generated clone method; nothing else does.
+                var isRecord = type.GetMethod(
+                    "<Clone>$",
+                    System.Reflection.BindingFlags.Instance
+                        | System.Reflection.BindingFlags.Public
+                        | System.Reflection.BindingFlags.NonPublic) is not null;
+                if (!isRecord)
+                {
+                    problems.Add($"{type.FullName} implements IAuditSnapshot but is not a record.");
+                }
+
+                var containing = type.Namespace ?? string.Empty;
+                var placed = moduleNamespaces.Any(module =>
+                    containing == module || containing.StartsWith($"{module}.", StringComparison.Ordinal));
+                if (!placed)
+                {
+                    problems.Add(
+                        $"{type.FullName} implements IAuditSnapshot but does not live in YCR.Application.<Module>.");
+                }
+
+                return problems;
+            })];
+    }
+
     private static void AssertRuleProtectsFixture(IArchRule rule, string fixtureName)
     {
         var sourceResults = rule.Evaluate(SourceArchitecture).Where(result => !result.Passed).ToArray();

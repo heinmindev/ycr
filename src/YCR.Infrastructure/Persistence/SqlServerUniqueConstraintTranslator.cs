@@ -23,6 +23,19 @@ namespace YCR.Infrastructure.Persistence;
 /// as an unexpected infrastructure error, which is correct, instead of being reported as whatever
 /// conflict the nearest handler happens to know about.
 /// </para>
+/// <para>
+/// <strong>REQUIRED CONTROL — session language.</strong> Because the name is parsed from message
+/// text, this class only works on a <c>us_english</c> session: SQL Server localises error
+/// messages by session language, and on, say, a German session error 2601 reads "Doppelter
+/// Schlüssel..." and matches nothing here. Every connection therefore pins
+/// <c>Current Language=us_english</c> — in the test fixture
+/// (<c>YCR.TestSupport.SqlServerImage.SessionLanguage</c>), in the connection strings documented
+/// in <c>.env.example</c>, and in CI — and both logins created by
+/// <c>docker/sqlserver/init-principals.sql</c> additionally set <c>DEFAULT_LANGUAGE = us_english</c>
+/// so a tool that connects without naming a language still lands in English.
+/// <c>UniqueConstraintTranslationTests</c> asserts the session language the translator's own
+/// inputs came from, so the dependency cannot rot unnoticed (hein's ruling, 2026-09-20).
+/// </para>
 /// </remarks>
 internal static partial class SqlServerUniqueConstraintTranslator
 {

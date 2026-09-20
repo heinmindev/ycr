@@ -31,11 +31,38 @@ public sealed class UniqueConstraintTranslationTests(SqlServerFixture fixture) :
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
+    /// <summary>
+    /// The dependency the translator rests on: it parses constraint names out of SQL Server's
+    /// message text, and SQL Server localises that text by session language (hein's ruling,
+    /// 2026-09-20). Both credentials must therefore land in <c>us_english</c>.
+    /// </summary>
+    /// <remarks>
+    /// This also verifies that <c>Microsoft.Data.SqlClient</c> accepts the
+    /// <c>Current Language</c> keyword at all — if it did not, every connection built by the
+    /// fixture would fail to open and this test would be the first to say so.
+    /// </remarks>
+    [Fact]
+    public async Task BothCredentials_ConnectOnAUsEnglishSession()
+    {
+        Assert.Equal(
+            SqlServerImage.SessionLanguage,
+            await ScalarAsync(database.ApplicationConnectionString, "SELECT @@LANGUAGE;"));
+        Assert.Equal(
+            SqlServerImage.SessionLanguage,
+            await ScalarAsync(database.MigratorConnectionString, "SELECT @@LANGUAGE;"));
+    }
+
     /// <summary>Error 2601 — the station code unique index, which is the case F-001 actually hits.</summary>
     [Fact]
     public async Task SaveChanges_WithDuplicateStationCode_ThrowsUniqueConstraintViolationNamingTheIndex()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
+
+        // Asserted here too, on the very connection whose exception is parsed below: it is the
+        // translator's own input that has to be English, not merely some connection somewhere.
+        Assert.Equal(
+            SqlServerImage.SessionLanguage,
+            await ScalarAsync(database.ApplicationConnectionString, "SELECT @@LANGUAGE;"));
 
         await using (var first = NewContext())
         {
@@ -114,6 +141,16 @@ public sealed class UniqueConstraintTranslationTests(SqlServerFixture fixture) :
         new(new DbContextOptionsBuilder<YcrDbContext>()
             .UseSqlServer(database.ApplicationConnectionString)
             .Options);
+
+    private static async Task<string?> ScalarAsync(string connectionString, string sql)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var connection = new SqlConnection(connectionString);
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new SqlCommand(sql, connection);
+
+        return await command.ExecuteScalarAsync(cancellationToken) as string;
+    }
 
     private async Task ExecuteAsMigratorAsync(string sql, CancellationToken cancellationToken)
     {
