@@ -31,7 +31,7 @@ public sealed record StationCode
             : NetworkErrors.InvalidStationCode;
     }
 
-    public static StationCode From(string value)
+    internal static StationCode From(string value)
     {
         ArgumentNullException.ThrowIfNull(value);
         return new StationCode(value);

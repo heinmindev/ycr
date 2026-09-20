@@ -1,15 +1,18 @@
 using ArchUnitNET.Domain;
 using ArchUnitNET.Fluent;
-using ReflectionAssembly = System.Reflection.Assembly;
 using ArchUnitNET.Loader;
+using ReflectionAssembly = System.Reflection.Assembly;
 using Xunit;
-using static ArchUnitNET.Fluent.ArchRuleDefinition;
+using ApiUsingAggregateRoot = YCR.Api.Violations.ApiUsingAggregateRoot;
+using ApiUsingNetworkDomain = YCR.Api.Violations.ApiUsingNetworkDomain;
+using ApplicationUsingInfrastructure = YCR.Application.Network.Violations.ApplicationUsingInfrastructure;
+using ApplicationUsingSqlServerProvider = YCR.Application.Violations.ApplicationUsingSqlServerProvider;
+using DomainUsingEntityFrameworkCore = YCR.Domain.Network.Violations.DomainUsingEntityFrameworkCore;
+using DomainUsingOtherModule = YCR.Domain.Network.Violations.DomainUsingOtherModule;
+using DomainUsingApplication = YCR.Domain.Network.Violations.DomainUsingApplication;
 using NetworkUsingTicketingContext = YCR.Application.Network.Violations.NetworkUsingTicketingContext;
 using NetworkUsingTicketingDomain = YCR.Application.Network.Violations.NetworkUsingTicketingDomain;
-using ReportingUsingWriteContext = YCR.Application.Reporting.Violations.ReportingUsingWriteContext;
-using ApiUsingNetworkDomain = YCR.Api.Violations.ApiUsingNetworkDomain;
-using ApiUsingAggregateRoot = YCR.Api.Violations.ApiUsingAggregateRoot;
-using ApplicationUsingSqlServerProvider = YCR.Application.Violations.ApplicationUsingSqlServerProvider;
+using ReportingUsingNetworkContext = YCR.Application.Reporting.Violations.ReportingUsingNetworkContext;
 using SourceUsingAuthenticationHandler = YCR.Api.Violations.SourceUsingAuthenticationHandler;
 
 namespace YCR.ArchitectureTests;
@@ -31,49 +34,70 @@ public sealed class ArchitectureRuleTests
             typeof(YCR.Application.Network.INetworkDbContext).Assembly,
             typeof(YCR.Infrastructure.Persistence.YcrDbContext).Assembly,
             ReflectionAssembly.Load("YCR.Api"),
+            typeof(Microsoft.EntityFrameworkCore.DbContext).Assembly,
             typeof(Microsoft.EntityFrameworkCore.SqlServerDbContextOptionsExtensions).Assembly,
             typeof(Microsoft.Data.SqlClient.SqlConnection).Assembly,
             typeof(Microsoft.AspNetCore.Authentication.AuthenticationHandler<>).Assembly)
         .Build();
 
     [Fact]
-    public void NetworkApplication_DependingOnTicketingContext_IsDetected()
+    public void ApplicationModuleAllowlist_DetectsForeignContextAndDomainFixtures()
     {
         AssertRuleProtectsFixture(
-            ArchitectureRules.NetworkApplicationMustNotDependOnTicketingContext,
+            ArchitectureRules.ApplicationModuleMayDependOnlyOnAllowedTypes("Network"),
             nameof(NetworkUsingTicketingContext));
-    }
-
-    [Fact]
-    public void NetworkApplication_DependingOnTicketingDomain_IsDetected()
-    {
         AssertRuleProtectsFixture(
-            ArchitectureRules.NetworkApplicationMustNotDependOnTicketingDomain,
+            ArchitectureRules.ApplicationModuleMayDependOnlyOnAllowedTypes("Network"),
             nameof(NetworkUsingTicketingDomain));
     }
 
     [Fact]
-    public void Reporting_DependingOnWriteContext_IsDetected()
+    public void ApplicationAndDomainRules_AreDefinedForEveryBoundedContextModule()
     {
-        AssertRuleProtectsFixture(
-            ArchitectureRules.ReportingMustNotDependOnWriteContext,
-            nameof(ReportingUsingWriteContext));
+        foreach (var module in ArchitectureRules.Modules)
+        {
+            Assert.True(
+                ArchitectureRules.ApplicationModuleMayDependOnlyOnAllowedTypes(module).HasNoViolations(SourceArchitecture),
+                module);
+            Assert.True(
+                ArchitectureRules.DomainModuleMustNotDependOnOtherDomains(module).HasNoViolations(SourceArchitecture),
+                module);
+        }
     }
 
     [Fact]
-    public void Api_DependingOnModuleDomainNamespace_IsDetected()
+    public void DomainModuleBoundary_DetectsForeignDomainFixture()
     {
         AssertRuleProtectsFixture(
-            ArchitectureRules.ApiMustNotDependOnModuleDomain,
-            nameof(ApiUsingNetworkDomain));
+            ArchitectureRules.DomainModuleMustNotDependOnOtherDomains("Network"),
+            nameof(DomainUsingOtherModule));
     }
 
     [Fact]
-    public void Api_DependingOnNonAllowlistedCommonType_IsDetected()
+    public void Reporting_AllowsOnlyReportingReadContext()
     {
         AssertRuleProtectsFixture(
-            ArchitectureRules.ApiMayUseOnlyAllowlistedCommonTypes,
-            nameof(ApiUsingAggregateRoot));
+            ArchitectureRules.ReportingMustUseOnlyReadContext,
+            nameof(ReportingUsingNetworkContext));
+    }
+
+    [Fact]
+    public void DomainLayerRules_DetectApplicationAndEfDependencies()
+    {
+        AssertRuleProtectsFixture(
+            ArchitectureRules.DomainMustNotDependOnApplicationInfrastructureApi,
+            nameof(DomainUsingApplication));
+        AssertRuleProtectsFixture(
+            ArchitectureRules.DomainMustNotDependOnEntityFrameworkCore,
+            nameof(DomainUsingEntityFrameworkCore));
+    }
+
+    [Fact]
+    public void ApplicationLayerRule_DetectsInfrastructureDependency()
+    {
+        AssertRuleProtectsFixture(
+            ArchitectureRules.ApplicationMustNotDependOnInfrastructureOrApi,
+            nameof(ApplicationUsingInfrastructure));
     }
 
     [Fact]
@@ -85,9 +109,32 @@ public sealed class ArchitectureRuleTests
     }
 
     [Fact]
-    public void Src_ContainingAuthenticationHandler_IsDetected()
+    public void Api_DependentOnModuleDomainOrNonAllowlistedCommonType_IsDetected()
     {
-        var authenticationHandler = typeof(Microsoft.AspNetCore.Authentication.AuthenticationHandler<>);
+        AssertRuleProtectsFixture(
+            ArchitectureRules.ApiMustNotDependOnModuleDomain,
+            nameof(ApiUsingNetworkDomain));
+        AssertRuleProtectsFixture(
+            ArchitectureRules.ApiMayUseOnlyAllowlistedCommonTypes,
+            nameof(ApiUsingAggregateRoot));
+    }
+
+    [Fact]
+    public void Application_ReferencesNoSqlServerAssemblies()
+    {
+        var references = typeof(YCR.Application.Network.INetworkDbContext).Assembly
+            .GetReferencedAssemblies()
+            .Select(assembly => assembly.Name)
+            .Where(name => name is not null)
+            .ToHashSet(StringComparer.Ordinal);
+
+        Assert.DoesNotContain("Microsoft.EntityFrameworkCore.SqlServer", references);
+        Assert.DoesNotContain("Microsoft.Data.SqlClient", references);
+    }
+
+    [Fact]
+    public void Src_ContainingAuthenticationHandler_IsDetectedAtAnyInheritanceDepth()
+    {
         var sourceAssemblies = new[]
         {
             typeof(YCR.Domain.Common.Result).Assembly,
@@ -98,14 +145,13 @@ public sealed class ArchitectureRuleTests
 
         var sourceViolations = sourceAssemblies
             .SelectMany(assembly => assembly.GetTypes())
-            .Where(type => type.BaseType?.IsGenericType == true)
-            .Where(type => type.BaseType!.GetGenericTypeDefinition() == authenticationHandler)
+            .Where(type => type != typeof(Microsoft.AspNetCore.Authentication.IAuthenticationHandler))
+            .Where(type => typeof(Microsoft.AspNetCore.Authentication.IAuthenticationHandler).IsAssignableFrom(type))
             .ToArray();
 
         Assert.Empty(sourceViolations);
-
-        var fixtureType = typeof(SourceUsingAuthenticationHandler);
-        Assert.Equal(authenticationHandler, fixtureType.BaseType!.GetGenericTypeDefinition());
+        Assert.True(typeof(Microsoft.AspNetCore.Authentication.IAuthenticationHandler)
+            .IsAssignableFrom(typeof(SourceUsingAuthenticationHandler)));
     }
 
     private static void AssertRuleProtectsFixture(IArchRule rule, string fixtureName)
