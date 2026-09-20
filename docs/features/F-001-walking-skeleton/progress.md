@@ -109,3 +109,35 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** blocked at the ⛔ approval stop, blocker type `approval`. P1-P10 pending. Still open with Myanma Railways: OQ26, OQ27, OQ28, tracked by T-014 as a release gate. Known and accepted: the repository has no git remote, so the CI workflow in step 13 cannot be proven green (plan risk R-6, spec E3).
 
 **State of the branch:** documentation only, no `src/`, nothing to build or test. All work committed on `feature/F-001`.
+
+---
+
+## 2026-09-20 03:35 Asia/Yangon — claude — T-003
+
+**Stage:** 3 (PLAN) — plan revised after review, plus the remote change
+**Commit:** the `docs(F-001): plan revision 2+3` commit on `feature/F-001` (SHA in the T-003 ledger Notes)
+
+**Done this session — nine review items applied (plan revision 2):**
+1. Test fixture: migrations run under the migrator credential; `YCR.Application.Tests` and `YCR.Api.Tests` connect as `ycr_app`, so every application-path test exercises least privilege. New plan §Test fixture gives the provisioning order and a per-project credential table. **One documented exception:** `SequentialGuidFragmentationTests` stays on the migrator credential because it reads `sys.dm_db_index_physical_stats`, which needs `VIEW DATABASE STATE`; granting that to `ycr_app` would weaken the control E7 exists to enforce.
+2. Migration identifiers changed to EF's `yyyyMMddHHmmss_<Module>_<Change>`. `docs/20` §6's date-only `YYYYMMDD_` form cannot be produced by EF and collides on any day with two migrations — flagged as a stage-8 correction.
+3. S16d and S16e replaced by one rule: `YCR.Api` must not depend on `YCR.Domain.<Module>`. It subsumes "endpoint returns an EF entity" (an endpoint that cannot reference `Station` cannot return it). Recorded that it only partly covers AGENTS.md rule 3, which stays a stage-6 concern.
+4. Architecture tests and their `Violations` fixtures moved to step 6, right after Infrastructure persistence.
+5. P1 changed to `dotnet ef migrations bundle` under the migrator credential; `src/YCR.DbMigrator` removed from the inventory (twelve projects now); no ADR-0022 unless **V6** fails.
+6. P4 became **V5** (NetArchTest maintenance for .NET 10, `ArchUnitNET` fallback), resolved in step 1. P3 pinned to **xUnit v3** (`xunit.v3`) in `Directory.Packages.props`.
+7. S19 test method specified: a digest-pinned **SQL Server 2019** image in a trunk-only category, asserting the failure is our `THROW` naming the version and not an incidental ledger syntax error. Cost and the untestable edition branch both stated.
+8. **V3** added: ledger `CREATE TABLE` inside EF's migration transaction, with a `suppressTransaction: true` fallback that keeps the guard first.
+9. `DeactivateStationHandler` specified as load → `Station.Deactivate()` → explicit transaction → conditional `UPDATE ... WHERE IsActive = 1` → zero rows affected means a concurrent writer won, mapped to the same 422. Exactly one 204, one 422, one audit event.
+
+**Plan revision 3 (same day, hein):** a git remote `origin` (`https://github.com/heinmindev/ycr.git`) now exists. Risk R-9 struck; step 13 must now prove the CI workflow **green on `origin` for `feature/F-001`** and record the run URL here. `TASKS.md` §Protocol gained two lines: push `main` after each ledger commit, never push `claim/*` refs.
+
+**Two conflicts surfaced by the review, raised rather than silently resolved:**
+- **P11.** "`YCR.Api` must not depend on `YCR.Domain`" cannot hold literally: `ResultExtensions` must reference `Result`/`Error`/`ErrorType`, which ADR-0004 §Errors places in `YCR.Domain.Common`. Written as "no dependency on any `YCR.Domain.<Module>` namespace, `YCR.Domain.Common` permitted", with **no** composition-root exception because `Program.cs` needs none — tighter than asked in one respect, looser in another, so it needs an explicit yes.
+- **P12.** The new concurrency test has no scenario in the Approved spec (§4 ends at S26), and workflow 02 says a stage finding a spec gap returns to stage 2 rather than patching around it. Proposed one-sentence **S27** for a stage-2 amendment; the test is listed as "S27 (proposed)" until then.
+
+**Evidence:** documentation only; `src/` still does not exist, so no build or test command was available to run. Files changed: `docs/features/F-001-walking-skeleton/plan.md`, `docs/features/F-001-walking-skeleton/progress.md`, and `TASKS.md` in the coordination checkout.
+
+**Next step (exact):** a human answers **P11** and **P12** and approves the plan at the ⛔ stop. P12 also needs a stage-2 amendment to the Approved spec, which stage 3 may not apply itself. Then set T-003 to `done`; T-004 becomes claimable, and its owner must not own T-005, T-006 or T-007 (`TASKS.md` §Protocol item 11).
+
+**Blockers / open questions:** blocked at the ⛔ approval stop, blocker type `approval`. P11 and P12 pending. Still open with Myanma Railways: OQ26, OQ27, OQ28, tracked by T-014. Spec E3's "no remote yet" wording is now stale and is corrected at stage 8.
+
+**State of the branch:** documentation only, no `src/`, nothing to build or test. All work committed on `feature/F-001`. Not yet pushed to `origin`.
