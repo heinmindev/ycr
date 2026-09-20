@@ -23,7 +23,7 @@ Agents: read this whole file, including the Protocol, before picking a task.
 | T-009 | F-001 stage 9, human approval + merge `feature/F-001` → `main` | todo | hein | T-008 | main | Merged; `docs/21` fully checked | same as T-002 | 2026-09-19 21:00 | Human only; closes T-004 |
 | T-010 | Decide: create glossary (`docs/glossary.md`) | todo | hein | — | — | Decision recorded in Notes | — | 2026-09-19 21:00 | Human decision |
 | T-011 | Decide: accept ADR-0001 and ADR-0002 | todo | hein | — | — | ADR status updated | — | 2026-09-19 21:00 | Human decision |
-| T-012 | Draft business-questions pack for Myanma Railways from docs/19 (why each matters, what it blocks, suggested options) | review | codex | T-001 | task/T-012-mr-questions | `docs/business/mr-questions-pack.md` | `docs/progress/T-012.md` | 2026-09-20 08:45 | Must not propose answers as decisions; output commit e5c72b3; progress checkpoint 7944a6d |
+| T-012 | Draft business-questions pack for Myanma Railways from docs/19 (why each matters, what it blocks, suggested options) | doing | codex | T-001 | task/T-012-mr-questions | `docs/business/mr-questions-pack.md` | `docs/progress/T-012.md` | 2026-09-20 09:00 | Claude review changes in progress; OQ22 removed; OQ26–28 pending feature/F-001 docs/19 merge |
 | T-013 | Physical QR print/scan test using the `ticket-qr-v1.json` valid vector (ADR-0014 VERIFY) | blocked | — | — | task/T-013-qr-physical | `docs/reviews/qr-physical-test.md`: printer, paper, size, scanner, results | `docs/progress/T-013.md` | 2026-09-19 21:00 | hardware: thermal printer + inspector scanner. Needs no app code |
 
 ## Done
