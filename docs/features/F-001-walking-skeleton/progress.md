@@ -369,6 +369,45 @@ Then steps 3–13 in the plan's §Steps table, in order. Steps 1–6 need no Doc
 
 ---
 
+## 2026-09-20 18:59 Asia/Yangon — codex — T-004
+
+**Stage:** 4 (IMPLEMENT). Step-5 stop review remediated before step 7.
+**Commit:** `9a09b36a18394e81f162bca0637d280d3c575a1b` (`test(F-001): harden architecture rules`), pushed to `origin/feature/F-001`.
+
+**Claude review and fixes:**
+- Replaced pair-specific application/domain boundary checks with module-parameterized rules over the nine `docs/05` modules, including the allowed application dependency shape and per-module negative fixtures.
+- Added domain/application layer rules, the Reporting read-context-only rule (including the `INetworkDbContext` fixture), and the assembly-level SQL Server provider reference check.
+- Added the S17 scoped-context identity test; it proves the module interface and concrete context are the same within one scope and differ across scopes.
+- Replaced the direct-base authentication check with an `IAuthenticationHandler` assignability scan across all source assemblies and removed the tautological ArchUnit rule.
+- Made `StationCode.From` internal and granted `YCR.Infrastructure` friend access through `InternalsVisibleTo`.
+
+**Evidence:** `dotnet build D:\MR\ycr-F-001\YCR.sln` succeeded with 0 warnings and 0 errors. `dotnet test D:\MR\ycr-F-001\YCR.sln --no-build` passed with total 43, failed 0, succeeded 43, skipped 0. Focused architecture tests passed 9; Infrastructure tests passed 3. Files changed: architecture rules/tests and fixtures, `StationCode` visibility, Domain assembly friend declaration, and the Infrastructure module-scope test.
+
+**Next step (exact):** plan step 7 — add the digest-pinned Testcontainers SQL Server fixture, `docker-compose.yml`, `init-principals.sql`, migration bundle, and run the migrate-and-query smoke test plus S17 under the real container.
+
+**Blockers / open questions:** none technical. OQ26, OQ27 and OQ28 remain open with Myanma Railways and are confined by the approved provisional-rules waiver.
+
+**State of the branch:** builds and tests green; review commit pushed; this progress entry is the only uncommitted change.
+
+---
+
+## 2026-09-20 19:03 Asia/Yangon — codex — T-004
+
+**Stage:** 4 (IMPLEMENT). Step 7 started; blocked before implementation by missing container prerequisites.
+**Commit:** pending documentation checkpoint.
+
+**Blocker:** Step 7 requires the approved digest-pinned SQL Server 2022 Testcontainers fixture and V6 migration-bundle verification. This environment has no `docker` executable or Docker service, and `Testcontainers.MsSql` is not available in the local NuGet cache. The plan does not specify an image digest, so using a floating tag or replacing the real container with another database would violate E4, ADR-0017, and the explicit no-workaround instruction.
+
+**Evidence:** `Get-Command docker` and `Get-Service com.docker.service` returned no result; `C:\Users\ASUS ZENBOOK\.nuget\packages` contains no `testcontainers*` package. No step-7 code or package was added.
+
+**Next step (exact):** provide a working Docker runtime and the approved SQL Server 2022 image digest (or make the pinned package/image available), then implement `YCR.TestSupport` and V6 exactly as plan step 7 specifies and remove the Infrastructure exit-code-8 waiver in that checkpoint.
+
+**Blockers / open questions:** ENGINEERING/ENVIRONMENT BLOCKER — Docker/Testcontainers prerequisite unavailable. No business OQ added.
+
+**State of the branch:** prior review commit remains pushed; only this blocker entry is uncommitted.
+
+---
+
 ## 2026-09-20 13:18 Asia/Yangon — codex — T-004
 
 **Stage:** 4 (IMPLEMENT). Step 5 of 13 complete.
