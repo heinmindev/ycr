@@ -528,3 +528,84 @@ The fixture applies schema **through the bundle**, not through in-process `Migra
 **Blockers / open questions:** none technical. OQ26, OQ27 and OQ28 remain open with Myanma Railways and are confined by the approved provisional-rules waiver; T-014 is the release gate.
 
 **State of the branch:** build and tests green; implementation committed and pushed; this progress entry is the only uncommitted change.
+
+---
+
+## 2026-09-20 20:05 Asia/Yangon — claude — T-004
+
+**Stage:** 4 (IMPLEMENT). Step 8 of 13 complete. **V1–V4 all PASS.**
+**Commit:** `aa0ae50` (`feat(F-001): add append-only audit ledger`), pushed to `origin/feature/F-001`.
+**Implemented by:** claude.
+
+Hein's instruction for this session listed the E6 ledger VERIFY and the audit ledger alongside the step-7 items, so step 8 was carried out in the same session and is reported here. Work stops after this step.
+
+### Verifications — all run against the pinned image *before* any migration was written
+
+The verification ran as a throwaway experiment on a container started from the E4 digest, so the VERIFY results are not a by-product of code that assumed them.
+
+| # | VERIFY | Result | Evidence |
+|---|---|---|---|
+| **V1** | The pinned image's edition supports ledger tables | **PASS** | `CREATE TABLE ... WITH (LEDGER = ON (APPEND_ONLY = ON))` succeeded on **Developer Edition (64-bit)**, `ProductMajorVersion` 16, `EngineEdition` 3. `sys.tables.ledger_type_desc` = **`APPEND_ONLY_LEDGER_TABLE`** |
+| **V2** | `CHECK` constraints and nonclustered indexes are permitted on an append-only ledger table | **PASS** | All three `ISJSON` constraints were created inline with the table and all are listed in `sys.check_constraints`; both nonclustered indexes were created and are listed in `sys.indexes`. A malformed `AfterJson` insert was rejected by `CK_AuditEvents_AfterJson` |
+| **V3** | Ledger `CREATE TABLE` runs inside EF's migration transaction | **PASS** | Ledger DDL plus a nonclustered index committed inside an explicit `BEGIN TRANSACTION`/`COMMIT`. A second probe created a ledger table and rolled back: `OBJECT_ID` was `NULL` afterwards, so the DDL is genuinely transactional. **No `suppressTransaction: true` is needed** and the plan's V3 fallback is not used |
+| **V4** | EF Core can `INSERT` into a ledger table whose generated columns it does not map | **PASS** | `AuditWriter_WithEfCore_InsertsIntoTheLedgerInTheCallersUnitOfWork` writes a station and its audit row in one `SaveChangesAsync` and reads every column back. The generated columns are `is_hidden = 1`, so EF never sees them. **Risk R-2's fallback is not needed** |
+
+**AGENTS.md rule 8 was not engaged.** No normal table was substituted for anything, and no VERIFY failed.
+
+Also observed and worth recording: the engine rejects both `UPDATE` and `DELETE` on the table with **Msg 37359**, and reports both as "Updates are not allowed for the append only Ledger table" — the message does not distinguish the two. Tests assert the rejection, not the wording of the delete case.
+
+### What was implemented
+
+| File | What |
+|---|---|
+| `src/YCR.Infrastructure/Persistence/Migrations/20260920130536_Audit_CreateAuditEventsLedger.cs` | Raw-SQL ledger DDL: guard, schema, table with ADR-0021's fourteen columns and three `ISJSON` constraints, two nonclustered indexes. `Down()` throws |
+| `src/YCR.Infrastructure/Audit/AuditEvent.cs` | The row shape. A persistence record, not a domain type |
+| `src/YCR.Infrastructure/Persistence/Configurations/Audit/AuditEventConfiguration.cs` | Maps it with `ExcludeFromMigrations()` |
+| `src/YCR.Infrastructure/Audit/AuditWriter.cs` | `IAuditWriter` implementation |
+| `src/YCR.Infrastructure/Persistence/YcrDbContext.cs` | `internal DbSet<AuditEvent>` |
+| `src/YCR.Infrastructure/DependencyInjection.cs` | Registers `IAuditWriter` scoped and `TimeProvider.System` |
+| `tests/YCR.Infrastructure.Tests/Persistence/LedgerMigrationTests.cs` | S18 plus V1, V2 and V4 |
+| `tests/YCR.Infrastructure.Tests/Persistence/MigrationBundleTests.cs` | Smoke test renamed to the plan's `Migrate_AgainstPinnedImage_CreatesStationsAndLedgerTable` and extended to assert the ledger table exists |
+
+### The guard, and what it does and does not prove
+
+The guard is the migration's first statement, so a rejected server leaves nothing half-created — and V3 shows a failure rolls back the whole migration anyway.
+
+It has two branches:
+
+1. **Version.** `ProductMajorVersion >= 16`, else `THROW 50017` naming the detected version *and* edition. Ledger tables do not exist before SQL Server 2022. Plan step 12 proves this branch fires against a pinned 2019 image (S19).
+2. **Ledger surface.** `OBJECT_ID('sys.database_ledger_transactions')` and the `ledger_type` column on `sys.tables` must both exist, else the same `THROW`.
+
+**Deliberately not an edition allowlist.** Writing `EngineEdition IN (2,3,4,...)` would have meant asserting a list of editions I had not verified, on a server where every reachable edition passes. Probing the engine's actual ledger surface is a fact this migration can check for itself. What it proves is that the engine exposes ledger; what it cannot prove is that a licence permits ledger's use. The plan already states this limit — "the **edition** branch is not testable this way... it is covered by V1 in step 8 and by code review at stage 6" — and V1 has now covered it for the pinned image. **This is the one place in step 8 worth a reviewer's deliberate attention.**
+
+### Design notes worth a reviewer's attention
+
+- **`AuditEvent` lives in Infrastructure, not Domain.** The plan's `src/` inventory lists an `AuditEventConfiguration` and an `AuditWriter` but no domain or application `AuditEvent` type, and the Application layer's whole contract with the audit trail is `IAuditWriter`. Putting the fourteen-column row shape in Infrastructure keeps the ledger's shape out of every layer that has no business knowing it. `YcrDbContext.AuditEvents` is `internal` for the same reason: no module context interface exposes it, so the only route into the table from above Infrastructure is `IAuditWriter`, which derives the actor fields server-side.
+- **`ExcludeFromMigrations()` makes ADR-0017 item 6 mechanical.** EF emits no DDL for the table at all, so no future model change can produce a migration that converts or drops the ledger. The scaffolded migration came out empty, which confirmed it.
+- **`IAuditWriter.Record` takes `object subject`, and step 8 had to decide what that means.** The mapping implemented is: `SubjectType` is the runtime type name, or the `Type`'s name when a caller passes a `Type` for an event with no entity to hand; `SubjectId` is `Entity.Id` when the subject is an `Entity`, and null otherwise — which ADR-0021 explicitly allows. This is an engineering mapping, not a business rule, and it is tested both ways. **Step 10's handlers are the first real callers**; if hein would rather the contract named `subjectType` and `subjectId` explicitly instead of inferring them, that is a small change to make at step 10 and a cheaper one than after more callers exist.
+- **`ActorRole` array shape is the writer's job.** ADR-0021's own §Consequences says `ISJSON` proves only that the text is JSON, not that it is an array, and puts the array obligation on `IAuditWriter` with a test. The writer serialises `ICurrentUser.Roles` as a JSON array and the V4 test asserts the exact text `["Admin","StationManager"]`.
+- **Actor fields cannot be spoofed by construction.** `Record` has no parameter through which a caller could supply `ActorUserId`, `ActorRole`, `ClientIp` or `CorrelationId`; all four come from `ICurrentUser` (ADR-0017 item 2). S20 at step 10 tests this end to end from a request that tries.
+- **`TimeProvider.System` is now registered** (`TryAddSingleton`) because ADR-0021 stamps `OccurredAtUtc` from `TimeProvider` (ADR-0018), and an append-only row's timestamp needs to be controllable in a test.
+- **`Down()` is tested, not just written.** `DownMigration_ThrowsInsteadOfDroppingTheLedgerTable` generates the actual down script through `IMigrator` and asserts it contains the `THROW` and does not contain a `DROP TABLE` for the ledger. A comment saying "this throws" would not have caught a later edit; the generated script does.
+
+### Evidence
+
+- `dotnet build YCR.sln` — **0 warnings, 0 errors**.
+- `dotnet test YCR.sln --no-build` — **total 57, failed 0, succeeded 57, skipped 0**. Up from 48; the nine new tests are eight in `LedgerMigrationTests` and one extra assertion path, with `MigrationBundleTests` extended rather than added to.
+- `YCR.Infrastructure.Tests` alone: **17 passed, 0 failed, 0 skipped** in 39s, all against the real pinned container.
+- The scaffolded `Audit_CreateAuditEventsLedger` migration was generated **empty** before the raw SQL was written, which is the direct evidence that `ExcludeFromMigrations()` holds.
+- `YcrDbContextModelSnapshot.cs` carries `AuditEvent` with `ToTable("AuditEvents", "audit", t => t.ExcludeFromMigrations())`.
+
+### Not done, and deliberately so
+
+- **S22 (`DatabasePrivilegeTests`) and the `ycr_app` credential** belong to plan step 9. The `Security_AppDatabaseRole` migration does not exist yet, so every container-backed test still runs as the migrator. `init-principals.sql` already creates the `ycr_app` login and user awaiting that role.
+- **S19 (`LedgerGuardTests`, the pinned SQL Server 2019 image)** belongs to plan step 12 as a trunk-only category. The version branch of the guard is therefore written and reviewed but not yet executed against an unsupported server.
+- **`AuditWriter` has no caller yet.** Step 10's handlers are the first.
+
+**Next step (exact):** plan step 9 — least privilege: the `Security_AppDatabaseRole` migration granting the `ycr_app` role `SELECT, INSERT, UPDATE` on `network.Stations` and `INSERT, SELECT` on `audit.AuditEvents` and nothing else; two connection strings from the fixture; `ALTER ROLE ycr_app ADD MEMBER` after migrations; no startup migration. Ends green with S22, and moves S17 and the Application/API suites onto the `ycr_app` credential.
+
+**Blockers / open questions:** none technical. OQ26, OQ27 and OQ28 remain open with Myanma Railways and are confined by the approved provisional-rules waiver; T-014 is the release gate.
+
+**State of the branch:** build and tests green; implementation committed and pushed; this progress entry is the only uncommitted change.
+
+**Review split so far:** steps 1, 7 and 8 implemented by claude; steps 2–6 and the step-5 review fixes implemented by Codex. Per `TASKS.md` §Protocol item 11, T-005, T-006 and T-007 over claude's steps must be done by an agent other than claude, and over Codex's steps by an agent other than Codex.
