@@ -4,7 +4,7 @@ Spec: `spec.md` — **Approved (hein, 2026-09-20)**, subject to the waiver in it
 Stage: 3 (PLAN), `docs/workflows/02-feature-development.md`. Task T-003.
 Binding inputs: ADR-0004, ADR-0005, ADR-0006, ADR-0012, ADR-0016, ADR-0017, ADR-0018, ADR-0019, ADR-0020, ADR-0021; `docs/20-coding-conventions.md`; `docs/21-definition-of-done.md`.
 
-**Revision 3 — 2026-09-20.** A git remote now exists; see §Review history. **Revision 2 — 2026-09-20, after plan review (reviewer: Claude).** Nine review items applied; see §Review history. Decisions P2, P3, P5, P6, P7, P8, P9 and P10 are accepted and now read as settled; P1 and P4 changed shape. **Two new items, P11 and P12, need an answer** — both are conflicts the review items surfaced rather than preferences, and §Decisions collects them.
+**Status: Approved (hein, 2026-09-20).** Revision 4. All twelve decisions P1-P12 are resolved; see §Decisions and §Review history. T-004 may proceed.
 
 ---
 
@@ -86,7 +86,7 @@ Twelve projects: five `src/` exactly as `docs/06` §Projects lists them, six `te
 | `src/YCR.Application/Common/Pagination/PagedResult.cs` | New | `docs/20` §4 pagination envelope |
 | `src/YCR.Application/Network/INetworkDbContext.cs` | New | ADR-0012 §Decision item 2. Path confirmed by P10; `docs/20` §1 gains the row at stage 8 |
 | `src/YCR.Application/Network/CreateStation/CreateStationCommand.cs`, `CreateStationHandler.cs` | New | ADR-0004 handler per use case |
-| `src/YCR.Application/Network/DeactivateStation/DeactivateStationCommand.cs`, `DeactivateStationHandler.cs` | New | ″. Conditional-update concurrency guard, see §Domain changes |
+| `src/YCR.Application/Network/DeactivateStation/DeactivateStationCommand.cs`, `DeactivateStationHandler.cs` | New | ″. Maps `DbUpdateConcurrencyException` to 422, see §Domain changes |
 | `src/YCR.Application/Network/GetStation/GetStationQuery.cs`, `GetStationHandler.cs`, `StationDto.cs` | New | ADR-0004: queries project straight to DTOs with `AsNoTracking()` (P5) |
 | `src/YCR.Application/Network/ListStations/ListStationsQuery.cs`, `ListStationsHandler.cs` | New | ″ |
 | `src/YCR.Application/DependencyInjection.cs` | New | Handler registration by assembly scanning (ADR-0004 §Consequences) |
@@ -141,17 +141,22 @@ One aggregate, two value objects, one domain event, one error class — all in `
 
 `AggregateRoot` holds a domain-event list and `Raise(...)`. Nothing consumes events yet.
 
-### Deactivation concurrency (review item 9)
+### Deactivation concurrency (review item 9, revised at approval)
 
-Spec §7 deliberately gives `Station` no `rowversion`, so the handler needs a different guard against two concurrent deactivations both succeeding and writing two audit events. `DeactivateStationHandler`:
+Spec §7 deliberately gives `Station` no `rowversion`, so two concurrent deactivations could otherwise both succeed and write two audit events. **`IsActive` is configured as an EF concurrency token** (`IsConcurrencyToken()` in `StationConfiguration`). `DeactivateStationHandler` then stays completely ordinary:
 
 1. Loads the station. Not found → `Network.StationNotFound` (404).
-2. Calls `Station.Deactivate()`. Already inactive → `Network.StationAlreadyInactive` (422). **The domain method stays the authority for the business rule**, so AGENTS.md rule 3 holds and the domain tests keep their meaning.
-3. Opens an explicit transaction — ADR-0004 permits one where a handler needs several saves — and persists with a **conditional update**: `UPDATE network.Stations SET IsActive = 0 WHERE Id = @id AND IsActive = 1`, via `ExecuteUpdateAsync`.
-4. **Zero rows affected means a concurrent request won the race.** Roll back and return the same `Network.StationAlreadyInactive` (422) as step 2, so the caller cannot tell the two apart — which is correct, because the outcome is the same.
-5. One row affected → write the audit event and commit, in that one transaction.
+2. Calls `Station.Deactivate()`. Already inactive → `Network.StationAlreadyInactive` (422). The domain method is the authority for the business rule, so AGENTS.md rule 3 holds and the domain tests keep their meaning.
+3. Writes the audit event and calls `SaveChangesAsync` **once**. EF issues `UPDATE network.Stations SET IsActive = 0 WHERE Id = @id AND IsActive = @original`, and the aggregate change and the audit row commit in that one save.
+4. A concurrent winner makes the `WHERE` match zero rows, EF throws `DbUpdateConcurrencyException`, and the handler maps it to the same `Network.StationAlreadyInactive` (422) as step 2. The caller cannot tell the two apart, which is correct — the outcome is the same.
 
-The result is exactly one `204`, one `422`, and **one** audit event per pair of concurrent deactivations. The conditional update is purely the race guard; the domain rule is unchanged. This is the one place in F-001 where the aggregate is not saved through the change tracker, and the reason belongs in a code comment so the next slice does not copy the pattern without the reason.
+**Why the audit event cannot leak on the losing request:** the aggregate update and the audit insert are in one `SaveChangesAsync`, so EF's implicit transaction rolls both back together. Exactly one `204`, one `422`, and one audit event per concurrent pair, with no explicit transaction management to get wrong.
+
+This replaces the revision-2 design of an explicit transaction plus a hand-written `ExecuteUpdateAsync`. It is strictly better: the handler now matches ADR-0004's default ("Transactions come from one `SaveChangesAsync` per handler") instead of needing its exception, nothing bypasses the change tracker, and there is no pattern for a later slice to copy incorrectly.
+
+One consequence worth recording: the token applies to **every** update of a `Station`, not just deactivation. F-001 has no other update, and when rename or reactivation arrives the same check will guard them too — which is wanted, not merely tolerated. It does become a fact the `PATCH /stations` feature must know about.
+
+No column is added, so spec §7's no-`rowversion` decision is untouched.
 
 ---
 
@@ -280,7 +285,7 @@ Test names follow `docs/20` §2's `Method_State_ExpectedResult`. Every spec scen
 | `Handle_WithParallelDuplicateRequests_PersistsExactlyOneStation` | S13 |
 | `Handle_WithMyanmarName_RoundTripsExactly` | S14 |
 | `Handle_WhenStationInactive_ReturnsBusinessRuleError` | S7 |
-| `Handle_WithParallelDeactivations_ReturnsOneSuccessOneConflictAndWritesOneAuditEvent` | **S27 (proposed — see P12)** |
+| `Handle_WithParallelDeactivations_ReturnsOneSuccessOneConflictAndWritesOneAuditEvent` | S27 |
 | `Handle_WithUnknownId_ReturnsNotFound` | S8 |
 | `Handle_WithThreeStations_ReturnsPagedEnvelope` | S3 |
 | `Handle_WhenRequestSuppliesActorFields_IgnoresThem` | S20 |
@@ -324,7 +329,7 @@ Each rule runs twice: once over the `src/` assemblies asserting **zero** violati
 | `NetworkApplication_DependingOnTicketingContext_IsDetected` | S16a |
 | `NetworkApplication_DependingOnTicketingDomain_IsDetected` | S16b |
 | `Reporting_DependingOnWriteContext_IsDetected` | S16c |
-| `Api_DependingOnModuleDomainNamespace_IsDetected` | **S16d (replaced — see below and P11)** |
+| `Api_DependingOnModuleDomainNamespace_IsDetected` · `Api_DependingOnNonAllowlistedCommonType_IsDetected` | **S16d (replaced — see below and P11)** |
 | `Src_ContainingAuthenticationHandler_IsDetected` | S21a |
 
 **Review item 3 applied.** The old S16d ("`YCR.Api` contains domain logic") and S16e ("an endpoint returns an EF entity type") are replaced by one stronger rule: **`YCR.Api` must not depend on `YCR.Domain`**, except the composition root.
@@ -333,7 +338,13 @@ Why this is an improvement: "contains domain logic" is not mechanically decidabl
 
 What it does **not** cover, stated so nobody assumes otherwise: AGENTS.md rule 3, "domain logic must not live in controllers", is only partly enforced. Business rules written inline over DTOs would still compile. That remains a stage-6 code-review concern, and the `docs/21` §Code checklist item should be read that way.
 
-**P11 — the exception this rule needs.** `ResultExtensions` maps `Result`/`Error`/`ErrorType` to `IResult`, and ADR-0004 §Errors puts those types in `YCR.Domain.Common`. So a blanket "`YCR.Api` must not depend on `YCR.Domain`" fails on the one file that implements ADR-0004's error contract. The rule is therefore written as: **`YCR.Api` must not depend on any `YCR.Domain.<Module>` namespace; `YCR.Domain.Common` is permitted.** The composition-root exception the review asked for turns out not to be needed — `Program.cs` wires `AddApplication()` and `AddInfrastructure()` and touches no domain type — so it is not granted, keeping the rule tighter than requested.
+**P11 — resolved by hein, 2026-09-20: a type allowlist, not a namespace allowance.** `ResultExtensions` maps `Result`/`Error`/`ErrorType` to `IResult`, and ADR-0004 §Errors puts those types in `YCR.Domain.Common`, so a blanket "`YCR.Api` must not depend on `YCR.Domain`" fails on the one file implementing ADR-0004's error contract. The approved rule is:
+
+- `YCR.Api` may depend on **no** `YCR.Domain.<Module>` type at all.
+- From `YCR.Domain.Common` it may depend on exactly four types: **`Result`, `Result<T>`, `Error`, `ErrorType`**. Anything else in `YCR.Domain.Common` — `AggregateRoot`, `Entity`, `IDomainEvent` — is forbidden.
+- No composition-root exception is granted: `Program.cs` wires `AddApplication()` and `AddInfrastructure()` and touches no domain type.
+
+The architecture test enforces the **allowlist**, not merely the namespace, so adding a fifth shared type later is a deliberate act that fails the build until the allowlist is changed. `Violations/ApiUsingAggregateRoot.cs` plants a type referencing `AggregateRoot` to prove the allowlist half has teeth, alongside the fixture that plants a `YCR.Domain.Network` reference.
 
 ### Whole-suite
 
@@ -406,7 +417,7 @@ Each step ends with `dotnet test YCR.sln` green. No step leaves the branch red. 
 | 7 | `YCR.TestSupport` container fixture with the digest-pinned image, `docker-compose.yml`, `init-principals.sql`, migration bundle. **Resolve V6** | A migrate-and-query smoke test against the real container; `ModuleInterfaces_WithinOneScope_...` (S17) |
 | 8 | **V1–V4 first, then** the audit ledger: `AuditEvent` mapping with `ExcludeFromMigrations()`, `AuditWriter`, migration `Audit_CreateAuditEventsLedger` with guard, constraints and indexes | S18. **If V1 or V2 fails, stop and return to stage 2** |
 | 9 | Least-privilege: migration `Security_AppDatabaseRole`, two connection strings, fixture role membership, no startup migration | S22; the fixture now hands Application/API tests the `ycr_app` credential |
-| 10 | Application handlers: `CreateStation`, `DeactivateStation` (conditional update), `GetStation`, `ListStations`, DI scanning | All `YCR.Application.Tests` rows (S1, S3, S5–S8, S13, S14, S20, S27) |
+| 10 | Application handlers: `CreateStation`, `DeactivateStation` (`IsActive` concurrency token), `GetStation`, `ListStations`, DI scanning | All `YCR.Application.Tests` rows (S1, S3, S5–S8, S13, S14, S20, S27) |
 | 11 | API: `Program`, ProblemDetails, `ResultExtensions`, `ValidationFilter`, permission policy provider, scheme guard, contracts, `StationEndpoints`, health | All `YCR.Api.Tests` rows (S2, S4, S9–S12, S21b, S24, S25) |
 | 12 | Trunk-only categories: ADR-0006 fragmentation control (E5) and the SQL Server 2019 guard test | S23, S19 |
 | 13 | `.github/workflows/ci.yml`: restore, build, test against the pinned images, gitleaks. Push `feature/F-001` to `origin` and **prove the run green**, recording the run URL in `progress.md` | S26, evidenced by a green GitHub Actions run URL on `origin` for `feature/F-001` |
@@ -434,16 +445,20 @@ Documentation updates (`docs/07`, `docs/08`, `docs/20` §3, **`docs/20` §6's mi
 | **P9** | Role in a migration, login and user in provisioning | **Accepted** |
 | **P10** | `I<Module>DbContext` path | **Accepted.** `src/YCR.Application/<Module>/I<Module>DbContext.cs`; `docs/20` §1 gains the row at stage 8 |
 
-### Still open — both need an answer at the ⛔
+### Resolved at approval, 2026-09-20
 
-| # | Decision | Recommendation |
+| # | Decision | Outcome |
 |---|---|---|
-| **P11** | Review item 3 asks that `YCR.Api` not depend on `YCR.Domain` except in `Program`/composition. `ResultExtensions` must reference `Result`, `Error` and `ErrorType`, which ADR-0004 §Errors places in `YCR.Domain.Common`, so the rule as written fails on the one file implementing ADR-0004's error contract. | Write the rule as **`YCR.Api` must not depend on any `YCR.Domain.<Module>` namespace, with `YCR.Domain.Common` permitted**, and grant no composition-root exception, since `Program.cs` needs none. This is tighter than requested in one respect and looser in another, so it should be an explicit yes rather than an assumption. The alternative — moving `Result`/`Error` out of `YCR.Domain.Common` — would contradict ADR-0004 and need a superseding ADR. |
-| **P12** | Review item 9's concurrency test has no scenario in the spec. Spec §4 ends at S26, and `docs/workflows/02-feature-development.md` says a later stage finding a spec gap goes **back to stage 2** rather than patching around it. | Approve a stage-2 amendment adding **S27** to spec §4 §Concurrency and data integrity: *"Two parallel deactivations of the same active station → exactly one `204`, one `422 Network.StationAlreadyInactive`, and exactly one `Network.StationDeactivated` audit event."* It is one sentence, and the alternative — a planned test with no scenario behind it — is exactly the drift the workflow rule exists to prevent. |
+| **P11** | `YCR.Api`'s permitted dependency on `YCR.Domain` | **Resolved as a type allowlist.** No `YCR.Domain.<Module>` type at all; from `YCR.Domain.Common` exactly `Result`, `Result<T>`, `Error`, `ErrorType`. The architecture test enforces the allowlist itself, so a fifth shared type fails the build until the allowlist is deliberately changed. No composition-root exception |
+| **P12** | The concurrency scenario missing from the Approved spec | **Approved as a stage-2 amendment (hein, 2026-09-20).** Spec §4 now carries **S27**, and spec.md records it as Amendment 1 |
+
+**No open decisions remain.** The plan is approved and T-004 may proceed.
 
 ---
 
 ## Review history
+
+**Revision 4 — 2026-09-20, hein: approved.** P11 resolved as a four-type allowlist (`Result`, `Result<T>`, `Error`, `ErrorType`) that the architecture test enforces by type, not by namespace. P12 approved as a stage-2 amendment; spec §4 now carries S27 and spec.md records it as Amendment 1. Review item 9's mechanism replaced: `IsActive` becomes an EF concurrency token, so the explicit transaction and the hand-written `ExecuteUpdateAsync` are gone and the handler is one ordinary `SaveChangesAsync` — which is ADR-0004's default rather than its exception. The item-1 fragmentation-test credential exception and the Protocol-bullets approach were both accepted. `feature/F-001` is pushed after every checkpoint from now on.
 
 **Revision 3 — 2026-09-20, hein.** A git remote (`origin`, `https://github.com/heinmindev/ycr.git`) now exists. Risk R-9 is struck: step 13 no longer merely delivers `ci.yml`, it must **prove the workflow green on `origin` for `feature/F-001`** and record the run URL in `progress.md`, which turns the old risk into an exit criterion. Spec E3's "no remote yet" wording is now stale and is corrected at stage 8. `TASKS.md` §Protocol gains two lines: push `main` after each ledger commit, and never push `claim/*` refs.
 
@@ -463,4 +478,4 @@ Documentation updates (`docs/07`, `docs/08`, `docs/20` §3, **`docs/20` §6's mi
 
 ## Stop point
 
-⛔ **Plan needs human approval before implementation** (`docs/workflows/02-feature-development.md` stage 3). T-004 must not start until **P11** and **P12** are answered. P12 additionally requires a stage-2 amendment to the Approved spec, which is a human decision, not something stage 3 may apply on its own.
+**Passed 2026-09-20.** The plan is **Approved (hein, 2026-09-20)** and the stage-2 amendment adding S27 was approved with it. T-004 may proceed.

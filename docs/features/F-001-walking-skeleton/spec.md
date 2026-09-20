@@ -2,6 +2,8 @@
 
 Status: **Approved (hein, 2026-09-20)**, subject to the explicit waiver recorded in §Blocked behaviour. The station field rules and the station permissions are **provisional, skeleton-only ASSUMPTIONs** and must be replaced before production (T-014).
 
+**Amendment 1 — 2026-09-20 (hein), raised by the T-003 plan review.** Scenario **S27** added to §4 (concurrent deactivation), and §7 records that `IsActive` is an EF concurrency token. No business rule changed; both are concurrency mechanics the plan review surfaced.
+
 Module(s): `Network` (reference slice); cross-cutting `Audit`, `Identity` (authentication host only), plus solution-wide infrastructure
 Related: FR-001, UC "Manage stations" (`docs/03-use-cases.md` §16), ADR-0004, ADR-0005, ADR-0006, ADR-0012, ADR-0016, ADR-0017, ADR-0018, ADR-0019, ADR-0020, ADR-0021, `docs/20-coding-conventions.md` §3
 
@@ -119,6 +121,7 @@ Give every later feature an executable pattern to copy: a compiling, tested `YCR
 
 - **S13.** Two parallel POSTs with the same code → exactly one `201`; the other returns `409 Network.StationCodeAlreadyExists` through the unique-index violation mapped per ADR-0004, and exactly one row exists.
 - **S14.** Myanmar-script name round-trip: the value read back is identical to the value written (`nvarchar`, Unicode, `docs/20` §6). The fixture uses real Myanmar Unicode text, not a Latin placeholder.
+- **S27.** Two parallel deactivations of the same active station → exactly one `204`, one `422 Network.StationAlreadyInactive`, and exactly one `Network.StationDeactivated` audit event. *(Stage-2 amendment approved by hein, 2026-09-20, on the T-003 plan review. Numbered S27 so the existing S1–S26 references in `plan.md` stay valid.)*
 
 ### Infrastructure
 
@@ -183,7 +186,9 @@ Schema `network` (`docs/07` §Module schemas; `docs/20` §2).
 | `IsActive` | `bit` | no | |
 | `CreatedAtUtc` | `datetimeoffset(3)` | no | UTC value (ADR-0018) |
 
-No `rowversion` concurrency token — **accepted by hein 2026-09-20**. `docs/20` §6 requires one for Ticket, CashierSession and Refund; Station is not in that list, and F-001 has no concurrent-mutation path beyond the unique index.
+No `rowversion` concurrency token — **accepted by hein 2026-09-20**. `docs/20` §6 requires one for Ticket, CashierSession and Refund; Station is not in that list.
+
+**`IsActive` is configured as an EF concurrency token** (`IsConcurrencyToken()`), added by the T-003 plan review on 2026-09-20 to satisfy S27. EF then issues `UPDATE ... WHERE Id = @id AND IsActive = @original`, so the loser of a concurrent deactivation gets a `DbUpdateConcurrencyException`, which maps to `422 Network.StationAlreadyInactive`. This adds no column: it reuses one that already exists, which is why it does not contradict the no-`rowversion` decision above.
 
 Rows are never deleted, because R3 forbids code reuse and the unique index is what enforces it.
 
