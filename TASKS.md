@@ -14,7 +14,7 @@ Agents: read this whole file, including the Protocol, before picking a task.
 |---|---|---|---|---|---|---|---|---|---|
 | T-001 | Commit current docs as baseline (`git init` if needed); tag `docs-baseline-2026-09-19` | done | hein | — | main | Tag exists on `main` | — | 2026-09-19 23:00 | Human only |
 | T-002 | F-001 walking skeleton: stages 1–2, discover + spec | done | claude | T-001 | feature/F-001 | `docs/features/F-001-walking-skeleton/spec.md` per workflow 02 ⛔ | `docs/features/F-001-walking-skeleton/progress.md` | 2026-09-20 02:27 | Spec Approved (hein, 2026-09-20) at `cb20c7c` on `feature/F-001`. Provisional station rules under the explicit waiver in spec §Blocked behaviour; replacement tracked by T-014. ADR-0020 and ADR-0021 added as Proposed. |
-| T-003 | F-001 stage 3, plan | todo | — | T-002 | feature/F-001 | `plan.md` ⛔ | same as T-002 | 2026-09-19 21:00 | Stops for human approval |
+| T-003 | F-001 stage 3, plan | doing | claude | T-002 | feature/F-001 | `plan.md` ⛔ | same as T-002 | 2026-09-20 02:48 | Stops for human approval |
 | T-004 | F-001 stage 4, implement (unit tests with each plan step) | todo | — | T-003 | feature/F-001 | Plan steps done; `dotnet test` green; commit SHA recorded in Notes | same as T-002 | 2026-09-19 21:00 | |
 | T-005 | F-001 stage 5, scenario tests from spec §4 (testing-agent prompt) | todo | — | T-004 | feature/F-001 | All spec scenarios covered; `dotnet test` green | same as T-002 | 2026-09-19 21:00 | Owner ≠ T-004 owner |
 | T-006 | F-001 stage 6, code review of the commit named in T-005 Notes | todo | — | T-005 | feature/F-001 | `review.md` with verdict | same as T-002 | 2026-09-19 21:00 | Owner ≠ T-004 owner |
