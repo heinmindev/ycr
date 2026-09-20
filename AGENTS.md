@@ -78,6 +78,7 @@ Do not guess and do not implement a placeholder rule. Add the question to `docs/
 Codex, Claude and humans coordinate through `TASKS.md` at the repository root. Read its Protocol before starting.
 
 - Claim before any work: lock the task with `git branch claim/T-xxx main` (this fails if the task is already taken), then commit your row update on `main` from the coordination checkout.
+- Read and edit `TASKS.md` only in the coordination checkout. The copy inside a worktree is stale.
 - Work in the feature's worktree (`feature/F-xxx`) or the task's worktree, never in the coordination checkout. Log checkpoints in the row's Progress file (template `docs/templates/progress.md`).
 - Scenario tests, code review and security review must be done by a different agent than the implementer.
 - When blocked, record the blocker type. Only business blockers need an OQ in `docs/19`.

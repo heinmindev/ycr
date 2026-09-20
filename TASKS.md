@@ -12,7 +12,7 @@ Agents: read this whole file, including the Protocol, before picking a task.
 
 | ID | Task | Status | Owner | Depends on | Branch | Output / exit criteria | Progress file | Updated | Notes / blocker |
 |---|---|---|---|---|---|---|---|---|---|
-| T-001 | Commit current docs as baseline (`git init` if needed); tag `docs-baseline-2026-09-19` | todo | hein | — | main | Tag exists on `main` | — | 2026-09-19 21:00 | Human only |
+| T-001 | Commit current docs as baseline (`git init` if needed); tag `docs-baseline-2026-09-19` | done | hein | — | main | Tag exists on `main` | — | 2026-09-19 23:00 | Human only |
 | T-002 | F-001 walking skeleton: stages 1–2, discover + spec | todo | — | T-001 | feature/F-001 | `docs/features/F-001-walking-skeleton/spec.md` per workflow 02 ⛔ | `docs/features/F-001-walking-skeleton/progress.md` | 2026-09-19 21:00 | Stops for human approval |
 | T-003 | F-001 stage 3, plan | todo | — | T-002 | feature/F-001 | `plan.md` ⛔ | same as T-002 | 2026-09-19 21:00 | Stops for human approval |
 | T-004 | F-001 stage 4, implement (unit tests with each plan step) | todo | — | T-003 | feature/F-001 | Plan steps done; `dotnet test` green; commit SHA recorded in Notes | same as T-002 | 2026-09-19 21:00 | |
@@ -40,6 +40,7 @@ Agents: read this whole file, including the Protocol, before picking a task.
 - **One branch per feature** (`feature/F-001`), with one worktree per feature (`git worktree add ../ycr-F-001 feature/F-001`). A feature's stages run one after another, so only the current stage owner works in that worktree. Parallel work happens across different features or tasks, never within one feature.
 - **Standalone tasks** (not feature stages) use `task/T-xxx-<slug>` in their own worktree, and are merged to `main` by a human when done.
 - Reviews always name the exact commit SHA they reviewed.
+- **The only live ledger is `TASKS.md` in the coordination checkout.** Every worktree also has a copy of `TASKS.md`, and that copy is stale. Never read the worktree copy for status and never edit it. When merging a branch to `main`, keep `main`'s version of `TASKS.md`.
 
 ### Picking and claiming a task
 
