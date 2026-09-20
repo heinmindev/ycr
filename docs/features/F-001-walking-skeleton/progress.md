@@ -79,3 +79,33 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** none blocking F-001. Still open with Myanma Railways: OQ26, OQ27, OQ28, tracked for replacement by T-014 as a release gate.
 
 **State of the branch:** documentation only, no `src/`, nothing to build or test. All work committed on `feature/F-001`.
+
+---
+
+## 2026-09-20 03:15 Asia/Yangon — claude — T-003
+
+**Stage:** 3 (PLAN, `docs/workflows/02-feature-development.md`)
+**Commit:** the `docs(F-001): T-003 implementation plan` commit on `feature/F-001` (SHA in the T-003 ledger Notes)
+
+**Done this session:**
+- Claimed T-003 (`claim/T-003` ref, ledger commit `3ab1109` on `main`).
+- Wrote `docs/features/F-001-walking-skeleton/plan.md` from `docs/templates/plan.md`, against the Approved spec and ADR-0004/0005/0006/0012/0016/0017/0018/0019/0020/0021.
+- File inventory: 12 projects (`docs/06` five `src/` + six `tests/`, plus `YCR.DbMigrator` and `YCR.TestSupport` pending P1/P2), ~60 files, each with a reason and a citation.
+- Three migrations: `20260920_Network_CreateStations`, `20260920_Audit_CreateAuditEventsLedger` (guard first, then ledger DDL, then the three ISJSON constraints and two indexes), `20260920_Security_AppDatabaseRole`.
+- Endpoint inventory, security impact mapped to `docs/18` threats, and a test plan naming every test per project with its spec scenario, so stage 5 has a checklist rather than prose.
+- Nine risks with mitigations, rollback/forward-compatibility section, and 13 implementation steps each ending green.
+- **Ten decisions P1-P10** collected for the ⛔ stop, each with a recommendation.
+
+**Evidence:** documentation only; `src/` still does not exist, so no build or test command was available to run. Files changed: `docs/features/F-001-walking-skeleton/plan.md` (new), `docs/features/F-001-walking-skeleton/progress.md`.
+
+**Design judgments worth a reviewer's attention:**
+- `Down()` on the audit ledger migration **throws** rather than dropping the table (P7), because ADR-0017 item 6 forbids a migration that drops a ledger table and rollback would destroy tamper-evident history.
+- Architecture tests run each rule **twice** — over `src/` asserting zero violations, and over a `Violations` namespace inside the test assembly asserting the planted violation is caught. Without the second half a rule matching nothing would pass silently, and `docs/21` §Code explicitly requires negative cases.
+- The `ycr_app` database **role** is created by a migration; the **login and user** by environment provisioning, so no credential enters a migration file (P9).
+- Risk R-2 names a concrete fallback if EF cannot insert into the ledger table: parameterised INSERT on the same connection and transaction, preserving ADR-0017's single-transaction guarantee.
+
+**Next step (exact):** a human must answer **P1-P10** in `plan.md` §Decisions needed and approve the plan at the ⛔ stop. P1, P2, P5 and P6 change the file inventory, so **T-004 must not start before they are answered**. When approved, set T-003 to `done`; T-004 is then claimable by any agent, and its owner must not be the owner of T-005, T-006 or T-007 (`TASKS.md` §Protocol item 11).
+
+**Blockers / open questions:** blocked at the ⛔ approval stop, blocker type `approval`. P1-P10 pending. Still open with Myanma Railways: OQ26, OQ27, OQ28, tracked by T-014 as a release gate. Known and accepted: the repository has no git remote, so the CI workflow in step 13 cannot be proven green (plan risk R-6, spec E3).
+
+**State of the branch:** documentation only, no `src/`, nothing to build or test. All work committed on `feature/F-001`.
