@@ -366,3 +366,24 @@ Then steps 3–13 in the plan's §Steps table, in order. Steps 1–6 need no Doc
 **Blockers / open questions:** none technical. OQ26, OQ27 and OQ28 remain open with Myanma Railways and are confined by the approved provisional-rules waiver.
 
 **State of the branch:** build and tests green; implementation committed and pushed; this progress entry is the only uncommitted change.
+
+---
+
+## 2026-09-20 13:18 Asia/Yangon — codex — T-004
+
+**Stage:** 4 (IMPLEMENT). Step 5 of 13 complete.
+**Commit:** `5e901f734720382cc33c55d2f85cfbf3f496ac4a` (`feat(F-001): add station persistence`), pushed to `origin/feature/F-001`.
+
+**Done this session:**
+- Added `YcrDbContext`, `StationConfiguration`, the named `UX_Stations_Code` unique index, `IsActive` concurrency-token mapping, and `SqlServerSequentialGuidIdGenerator`.
+- Added scoped Infrastructure DI registration so `INetworkDbContext` resolves to the same `YcrDbContext` instance, plus the design-time factory required by EF tooling.
+- Generated `20260920064342_Network_CreateStations` and its model snapshot through `dotnet-ef` 10.0.12.
+- Added two Infrastructure model/generator tests. The Infrastructure exit-code-8 waiver remains until its named step 7, as required by the handoff.
+
+**Evidence:** `dotnet build D:\MR\ycr-F-001\YCR.sln --no-restore` succeeded with 0 warnings and 0 errors. `dotnet test D:\MR\ycr-F-001\YCR.sln` passed with total 32, failed 0, succeeded 32, skipped 0. Files changed: `src/YCR.Infrastructure/**`, `tests/YCR.Infrastructure.Tests/Persistence/StationModelTests.cs`, and the central EF package pins.
+
+**Next step (exact):** plan step 6 — add architecture tests and `Violations` fixtures, including the new control that flags `YCR.Application` dependencies on `Microsoft.EntityFrameworkCore.SqlServer` or `Microsoft.Data.SqlClient`; remove the `YCR.ArchitectureTests` exit-code-8 waiver at this step.
+
+**Blockers / open questions:** none technical. OQ26, OQ27 and OQ28 remain open with Myanma Railways and are confined by the approved provisional-rules waiver.
+
+**State of the branch:** build and tests green; implementation committed and pushed; this progress entry is the only uncommitted change.
