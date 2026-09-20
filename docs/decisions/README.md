@@ -2,8 +2,8 @@
 
 | ADR | Title | Status |
 |---|---|---|
-| [0001](ADR-0001-modular-monolith.md) | Start as a modular monolith | Proposed |
-| [0002](ADR-0002-versioned-fare-rules.md) | Version fare rules | Proposed |
+| [0001](ADR-0001-modular-monolith.md) | Start as a modular monolith | Accepted |
+| [0002](ADR-0002-versioned-fare-rules.md) | Version fare rules | Accepted |
 | [0003](ADR-0003-module-layout.md) | Module folders inside shared layer projects | Superseded by [0012](ADR-0012-module-scoped-persistence-boundaries.md) |
 | [0004](ADR-0004-application-pattern-and-errors.md) | Handler per use case, Result-based errors | Accepted |
 | [0005](ADR-0005-api-only-backend.md) | API-only backend, separate SPA frontend | Accepted |
@@ -21,8 +21,8 @@
 | [0017](ADR-0017-ledger-audit-operational-boundaries.md) | Ledger audit operational boundaries | Accepted |
 | [0018](ADR-0018-time-business-date-and-money.md) | Time, business date and money representation | Accepted |
 | [0019](ADR-0019-operation-owned-business-dates.md) | Operation-owned business dates | Accepted |
-| [0020](ADR-0020-f001-authentication-scope-and-test-auth-handler.md) | F-001 authentication scope and the test authentication handler | Proposed |
-| [0021](ADR-0021-audit-event-record-shape.md) | Audit event record shape | Proposed |
+| [0020](ADR-0020-f001-authentication-scope-and-test-auth-handler.md) | F-001 authentication scope and the test authentication handler | Accepted |
+| [0021](ADR-0021-audit-event-record-shape.md) | Audit event record shape | Accepted |
 
 Rules for agents:
 - **Accepted** ADRs are binding. Do not work against one; propose a new ADR that supersedes it.

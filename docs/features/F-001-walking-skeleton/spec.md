@@ -3,7 +3,7 @@
 Status: **Approved (hein, 2026-09-20)**, subject to the explicit waiver recorded in §Blocked behaviour. The station field rules and the station permissions are **provisional, skeleton-only ASSUMPTIONs** and must be replaced before production (T-014).
 
 Module(s): `Network` (reference slice); cross-cutting `Audit`, `Identity` (authentication host only), plus solution-wide infrastructure
-Related: FR-001, UC "Manage stations" (`docs/03-use-cases.md` §16), ADR-0004, ADR-0005, ADR-0006, ADR-0012, ADR-0016, ADR-0017, ADR-0018, ADR-0019, ADR-0020 (Proposed), ADR-0021 (Proposed), `docs/20-coding-conventions.md` §3
+Related: FR-001, UC "Manage stations" (`docs/03-use-cases.md` §16), ADR-0004, ADR-0005, ADR-0006, ADR-0012, ADR-0016, ADR-0017, ADR-0018, ADR-0019, ADR-0020, ADR-0021, `docs/20-coding-conventions.md` §3
 
 Decision owner:
 - Business rules (station codes, names, role grants): **Myanma Railways**, routed through `hein` (`docs/19-open-questions.md`). The provisional values in §3 were approved by `hein` as tech lead for skeleton use only; they are **not** Myanma Railways decisions.
@@ -123,12 +123,14 @@ Give every later feature an executable pattern to copy: a compiling, tested `YCR
 ### Infrastructure
 
 - **S15.** `dotnet build YCR.sln` and `dotnet test YCR.sln` both succeed from a clean clone, with no skipped tests (`docs/21` §Tests).
-- **S16.** Architecture tests **fail** on each forbidden dependency and pass otherwise (ADR-0012 §Enforcement; `docs/21` §Code requires negative cases): (a) `YCR.Application.Network` referencing `ITicketingDbContext`; (b) `YCR.Application.Network` referencing a `YCR.Domain.Ticketing` type; (c) a Reporting type resolving a write context; (d) `YCR.Api` containing domain logic; (e) an endpoint returning an EF entity type.
+- **S16.** Architecture tests **fail** on each forbidden dependency and pass otherwise (ADR-0012 §Enforcement; `docs/21` §Code requires negative cases): (a) `YCR.Application.Network` referencing `ITicketingDbContext`; (b) `YCR.Application.Network` referencing a `YCR.Domain.Ticketing` type; (c) a Reporting type resolving a write context; (d) `YCR.Api` containing domain logic; (e) an endpoint returning an EF entity type; (f) any `AuthenticationHandler<>` subtype in `src/` (S21a, ADR-0020 §Decision item 4).
 - **S17.** Every registered module context interface resolves to the *same* scoped `YcrDbContext` instance within one request scope (ADR-0012 §Decision item 3).
 - **S18.** Migrations applied against the pinned `mssql/server:2022` image create `network.Stations` and the `audit.AuditEvents` **ledger** table, and the ledger DDL executes successfully (ADR-0017 §Decision item 5).
 - **S19.** The audit migration **fails loudly** on an unsupported SQL Server version or edition rather than silently degrading to a normal table (ADR-0017 §Decision item 5; AGENTS.md rule 8).
 - **S20.** An audit event's `ActorUserId`/`ActorRole` come from the authenticated context; a request supplying actor fields in its body cannot influence them (ADR-0017 §Decision item 2; ADR-0021).
-- **S21.** **Test authentication handler is environment-fenced (E1, ADR-0020):** the handler is registered only when the environment is `Testing`; if it is registered in any other environment, startup **throws**. A test asserts both halves — registration succeeds under `Testing`, and startup throws under `Production`.
+- **S21.** **The test authentication handler never ships (E1, ADR-0020).** Two controls, tested separately:
+  - **S21a (primary).** An architecture test asserts that **no subtype of `AuthenticationHandler<>` exists anywhere in `src/`**. The handler class lives only in `tests/YCR.Api.Tests` and is registered only through `WebApplicationFactory.ConfigureTestServices`.
+  - **S21b (defence in depth).** In any environment other than `Testing`, startup validates the registered authentication schemes against an allowlist of expected production handler types and **throws** on an unexpected one. A test asserts both halves — registration succeeds under `Testing`, and startup throws under `Production`.
 - **S22.** **The application login has no DDL rights (E7):** the application does not migrate at startup; migration runs as a separate step under the migrator credential. A test asserts that the application credential cannot execute DDL against `network` and holds only INSERT/SELECT on `audit` (ADR-0017 §Decision item 3).
 - **S23.** `IIdGenerator` fragmentation control: insert 10,000 rows into the clustered GUID key and compare index fragmentation with a `NEWSEQUENTIALID()` baseline; pass when no more than 10 percentage points worse. The test records row count, index name, fragmentation and database compatibility level (ADR-0006 §REQUIRED CONTROL).
 - **S24.** `GET /health/live` and `GET /health/ready` return `200` anonymously, and readiness reports SQL Server connectivity (`docs/02` §Reliability).
@@ -185,7 +187,36 @@ No `rowversion` concurrency token — **accepted by hein 2026-09-20**. `docs/20`
 
 Rows are never deleted, because R3 forbids code reuse and the unique index is what enforces it.
 
-**`audit.AuditEvents`** — append-only SQL Server 2022 ledger table, created by **raw SQL in an EF migration** rather than by EF model building (ADR-0017 §Decision item 1). Column shape per **ADR-0021** (Proposed).
+**`audit.AuditEvents`** — append-only SQL Server 2022 ledger table, created by **raw SQL in an EF migration** rather than by EF model building (ADR-0017 §Decision item 1). **ADR-0021 is authoritative** for this shape; it is restated here because the constraints and indexes are part of F-001's migration.
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| `Id` | `uniqueidentifier` | no | PK, application-assigned through `IIdGenerator` (ADR-0006) |
+| `OccurredAtUtc` | `datetimeoffset(3)` | no | UTC, from `TimeProvider` (ADR-0018) |
+| `Action` | `nvarchar(100)` | no | `<Module>.<Event>`, e.g. `Network.StationCreated` |
+| `ActorUserId` | `uniqueidentifier` | yes | Server-side authenticated context only; null for system-initiated actions |
+| `ActorRole` | `nvarchar(1000)` | yes | **JSON array of roles held at event time**, e.g. `["Admin","StationManager"]` |
+| `SubjectType` | `nvarchar(100)` | no | Always present, including when `SubjectId` is null |
+| `SubjectId` | `uniqueidentifier` | **yes** | Null where the event has no GUID subject, e.g. a failed login with no resolved user |
+| `BeforeJson` | `nvarchar(max)` | yes | Null on creation events |
+| `AfterJson` | `nvarchar(max)` | yes | Null on deletion-style events |
+| `CorrelationId` | `nvarchar(100)` | no | From `traceparent` (`docs/20` §7) |
+| `ClientIp` | `nvarchar(45)` | yes | Server's view of the connection, never a client-supplied header |
+| `ReasonCode` | `nvarchar(100)` | yes | Operator-supplied reason where an action requires one |
+| `AuthorizedByPermission` | `nvarchar(100)` | yes | Permission that authorized the action, e.g. `stations.manage` |
+| `PayloadVersion` | `int` | no | Schema version of the JSON payloads, starting at 1 |
+
+Constraints and indexes, created in the same migration as the table:
+
+| Object | Definition |
+|---|---|
+| `CK_AuditEvents_BeforeJson` | `BeforeJson IS NULL OR ISJSON(BeforeJson) = 1` |
+| `CK_AuditEvents_AfterJson` | `AfterJson IS NULL OR ISJSON(AfterJson) = 1` |
+| `CK_AuditEvents_ActorRole` | `ActorRole IS NULL OR ISJSON(ActorRole) = 1` |
+| `IX_AuditEvents_Subject` | nonclustered on `(SubjectType, SubjectId)` |
+| `IX_AuditEvents_OccurredAtUtc` | nonclustered on `OccurredAtUtc` |
+
+For F-001's two audit actions, `SubjectType` is `Station`, `SubjectId` is the station id, and `AuthorizedByPermission` is `stations.manage`. The nullable `SubjectId` and the `ISJSON` array shape are exercised by later features; F-001 only has to create them correctly. `ISJSON` proves the text is JSON, not that `ActorRole` is an array — `IAuditWriter` owns that, with a test (ADR-0021 §Consequences).
 
 **Not in F-001:** `IdempotencyRecords` (no financial command in scope, R11), `identity.AuthSessions` (deferred by ADR-0020), and every other table in `docs/07` §Core tables.
 
@@ -243,17 +274,17 @@ Terms of the waiver:
 
 | # | Decision as accepted |
 |---|---|
-| **E1** | **Accepted with additions — new ADR-0020 (Proposed).** F-001 ships the permission-based authorization pipeline (`Permissions` constants, policy registration, `.RequireAuthorization(...)` on every endpoint) with a **test-only authentication handler**; the ADR-0016 token and refresh implementation is deferred to a dedicated follow-up feature. **Additions:** the test handler is registered only when the environment is `Testing`; startup **throws** if it is registered in any other environment; a test proves both halves (S21). |
+| **E1** | **Accepted with additions — ADR-0020 (Accepted 2026-09-20).** F-001 ships the permission-based authorization pipeline (`Permissions` constants, policy registration, `.RequireAuthorization(...)` on every endpoint) with a **test-only authentication handler**; the ADR-0016 token and refresh implementation is deferred to a dedicated follow-up feature. **Additions:** the handler class lives only in `tests/YCR.Api.Tests` and is registered only through `WebApplicationFactory.ConfigureTestServices`, never in `src/`; an architecture test asserts no `AuthenticationHandler<>` subtype exists in `src/` (S21a); the startup environment guard is retained as defence in depth, throwing outside `Testing`, with a test proving both halves (S21b). |
 | **E2** | **Accepted as recommended.** `global.json` with a pinned SDK and `rollForward`, plus `.gitignore`, `.editorconfig`, `Directory.Build.props` (nullable enabled, warnings as errors) and `Directory.Packages.props` for central package management. |
 | **E3** | **Accepted — CI provider is GitHub Actions** (confirmed by hein 2026-09-20). `.github/workflows/ci.yml`: restore → build → test (Testcontainers, pinned image) → gitleaks. The repository has no remote yet; adding one is a prerequisite for the workflow actually running. |
 | **E4** | **Accepted as recommended.** The SQL Server 2022 image is pinned **by digest**, not by a floating tag, in one shared constant consumed by both `docker-compose.yml` and the test fixture. |
 | **E5** | **Accepted as recommended.** The ADR-0006 fragmentation control is implemented in `YCR.Infrastructure.Tests` in F-001, in a test category CI runs on the trunk build. Whether it also runs on every pull request is decided when the workflow is written. |
 | **E6** | **Accepted as recommended (VERIFY).** Ledger support in the chosen image's edition, and the exact ledger DDL, are verified against the E4 image during stage 4, with the result recorded in `progress.md`. If the edition does not support ledger tables, stop and return to stage 2 rather than substituting a normal table. |
 | **E7** | **Accepted with additions.** Two connection strings from the start (`Migrator`, `Application`) with least-privilege grants scripted in the migration. **Additions:** **no migrations at application startup**; the migrator is a separate step; the application login has **no DDL rights**. Covered by S22. |
-| **E8** | **Accepted with additions — new ADR-0021 (Proposed).** `audit.AuditEvents` carries id, occurred-at UTC, action (`<Module>.<Event>`), actor user id, actor role, subject type, subject id, before/after JSON and correlation/trace id, **plus `ClientIp`, nullable `ReasonCode`, and `PayloadVersion`**. |
+| **E8** | **Accepted with additions — ADR-0021 (Accepted 2026-09-20).** `audit.AuditEvents` carries id, occurred-at UTC, action (`<Module>.<Event>`), actor user id, actor role, subject type, subject id, before/after JSON and correlation/trace id, **plus `ClientIp`, nullable `ReasonCode` and `PayloadVersion`**. **Additions:** `SubjectId` is nullable; `ActorRole` holds a JSON array of the roles held at event time; `AuthorizedByPermission nvarchar(100) null` added; `ISJSON` check constraints on `BeforeJson`, `AfterJson` and `ActorRole`; nonclustered indexes on `(SubjectType, SubjectId)` and `OccurredAtUtc`. See §7. |
 | — | **Station has no `rowversion` concurrency token: accepted** (§7). |
 
-Both new ADRs start as **Proposed** and will be accepted by hein.
+**ADR-0020 and ADR-0021 are Accepted (hein, 2026-09-20)** and therefore binding. ADR-0001 and ADR-0002 were also accepted on the same date (T-011), so `docs/decisions/README.md` no longer lists any Proposed ADR.
 
 ---
 
@@ -263,3 +294,5 @@ Both new ADRs start as **Proposed** and will be accepted by hein.
 - **Glossary:** T-010 decided yes and is being written in parallel (D5). F-001 contributes the Network vocabulary it introduces — `Station`, `StationCode`, `BilingualName`, active/inactive — so `docs/21` §Documentation is satisfiable.
 - **T-003 (PLAN)** is unblocked by this approval but must not be started until hein says so.
 - **T-014** tracks replacing the provisional station rules and is a release gate, not an F-001 blocker.
+- **T-015** creates `docs/glossary.md`. F-001's Network vocabulary feeds into it (D5).
+- **ADR-0020 §Consequences carries one caveat the follow-up authentication feature must check:** the "no `AuthenticationHandler<>` in `src/`" rule holds only while YCR writes no authentication handler of its own. ADR-0016 as written uses framework-provided handler types, so it holds today; if that changes, the rule needs a narrower formulation through a superseding ADR rather than an edit to the test.

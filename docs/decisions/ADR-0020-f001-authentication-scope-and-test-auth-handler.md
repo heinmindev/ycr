@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed — 2026-09-20
+Accepted — 2026-09-20 (hein)
 
 ## Context
 
@@ -27,26 +27,28 @@ Proposed — 2026-09-20
 Option 3.
 
 1. **F-001 ships the authorization pipeline in full:** `Permissions` constants in `src/YCR.Application/Common/Authorization/Permissions.cs` (`docs/20` §1), policy registration, and `.RequireAuthorization(<permission>)` on every endpoint, or an explicit `.AllowAnonymous()` with a comment giving the reason (`docs/20` §4).
-2. **F-001 ships a test-only authentication handler** that establishes a principal with the permissions a test asks for. No token issuance, no refresh, no `identity.AuthSessions`.
+2. **The test authentication handler never ships.** Its class lives only in `tests/YCR.Api.Tests` and is registered only through `WebApplicationFactory.ConfigureTestServices`. **No authentication handler of any kind exists in `src/`.** It establishes a principal with the permissions a test asks for; there is no token issuance, no refresh and no `identity.AuthSessions`.
 3. **ADR-0016's token and refresh implementation is deferred** to a dedicated follow-up feature. ADR-0016 remains Accepted and binding; this ADR defers its implementation and changes none of its decisions.
-4. **REQUIRED CONTROL — the test handler is fenced to the `Testing` environment.** It is registered only when the host environment is `Testing`. If it is registered under any other environment, **application startup throws** rather than logging a warning or silently continuing. Failing closed at startup is deliberate: a bypass that degrades quietly is worse than one that refuses to boot.
-5. **REQUIRED CONTROL — a test proves both halves of the fence:** that registration succeeds under `Testing`, and that startup throws under `Production`. It is not enough for the guard to exist in source.
-6. **No role→permission grants are seeded** (OQ28). Tests mint the permissions they need directly on the test principal. Nothing in F-001 may imply a role mapping.
-7. The deferral is recorded here so a later agent reading `docs/20`'s reference slice cannot mistake the test handler for the approved authentication design.
+4. **REQUIRED CONTROL (primary) — an architecture test asserts that no subtype of `AuthenticationHandler<>` exists anywhere in `src/`.** This is the control that matters: the bypass is absent from the deployable artifact rather than merely disabled within it. The test fails the build, per ADR-0012 §Enforcement.
+5. **REQUIRED CONTROL (defence in depth) — the startup environment guard is retained.** In any environment other than `Testing`, startup validates the registered authentication schemes against an allowlist of expected production handler types and **throws** if an unexpected handler type is registered. It does not log a warning and continue. This guard is secondary: decision 4 already keeps the test handler out of the artifact, and this catches the case where a test assembly is somehow loaded into a running host. Failing closed is deliberate — a bypass that degrades quietly is worse than one that refuses to boot.
+6. **REQUIRED CONTROL — a test proves both halves of the fence:** that registration succeeds under `Testing`, and that startup throws under `Production`. It is not enough for the guard to exist in source.
+7. **No role→permission grants are seeded** (OQ28). Tests mint the permissions they need directly on the test principal. Nothing in F-001 may imply a role mapping.
+8. The deferral is recorded here so a later agent reading `docs/20`'s reference slice cannot mistake the test handler for the approved authentication design.
 
 ## Consequences
 
 Positive:
 - `docs/21` §Tests is satisfiable from F-001: 401 and 403 are real, tested behaviour rather than a to-do.
 - Every later slice copies an endpoint that is authorized by default.
-- The authentication bypass is contained by a startup-time failure that is itself under test.
+- The bypass is absent from the deployable artifact, not merely disabled inside it, and an architecture test keeps it that way as the codebase grows.
 - Deferring ADR-0016 keeps its nine required test scenarios in the feature that implements them, where they can be reviewed as a whole.
 
 Negative:
-- A total authentication bypass exists in the codebase, and its safety depends on the environment fence holding. The security review for F-001 must treat the fence as a primary finding area.
+- An authentication bypass still exists in the repository, in the test project. The security review for F-001 should confirm both the architecture test and the startup guard, not just one.
 - Until the follow-up feature lands, the system cannot authenticate a real user, so F-001 is not independently deployable.
 - ADR-0016's Origin checks, CSP and dependency-audit controls are not exercised in F-001, because no cookie-bearing endpoint and no SPA exist yet.
+- The architecture rule in decision 4 assumes YCR writes no authentication handler of its own. That holds for ADR-0016 as written, because JWT bearer and cookie handling come from framework-provided handler types rather than YCR types. If the feature implementing ADR-0016 turns out to need a custom `AuthenticationHandler<>` subtype in `src/`, the rule needs a narrower formulation — an allowlist of permitted handler types rather than a blanket prohibition — and that is a superseding ADR, not a quiet edit to the test.
 
 Follow-up work:
-- A dedicated feature implementing ADR-0016 (tokens, `identity.AuthSessions`, refresh rotation and grace, revocation latency, Origin checks) and removing the test handler's role in any non-test path.
+- A dedicated feature implementing ADR-0016 (tokens, `identity.AuthSessions`, refresh rotation and grace, revocation latency, Origin checks), which must also confirm whether the decision-4 architecture rule survives unchanged.
 - OQ28 must be answered before any role→permission seed data is added.

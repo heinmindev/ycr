@@ -53,3 +53,29 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** none blocking F-001. Still open: OQ26, OQ27, OQ28 with Myanma Railways, tracked for replacement by T-014 as a release gate. ADR-0020 and ADR-0021 are Proposed and await hein's acceptance; the plan should cite them as Proposed until then.
 
 **State of the branch:** documentation only, no `src/`, nothing to build or test. All work committed on `feature/F-001`.
+
+---
+
+## 2026-09-20 03:40 Asia/Yangon — claude — T-002 follow-up
+
+**Stage:** 2 (SPECIFY) — post-approval refinements; T-002 was already `done`
+**Commit:** the `docs(F-001): accept ADR-0020/0021` commit on `feature/F-001` (SHA in the T-002 ledger Notes)
+
+**Done this session:**
+- **ADR-0020, now Accepted (hein, 2026-09-20).** The test authentication handler class lives only in `tests/YCR.Api.Tests` and is registered only through `WebApplicationFactory.ConfigureTestServices`; no authentication handler of any kind exists in `src/`. New decision item 4 makes the architecture test — no `AuthenticationHandler<>` subtype anywhere in `src/` — the **primary** control, with the startup environment guard retained as **defence in depth** (decision item 5), reformulated as an allowlist check of registered scheme handler types because the test handler's type is no longer visible to `src/`.
+- **Spec S21 split** into S21a (architecture test, primary) and S21b (startup guard, defence in depth). S16 gains case (f) for the same architecture rule.
+- **ADR-0021, now Accepted (hein, 2026-09-20).** `SubjectId` nullable; `ActorRole` holds a JSON array of roles held at event time; `AuthorizedByPermission nvarchar(100) null` added; `ISJSON` check constraints on `BeforeJson`, `AfterJson` and `ActorRole`; nonclustered indexes on `(SubjectType, SubjectId)` and `OccurredAtUtc`, all created in the same migration as the table.
+- **Spec §7** now carries the full `audit.AuditEvents` column table plus its constraints and indexes, naming ADR-0021 as authoritative.
+- **ADR-0001 and ADR-0002 set to Accepted (hein, 2026-09-20)** per T-011; `docs/decisions/README.md` updated for all four. No ADR is Proposed any more.
+
+**Judgment calls made, both flagged in the documents:**
+- `ActorRole` widened from `nvarchar(100)` to `nvarchar(1000)`. A JSON array of several role names does not reliably fit 100 characters, and ADR-0017 §6's additive-only rule makes widening a ledger column later expensive. Recorded as ADR-0021 decision item 6.
+- ADR-0020 §Consequences records that the blanket "no `AuthenticationHandler<>` in `src/`" rule holds only while YCR writes no handler of its own. ADR-0016 uses framework-provided handler types, so it holds today; if the follow-up authentication feature needs a custom handler, the rule needs an allowlist formulation through a superseding ADR, not an edit to the test.
+
+**Evidence:** documentation only; `src/` still does not exist, so no build or test command is available to run. Files changed: `docs/features/F-001-walking-skeleton/spec.md`, `docs/features/F-001-walking-skeleton/progress.md`, `docs/decisions/ADR-0020-*.md`, `docs/decisions/ADR-0021-*.md`, `docs/decisions/ADR-0001-modular-monolith.md`, `docs/decisions/ADR-0002-versioned-fare-rules.md`, `docs/decisions/README.md`. Ledger changes (T-010 done, T-011 done, T-015 added) are committed separately on `main` in the coordination checkout.
+
+**Next step (exact):** **T-003 (PLAN) must not be started until hein says so** — an explicit instruction, not a dependency. When released, the stage-3 owner reads this spec plus ADR-0020 and ADR-0021 (both now binding) and writes `plan.md` from `docs/templates/plan.md`.
+
+**Blockers / open questions:** none blocking F-001. Still open with Myanma Railways: OQ26, OQ27, OQ28, tracked for replacement by T-014 as a release gate.
+
+**State of the branch:** documentation only, no `src/`, nothing to build or test. All work committed on `feature/F-001`.
