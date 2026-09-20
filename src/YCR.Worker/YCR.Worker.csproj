@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <!-- Listed by docs/06. Empty host in F-001; nothing uses it (spec section 9). -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../YCR.Application/YCR.Application.csproj" />
+    <ProjectReference Include="../YCR.Infrastructure/YCR.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

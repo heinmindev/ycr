@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- YcrDbContext, EF configurations, migrations, IIdGenerator and IAuditWriter implementations. -->
+  <ItemGroup>
+    <ProjectReference Include="../YCR.Application/YCR.Application.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!--
+      No tests until plan step 10 (Network handlers).
+      Microsoft.Testing.Platform exits 8 when a run discovers no tests, which is a
+      signal worth keeping. This waiver is per project and must be deleted by the
+      step named above, so an empty suite cannot hide once it should have tests.
+    -->
+    <TestingPlatformCommandLineArguments>$(TestingPlatformCommandLineArguments) --ignore-exit-code 8</TestingPlatformCommandLineArguments>
+  </PropertyGroup>
+
+  <!-- Runs against real SQL Server under the ycr_app credential. -->
+  <ItemGroup>
+    <ProjectReference Include="../../src/YCR.Application/YCR.Application.csproj" />
+    <ProjectReference Include="../YCR.TestSupport/YCR.TestSupport.csproj" />
+  </ItemGroup>
+
+</Project>

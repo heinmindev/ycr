@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!--
+      No tests until plan step 11 (endpoints, ProblemDetails, auth guard).
+      Microsoft.Testing.Platform exits 8 when a run discovers no tests, which is a
+      signal worth keeping. This waiver is per project and must be deleted by the
+      step named above, so an empty suite cannot hide once it should have tests.
+    -->
+    <TestingPlatformCommandLineArguments>$(TestingPlatformCommandLineArguments) --ignore-exit-code 8</TestingPlatformCommandLineArguments>
+  </PropertyGroup>
+
+  <!-- Hosts the only AuthenticationHandler in the repository (ADR-0020 item 2). -->
+  <ItemGroup>
+    <ProjectReference Include="../../src/YCR.Api/YCR.Api.csproj" />
+    <ProjectReference Include="../YCR.TestSupport/YCR.TestSupport.csproj" />
+  </ItemGroup>
+
+</Project>

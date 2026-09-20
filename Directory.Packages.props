@@ -1,0 +1,31 @@
+<Project>
+
+  <!--
+    Central package management. Plan F-001 decision E2 and P3.
+    One version per package across every project; individual csproj files
+    carry <PackageReference Include="..." /> with no Version attribute.
+
+    Packages are added here as the step that needs them lands, not up front,
+    so an unused pin cannot drift.
+  -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+
+  <ItemGroup Label="Testing (plan P3: xUnit v3, pinned)">
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
+    <PackageVersion Include="xunit.v3" Version="4.0.1" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.0" />
+  </ItemGroup>
+
+  <ItemGroup Label="Hosting (YCR.Worker: the Worker SDK does not reference this implicitly)">
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.12" />
+  </ItemGroup>
+
+  <ItemGroup Label="Architecture tests (plan P4, resolved by V5 — see step 1 in progress.md)">
+    <PackageVersion Include="TngTech.ArchUnitNET" Version="0.13.4" />
+    <PackageVersion Include="TngTech.ArchUnitNET.xUnitV3" Version="0.13.4" />
+  </ItemGroup>
+
+</Project>

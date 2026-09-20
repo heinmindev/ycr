@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!--
+      No tests until plan step 6 (architecture rules and Violations fixtures).
+      Microsoft.Testing.Platform exits 8 when a run discovers no tests, which is a
+      signal worth keeping. This waiver is per project and must be deleted by the
+      step named above, so an empty suite cannot hide once it should have tests.
+    -->
+    <TestingPlatformCommandLineArguments>$(TestingPlatformCommandLineArguments) --ignore-exit-code 8</TestingPlatformCommandLineArguments>
+  </PropertyGroup>
+
+  <!--
+    References every src assembly so the rules can scan them, and so the
+    Violations fixtures can plant deliberate breaches (docs/21 negative cases).
+    Library resolved by V5: NetArchTest.Rules last shipped 2021-05, so ArchUnitNET.
+  -->
+  <ItemGroup>
+    <PackageReference Include="TngTech.ArchUnitNET" />
+    <PackageReference Include="TngTech.ArchUnitNET.xUnitV3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/YCR.Domain/YCR.Domain.csproj" />
+    <ProjectReference Include="../../src/YCR.Application/YCR.Application.csproj" />
+    <ProjectReference Include="../../src/YCR.Infrastructure/YCR.Infrastructure.csproj" />
+    <ProjectReference Include="../../src/YCR.Api/YCR.Api.csproj" />
+  </ItemGroup>
+
+</Project>

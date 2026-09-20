@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!--
+      Intentionally empty for all of F-001 (plan C4): docs/06 lists the project, but no end-to-end journey exists yet. This waiver stays until a feature adds one.
+      Microsoft.Testing.Platform exits 8 when a run discovers no tests, which is a
+      signal worth keeping. This waiver is per project and must be deleted by the
+      step named above, so an empty suite cannot hide once it should have tests.
+    -->
+    <TestingPlatformCommandLineArguments>$(TestingPlatformCommandLineArguments) --ignore-exit-code 8</TestingPlatformCommandLineArguments>
+  </PropertyGroup>
+
+  <!-- Listed by docs/06. Empty in F-001: no end-to-end journey exists yet (plan C4). -->
+  <ItemGroup>
+    <ProjectReference Include="../../src/YCR.Api/YCR.Api.csproj" />
+    <ProjectReference Include="../YCR.TestSupport/YCR.TestSupport.csproj" />
+  </ItemGroup>
+
+</Project>

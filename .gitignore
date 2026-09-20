@@ -1,0 +1,36 @@
+# Build output
+bin/
+obj/
+artifacts/
+[Dd]ebug/
+[Rr]elease/
+*.user
+*.suo
+
+# Test and coverage output
+TestResults/
+*.trx
+*.coverage
+coverage*.json
+coverage*.xml
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.swp
+
+# Local configuration and secrets — never commit a credential (E7, docs/21 Security)
+appsettings.Local.json
+appsettings.*.Local.json
+.env
+.env.*
+!.env.example
+
+# EF migration bundles (build artifacts, produced by dotnet ef migrations bundle)
+efbundle
+efbundle.exe
+
+# OS
+.DS_Store
+Thumbs.db

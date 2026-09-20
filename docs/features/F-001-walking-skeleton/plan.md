@@ -361,9 +361,10 @@ The architecture test enforces the **allowlist**, not merely the namespace, so a
 | `FluentValidation` + `FluentValidation.DependencyInjectionExtensions` | Api | `docs/20` §3 names FluentValidation behind an endpoint filter. The bundled `FluentValidation.AspNetCore` package is deprecated, so the filter is wired by hand |
 | `Microsoft.AspNetCore.Mvc.Testing` | Api.Tests | `WebApplicationFactory`, required by `docs/20` §3 |
 | `Testcontainers.MsSql` | TestSupport | `docs/20` §3 requires Testcontainers against `mssql/server:2022` |
-| `NetArchTest.Rules` **or** `ArchUnitNET` | ArchitectureTests | Type-dependency rules for ADR-0012 §Enforcement and ADR-0020 item 4. **V5 decides which**, in step 1 (P4) |
+| `TngTech.ArchUnitNET` + `TngTech.ArchUnitNET.xUnitV3` 0.13.4 | ArchitectureTests | Type-dependency rules for ADR-0012 §Enforcement and ADR-0020 item 4. **V5 resolved in step 1:** `NetArchTest.Rules` last shipped 1.3.2 in May 2021 with no .NET 10 signal, so the P4 fallback applies. ArchUnitNET last shipped 2026-08-20 and has an xUnit v3 package matching P3 |
 | `xunit.v3`, `xunit.runner.visualstudio`, `Microsoft.NET.Test.Sdk` | all test projects | Test framework. **xUnit v3**, pinned in `Directory.Packages.props` (P3) |
 | `Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore` | Api | `/health/ready` must report database connectivity (`docs/02` §Reliability) |
+| `Microsoft.Extensions.Hosting` 10.0.12 | Worker | Added in step 1. `Microsoft.NET.Sdk.Worker` does not reference it implicitly on .NET 10, so the generated global usings do not compile without it |
 
 **Deliberately not added.** `FluentAssertions` — its v8 licence change makes it commercial for some uses, the same class of concern that made ADR-0004 reject MediatR; plain xUnit assertions are used instead (P3). `AutoMapper` — forbidden by `docs/20` §4. Any OpenTelemetry exporter — spec §8 asks only for baseline instrumentation, and ASP.NET Core's built-in metrics cover it (P8). `Respawn` — each test class gets its own database on the shared container, so no reset library is needed.
 

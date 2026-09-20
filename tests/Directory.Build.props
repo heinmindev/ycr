@@ -1,0 +1,27 @@
+<Project>
+
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <!--
+    Shared test-project settings, so seven csproj files do not repeat them.
+    xUnit v3 test projects are executables (plan P3).
+
+    YCR.TestSupport lives under tests/ but is a fixture library, not a test
+    project: it must not pull in the test runner, or `dotnet test` treats it
+    as a test assembly with nothing to run.
+  -->
+  <PropertyGroup Condition="'$(MSBuildProjectName)' != 'YCR.TestSupport'">
+    <IsTestProject>true</IsTestProject>
+    <OutputType>Exe</OutputType>
+    <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
+    <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(MSBuildProjectName)' != 'YCR.TestSupport'">
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>

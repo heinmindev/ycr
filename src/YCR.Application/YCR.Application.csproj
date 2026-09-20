@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Use cases, module context interfaces (ADR-0012) and Permissions. -->
+  <ItemGroup>
+    <ProjectReference Include="../YCR.Domain/YCR.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

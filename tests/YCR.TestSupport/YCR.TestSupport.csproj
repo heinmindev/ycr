@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Shared test fixtures: the digest-pinned SQL Server container (E4) and the
+    two-credential setup (plan section Test fixture). Plan P2.
+    Not a test project — tests/Directory.Build.props excludes it by name.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="../../src/YCR.Infrastructure/YCR.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
