@@ -1,0 +1,74 @@
+{
+  "format": "YCR ticket QR v1",
+  "encoding": "YCR1: + RFC 9285 Base45",
+  "independentVerificationLibrary": "SimpleBase 5.6.4 (published NuGet package, SimpleBase.Base45 byte-array API)",
+  "ecc": "M",
+  "signatureFormat": "IeeeP1363FixedFieldConcatenation",
+  "hash": "SHA-256",
+  "keyId": 1,
+  "testOnlyPrivateKeyPem": "-----BEGIN PRIVATE KEY-----\nMIGiAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBHkwdwIBAQQgbRkPaSoppmG81b2U7hkrxMXHYjureRu1mvcjlR7xEKigCgYIKoZIzj0DAQehRANCAATIQ3Db8v2UF4F58xTdsHjcGX5REWvU2frLELU1lJQHmM2HkVCgPvrPE0gh+MsIoupWQDzI/I5mA9OAazp4TjUloA0wCwYDVR0PMQQDAgCA\n-----END PRIVATE KEY-----",
+  "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEyENw2/L9lBeBefMU3bB43Bl+URFr1Nn6yxC1NZSUB5jNh5FQoD76zxNIIfjLCKLqVkA8yPyOZgPTgGs6eE41JQ==\n-----END PUBLIC KEY-----",
+  "layout": {
+    "prefix": "YCR1:",
+    "versionHex": "01",
+    "algorithmIdHex": "01",
+    "kidHex": "01",
+    "ticketIdGuidBytes": "00112233445566778899aabbccddeeff",
+    "validFromUnixMinutesHex": "01c9c380",
+    "validUntilUnixMinutesHex": "01c9c768",
+    "originIndexHex": "0001",
+    "destinationIndexHex": "002a",
+    "passengerCategoryHex": "01",
+    "printSequenceHex": "01"
+  },
+  "vectors": [
+    {
+      "name": "valid-active-key",
+      "keyState": "active",
+      "payloadBytesHex": "59435201010100112233445566778899aabbccddeeff01c9c38001c9c7680001002a0101",
+      "signatureHex": "1eca04dbb7a651e756cc3143880e3cbbb0dd22f136c56d85e322eb6a3f3afa251f87883d17314b7416dc516f27cfa1508ab0fc582216be07d86a9aa754db0bdf",
+      "signedBytesLength": 36,
+      "signatureLength": 64,
+      "base45": "YCR1: CBNGAW50H00PE4XS8-.C4CHCQLK+PS9U7A08WO7A0I9P100.00W507+3SR0Y9N.FAZ/ABA609HMU77GMZI4Q-62%D6WSBYTV:72SVG:32AH.-2BO92+2CDAL15VHK:NHP+V-D421O7GR OJXWAOM1",
+      "expected": "Valid"
+    },
+    {
+      "name": "tampered-print-sequence",
+      "keyState": "active",
+      "payloadBytesHex": "59435201010100112233445566778899aabbccddeeff01c9c38001c9c7680001002a0102",
+      "signatureHex": "1eca04dbb7a651e756cc3143880e3cbbb0dd22f136c56d85e322eb6a3f3afa251f87883d17314b7416dc516f27cfa1508ab0fc582216be07d86a9aa754db0bdf",
+      "signedBytesLength": 36,
+      "signatureLength": 64,
+      "base45": "YCR1: CBNGAW50H00PE4XS8-.C4CHCQLK+PS9U7A08WO7A0I9P100.00X507+3SR0Y9N.FAZ/ABA609HMU77GMZI4Q-62%D6WSBYTV:72SVG:32AH.-2BO92+2CDAL15VHK:NHP+V-D421O7GR OJXWAOM1",
+      "expected": "Invalid.Signature"
+    },
+    {
+      "name": "revoked-key-existing-ticket-before-compromise",
+      "keyState": "revoked",
+      "compromiseTimestampUtc": "2026-09-19T00:00:00Z",
+      "issuedAtUtc": "2026-09-18T23:00:00Z",
+      "existsInDb": true,
+      "payloadBytesHex": "59435201010100112233445566778899aabbccddeeff01c9c38001c9c7680001002a0101",
+      "signatureHex": "1eca04dbb7a651e756cc3143880e3cbbb0dd22f136c56d85e322eb6a3f3afa251f87883d17314b7416dc516f27cfa1508ab0fc582216be07d86a9aa754db0bdf",
+      "signedBytesLength": 36,
+      "signatureLength": 64,
+      "base45": "YCR1: CBNGAW50H00PE4XS8-.C4CHCQLK+PS9U7A08WO7A0I9P100.00W507+3SR0Y9N.FAZ/ABA609HMU77GMZI4Q-62%D6WSBYTV:72SVG:32AH.-2BO92+2CDAL15VHK:NHP+V-D421O7GR OJXWAOM1",
+      "offlineExpected": "Invalid.KeyRevoked",
+      "onlineExpected": "Valid"
+    },
+    {
+      "name": "revoked-key-not-in-database",
+      "keyState": "revoked",
+      "compromiseTimestampUtc": "2026-09-19T00:00:00Z",
+      "issuedAtUtc": "2026-09-18T23:00:00Z",
+      "existsInDb": false,
+      "payloadBytesHex": "59435201010100112233445566778899aabbccddeeff01c9c38001c9c7680001002a0101",
+      "signatureHex": "1eca04dbb7a651e756cc3143880e3cbbb0dd22f136c56d85e322eb6a3f3afa251f87883d17314b7416dc516f27cfa1508ab0fc582216be07d86a9aa754db0bdf",
+      "signedBytesLength": 36,
+      "signatureLength": 64,
+      "base45": "YCR1: CBNGAW50H00PE4XS8-.C4CHCQLK+PS9U7A08WO7A0I9P100.00W507+3SR0Y9N.FAZ/ABA609HMU77GMZI4Q-62%D6WSBYTV:72SVG:32AH.-2BO92+2CDAL15VHK:NHP+V-D421O7GR OJXWAOM1",
+      "offlineExpected": "Invalid.KeyRevoked",
+      "onlineExpected": "Invalid.TicketMustExistAndPrecedeCompromise"
+    }
+  ]
+}

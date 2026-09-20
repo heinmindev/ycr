@@ -1,0 +1,5 @@
+[allowlist]
+description = "The private key in the QR vector is deterministic test-only material."
+paths = [
+  '''docs/test-vectors/ticket-qr-v1\.json$'''
+]
