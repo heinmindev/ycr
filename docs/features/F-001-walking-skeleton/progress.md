@@ -748,3 +748,69 @@ A `perl -0pi` edit to `init-principals.sql` consumed the `$(YcrDatabase)` sqlcmd
 **Blockers / open questions:** none technical. OQ26, OQ27 and OQ28 remain open with Myanma Railways; T-014 is the release gate.
 
 **State of the branch:** build and tests green; committed and pushed; this progress entry is the only uncommitted change.
+
+---
+
+## 2026-09-20 22:40 Asia/Yangon — claude — T-004
+
+**Stage:** 4 (IMPLEMENT). Step 10 of 13 complete.
+**Commit:** `63adc65` (`feat(F-001): add Network application handlers`), pushed to `origin/feature/F-001`.
+**Implemented by:** claude.
+
+### What was implemented
+
+Four handlers in `YCR.Application.Network`, registered by assembly scanning (ADR-0004 §Consequences), each ending in one `SaveChangesAsync`.
+
+| File | What |
+|---|---|
+| `Network/CreateStation/CreateStationCommand.cs`, `CreateStationHandler.cs` | S1, S5, S6, S13, S14 |
+| `Network/DeactivateStation/DeactivateStationCommand.cs`, `DeactivateStationHandler.cs` | S2, S7, S8, S27 |
+| `Network/GetStation/GetStationQuery.cs`, `GetStationHandler.cs`, `StationDto.cs` | S4, S8 |
+| `Network/ListStations/ListStationsQuery.cs`, `ListStationsHandler.cs` | S3, S10 |
+| `Network/NetworkConstraints.cs` | `UX_Stations_Code`, so the handler can match the constraint by name |
+| `Common/Pagination/Paging.cs` | `docs/20` §4's `max 200`, stated once |
+| `DependencyInjection.cs` | `AddApplication()` |
+| `YCR.Domain/Network/NetworkErrors.cs` | `Network.InvalidPageRequest` |
+| `tests/YCR.Application.Tests/**` | 30 tests, all under `ycr_app` |
+
+**Exit-code-8 waiver removed** from `YCR.Application.Tests` at its named step.
+
+### Decisions a reviewer should check
+
+- **Queries materialise the entity and then map, instead of projecting to a DTO in SQL.** The plan says "queries project straight to DTOs with `AsNoTracking()`", and that is not achievable here: `Station.Code` is a value object behind an EF value converter, and EF cannot translate member access through one — `station.Code.Value` inside a `Select` does not compile to SQL. `AsNoTracking()` is kept, the mapping lives in one place (`StationDto.From`), and only one page is ever materialised, bounded by `Paging.MaxPageSize`. **This is a deviation from the plan's wording and is called out rather than quietly done.**
+- **Listing is ordered by `Code`.** Without a deterministic order SQL Server may return rows differently between pages, so a caller walking the pages would silently see duplicates and omissions. `Code` is unique, so it is a total order by itself. Tested across three pages.
+- **`Network.InvalidPageRequest` lives in `NetworkErrors`, in Domain.** The *limits* are platform-wide and live in `Application.Common.Pagination`; only the error **code** is per module, because `docs/20` §2 requires `<Module>.<Reason>`. Keeping every `Network.*` code discoverable in one class was judged worth more than the layering purity of moving one validation error into Application. Flagging it as a judgement call.
+- **`NetworkConstraints.StationCodeUniqueIndex` is a duplicated literal, and the duplication is closed by a test.** The index is declared in Infrastructure, which Application may not reference, so the name has to be restated. `StationModelTests` now asserts the mapped index name equals the Application constant. Without that, a rename in Infrastructure would turn a `409` into an unhandled `500`, and nothing would fail until a duplicate code was posted in production.
+- **`CreateStationHandler` keeps both guards, deliberately.** The pre-check gives an ordinary caller a clean `409` with a useful message; the unique index is the authority that settles the race the pre-check cannot (S13, R7). The catch matches **one named constraint**, so an unrelated uniqueness failure propagates as an unexpected error instead of being reported as a duplicate station code.
+- **The S13 test does not assert which guard fired.** Depending on scheduling either the pre-check or the index may reject the loser, and both are correct; asserting one would make the test flaky. The index path specifically is proven by `UniqueConstraintTranslationTests`, which provokes the violation directly rather than hoping the scheduler cooperates. My first version of that comment claimed the test forced the index path — it does not, and the comment was corrected before commit.
+
+### A step-7 defect this step exposed
+
+`dotnet test YCR.sln` failed with `Handle_WhenRequestSuppliesActorFields_IgnoresThem` reporting `'dotnet' exited with 1 ... Build failed`, while `YCR.Application.Tests` alone passed. The cause was mine, from step 7: `dotnet ef migrations bundle` publishes through the Infrastructure project's own `obj/` directory, and `MigrationBundle`'s build gate was a **`SemaphoreSlim` — in-process only**. With two container-backed suites, `dotnet test` runs two test *processes* in parallel and both built the bundle into the same intermediate output.
+
+It was invisible until now because step 9 had only one container-backed suite.
+
+Fixed with `CrossProcessLock`, an exclusively opened lock file: a named `Mutex` would be simpler but is not shared between processes on Linux, where CI runs, and the OS releases a file handle even if a test process is killed, so a crash cannot leave the lock held. The bundle is now cached per checkout (keyed by a hash of the repository path, so worktrees do not share one) and reused when it is newer than the Infrastructure assembly it was built from.
+
+**Verified both paths, not just the fixed one:** with the cache deleted, `dotnet test YCR.sln` is green in 1m50s (one process builds, the other waits); run again warm, green in 56s (the bundle is reused rather than rebuilt).
+
+### Evidence
+
+- `dotnet build YCR.sln` — **0 warnings, 0 errors**.
+- `dotnet test YCR.sln --no-build` — **total 106, failed 0, succeeded 106, skipped 0**. Up from 76.
+- `YCR.Application.Tests` alone: **30 passed, 0 failed, 0 skipped**, all against the real container under `ycr_app`.
+- Two xUnit analyser errors (`xUnit2031`) failed the build on first attempt and were fixed rather than suppressed; `TreatWarningsAsErrors` did its job.
+
+### Scenario coverage added at this step
+
+S1, S3, S4, S5, S6, S7, S8, S10, S13, S14, S20, S27, plus boundary cases for page size and every invalid-code shape from S9. Stage 5 (T-005) owns completeness against the full spec list.
+
+**Not done, deliberately:** the API-level halves of these scenarios — status codes, ProblemDetails, authorization — belong to step 11. A handler returning `ErrorType.BusinessRule` is asserted here; that it becomes a `422` is asserted there.
+
+**Next step (exact):** plan step 11 — API: `Program`, ProblemDetails, `ResultExtensions`, `ValidationFilter`, the permission policy provider, the authentication scheme guard, contracts and `StationEndpoints`, plus health endpoints. Ends green with all `YCR.Api.Tests` rows (S2, S4, S9–S12, S21b, S24, S25) and removes that project's exit-code-8 waiver at its named step.
+
+**Blockers / open questions:** none technical. OQ26, OQ27 and OQ28 remain open with Myanma Railways; T-014 is the release gate.
+
+**State of the branch:** build and tests green; implementation committed and pushed; this progress entry is the only uncommitted change.
+
+**Review split so far:** steps 1, 7, 8, 9 and 10 implemented by claude; steps 2–6 and the step-5 review fixes by Codex.
