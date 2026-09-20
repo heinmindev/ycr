@@ -28,6 +28,24 @@ For each question, record the selected policy, the accountable approver, its eff
 - **Suggested decision owner:** Network Operations / Commercial (role to be nominated).
 - **Sources:** `docs/19-open-questions.md` OQ2; ADR-0019 sale business-date ownership; `docs/10-authorization-matrix.md`.
 
+### OQ26 — Does a YCR station have an official station code, and what is its format?
+
+- **Status:** **OPEN QUESTION** for Myanma Railways. F-001 currently uses a provisional tech-lead engineering assumption: 2–10 characters, uppercase `A`–`Z` and `0`–`9`, unique across active and inactive stations, and never reused. This is an engineering placeholder for the walking skeleton, **not a Myanma Railways answer**.
+- **Why it matters:** Station codes are human-facing identifiers used in master data, routes, fares, timetables, printed material, and authenticated QR station-index mappings.
+- **Blocks or constrains:** Authoritative station data; `StationCode` validation and database constraints; data migration; code reuse after deactivation; interoperability with existing MR systems.
+- **Suggested options (non-binding):** (a) approve an MR-owned official code standard; (b) adopt an existing railway code catalogue; (c) use centrally assigned codes with a permanent non-reuse register; (d) define separate display and machine identifiers if MR requires both.
+- **Suggested decision owner:** Network Operations / Planning (role to be nominated).
+- **Sources:** `docs/19-open-questions.md` OQ26; F-001 spec R3; ADR-0006; ADR-0014 station-index mapping; T-014 release gate.
+
+### OQ27 — What are the naming rules for a station?
+
+- **Status:** **OPEN QUESTION** for Myanma Railways. F-001 currently uses a provisional tech-lead engineering assumption: `NameEn` and `NameMy` are both required, each 1–100 characters after trimming, and neither is unique. This is an engineering placeholder for the walking skeleton, **not a Myanma Railways answer**. Unicode storage and the prohibition on Zawgyi remain separate project facts.
+- **Why it matters:** Naming rules affect passenger-facing language, station search and display, printed tickets, data quality, deduplication, and historical reporting.
+- **Blocks or constrains:** `BilingualName` validation; station master-data import; API and print contracts; uniqueness and rename policy; language/transliteration support.
+- **Suggested options (non-binding):** (a) require English and Myanmar names with MR-approved maximum lengths; (b) make one language optional for stations without an approved translation; (c) require unique official names, with a separate short or printed name; (d) define an approved transliteration field and change process.
+- **Suggested decision owner:** Network Operations / Customer Service (roles to be nominated).
+- **Sources:** `docs/19-open-questions.md` OQ27; F-001 spec R4; `docs/20-coding-conventions.md` §3 and §6; T-014 release gate.
+
 ### OQ12 — What operator roles exist?
 
 - **Why it matters:** Named roles determine who may sell, validate, cancel, refund, manage fares, close sessions, and view reports. They also support segregation of duties and audit attribution.
@@ -35,6 +53,15 @@ For each question, record the selected policy, the accountable approver, its eff
 - **Suggested options (non-binding):** (a) approve the proposed roles in `docs/10-authorization-matrix.md`; (b) replace them with MR’s existing role catalogue; (c) use a core role set plus station- or duty-specific assignments.
 - **Suggested decision owner:** MR HR/Operations with IT Security (roles to be nominated).
 - **Sources:** `docs/19-open-questions.md` OQ12; `docs/10-authorization-matrix.md`; ADR-0016.
+
+### OQ28 — Which operator roles may manage stations, and is there a separate read permission?
+
+- **Status:** **OPEN QUESTION** for Myanma Railways. F-001 currently uses the provisional engineering permission names `stations.manage` and `stations.read`, seeds no role-to-permission grants, and mints permissions directly in tests. This is an engineering placeholder and authorization containment measure, **not a Myanma Railways answer** about role grants.
+- **Why it matters:** Station management and read access need explicit segregation-of-duties, least-privilege, provisioning, and audit rules. The existing matrix table is only a proposal; the permission inventory governs until grants are approved.
+- **Blocks or constrains:** Authorization matrix approval; role provisioning; station endpoint access; audit attribution; release of production role seed data; F-001 replacement work tracked by T-014.
+- **Suggested options (non-binding):** (a) approve role grants in the existing matrix; (b) use a separate station-manager role for `stations.manage` and one or more read-only roles for `stations.read`; (c) grant permissions by station/region assignment rather than global role; (d) require dual control for changes while allowing broader read access.
+- **Suggested decision owner:** MR Operations / IT Security (roles to be nominated).
+- **Sources:** `docs/19-open-questions.md` OQ28; `docs/10-authorization-matrix.md`; F-001 spec R8; ADR-0020; T-014 release gate.
 
 ### OQ13 — What reports are mandatory?
 
@@ -217,6 +244,7 @@ The following dependencies should be considered when scheduling decisions:
 - **Ticket product first:** OQ3, OQ4, OQ5, OQ19, and OQ23 jointly define what is sold and what validation accepts.
 - **Fare and payment:** OQ1, OQ2, OQ9, OQ11, OQ17, OQ21, and OQ24 jointly determine a reproducible sale and reconciliation result.
 - **Outage and validation:** OQ8 and OQ18 must align with the fraud, reconciliation, and operational controls in ADR-0014 and ADR-0015.
-- **Governance:** OQ12, OQ13, OQ14, OQ15, OQ16, and OQ25 determine ownership, evidence, and operating readiness.
+- **Station master data and access:** OQ1, OQ2, OQ12, OQ26, OQ27, and OQ28 determine authoritative station data, naming, identifiers, and access ownership.
+- **Governance:** OQ13, OQ14, OQ15, OQ16, OQ25, and the role decision in OQ28 determine ownership, evidence, and operating readiness.
 
 No dependency listed here is a proposed sequencing decision; it is a prompt for the MR workshop agenda.
