@@ -14,7 +14,7 @@ Agents: read this whole file, including the Protocol, before picking a task.
 |---|---|---|---|---|---|---|---|---|---|
 | T-001 | Commit current docs as baseline (`git init` if needed); tag `docs-baseline-2026-09-19` | done | hein | — | main | Tag exists on `main` | — | 2026-09-19 23:00 | Human only |
 | T-002 | F-001 walking skeleton: stages 1–2, discover + spec | done | claude | T-001 | feature/F-001 | `docs/features/F-001-walking-skeleton/spec.md` per workflow 02 ⛔ | `docs/features/F-001-walking-skeleton/progress.md` | 2026-09-20 02:27 | Spec Approved (hein, 2026-09-20) at `cb20c7c` on `feature/F-001`. Provisional station rules under the explicit waiver in spec §Blocked behaviour; replacement tracked by T-014. ADR-0020 and ADR-0021 added as Proposed. |
-| T-003 | F-001 stage 3, plan | blocked | claude | T-002 | feature/F-001 | `plan.md` ⛔ | same as T-002 | 2026-09-20 03:00 | approval: plan at `adff9b1` on `feature/F-001`. Ten decisions P1-P10 in plan.md §Decisions needed await an answer; P1, P2, P5 and P6 change the file inventory, so T-004 must not start first |
+| T-003 | F-001 stage 3, plan | blocked | claude | T-002 | feature/F-001 | `plan.md` ⛔ | same as T-002 | 2026-09-20 04:15 | approval: plan revision 3 at `8f0bfe5` on `feature/F-001`. P1-P10 resolved at review; **P11** (Api-to-Domain rule vs ADR-0004 `Result` in `YCR.Domain.Common`) and **P12** (stage-2 amendment adding scenario S27) await an answer, and T-004 must not start first |
 | T-004 | F-001 stage 4, implement (unit tests with each plan step) | todo | — | T-003 | feature/F-001 | Plan steps done; `dotnet test` green; commit SHA recorded in Notes | same as T-002 | 2026-09-19 21:00 | |
 | T-005 | F-001 stage 5, scenario tests from spec §4 (testing-agent prompt) | todo | — | T-004 | feature/F-001 | All spec scenarios covered; `dotnet test` green | same as T-002 | 2026-09-19 21:00 | Owner ≠ T-004 owner |
 | T-006 | F-001 stage 6, code review of the commit named in T-005 Notes | todo | — | T-005 | feature/F-001 | `review.md` with verdict | same as T-002 | 2026-09-19 21:00 | Owner ≠ T-004 owner |
@@ -43,6 +43,8 @@ Agents: read this whole file, including the Protocol, before picking a task.
 - **Standalone tasks** (not feature stages) use `task/T-xxx-<slug>` in their own worktree, and are merged to `main` by a human when done.
 - Reviews always name the exact commit SHA they reviewed.
 - **The only live ledger is `TASKS.md` in the coordination checkout.** Every worktree also has a copy of `TASKS.md`, and that copy is stale. Never read the worktree copy for status and never edit it. When merging a branch to `main`, keep `main`'s version of `TASKS.md`.
+- **Push `main` after every ledger commit** (`git push origin main`), so the ledger other agents read is never stale.
+- **Never push a `claim/*` ref.** Locks are local coordination; pushing one would leave a stale claim that another machine cannot clear.
 
 ### Picking and claiming a task
 
