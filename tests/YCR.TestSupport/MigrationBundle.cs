@@ -39,27 +39,43 @@ public static partial class MigrationBundle
             }
 
             var repositoryRoot = FindRepositoryRoot();
-            var outputDirectory = Directory.CreateTempSubdirectory("ycr-efbundle-").FullName;
+            var outputDirectory = BundleDirectoryFor(repositoryRoot);
+            Directory.CreateDirectory(outputDirectory);
             var bundlePath = Path.Combine(
                 outputDirectory,
                 OperatingSystem.IsWindows() ? "efbundle.exe" : "efbundle");
 
-            // The local tool manifest pins dotnet-ef, so the bundle is built by the same tool
-            // version everywhere rather than by whatever happens to be installed globally.
-            await RunAsync(repositoryRoot, "dotnet", ["tool", "restore"], cancellationToken)
-                .ConfigureAwait(false);
+            // Serialised across processes, not just across threads. `dotnet ef migrations bundle`
+            // publishes through the Infrastructure project's own obj/ directory, so two test
+            // assemblies running in parallel — which is the default for `dotnet test YCR.sln` —
+            // would build into the same intermediate output and one would fail with a bare
+            // "Build failed". An in-process semaphore cannot see the other process.
+            using (await CrossProcessLock.AcquireAsync(
+                Path.Combine(outputDirectory, ".build-lock"), cancellationToken).ConfigureAwait(false))
+            {
+                if (IsUpToDate(bundlePath))
+                {
+                    builtBundlePath = bundlePath;
+                    return bundlePath;
+                }
 
-            await RunAsync(
-                repositoryRoot,
-                "dotnet",
-                [
-                    "ef", "migrations", "bundle",
-                    "--force",
-                    "--project", Path.Combine("src", "YCR.Infrastructure"),
-                    "--startup-project", Path.Combine("src", "YCR.Infrastructure"),
-                    "--output", bundlePath
-                ],
-                cancellationToken).ConfigureAwait(false);
+                // The local tool manifest pins dotnet-ef, so the bundle is built by the same tool
+                // version everywhere rather than by whatever happens to be installed globally.
+                await RunAsync(repositoryRoot, "dotnet", ["tool", "restore"], cancellationToken)
+                    .ConfigureAwait(false);
+
+                await RunAsync(
+                    repositoryRoot,
+                    "dotnet",
+                    [
+                        "ef", "migrations", "bundle",
+                        "--force",
+                        "--project", Path.Combine("src", "YCR.Infrastructure"),
+                        "--startup-project", Path.Combine("src", "YCR.Infrastructure"),
+                        "--output", bundlePath
+                    ],
+                    cancellationToken).ConfigureAwait(false);
+            }
 
             builtBundlePath = bundlePath;
             return bundlePath;
@@ -99,6 +115,38 @@ public static partial class MigrationBundle
         {
             return failure.Message;
         }
+    }
+
+    /// <summary>
+    /// A stable per-checkout directory for the bundle, so a second test process reuses the first
+    /// one's build instead of repeating it. Keyed by the repository path, so two worktrees of the
+    /// same repository do not share a bundle.
+    /// </summary>
+    private static string BundleDirectoryFor(string repositoryRoot)
+    {
+        var key = Convert.ToHexString(
+            System.Security.Cryptography.SHA256.HashData(
+                Encoding.UTF8.GetBytes(repositoryRoot.ToUpperInvariant())))[..16];
+
+        return Path.Combine(Path.GetTempPath(), "ycr-migration-bundle", key);
+    }
+
+    /// <summary>
+    /// Whether an existing bundle can be reused: it must be newer than the Infrastructure
+    /// assembly it was built from, or a code change would be tested against a stale migrator.
+    /// </summary>
+    private static bool IsUpToDate(string bundlePath)
+    {
+        if (!File.Exists(bundlePath))
+        {
+            return false;
+        }
+
+        var infrastructure = typeof(YCR.Infrastructure.Persistence.YcrDbContext).Assembly.Location;
+
+        return !string.IsNullOrEmpty(infrastructure)
+            && File.Exists(infrastructure)
+            && File.GetLastWriteTimeUtc(bundlePath) >= File.GetLastWriteTimeUtc(infrastructure);
     }
 
     private static string FindRepositoryRoot()
