@@ -26,7 +26,7 @@ public sealed class MigrationBundleTests(SqlServerFixture fixture) : IAsyncLifet
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
     [Fact]
-    public async Task Migrate_AgainstPinnedImage_CreatesStationsTable()
+    public async Task Migrate_AgainstPinnedImage_CreatesStationsAndLedgerTable()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
 
@@ -57,6 +57,19 @@ public sealed class MigrationBundleTests(SqlServerFixture fixture) : IAsyncLifet
             cancellationToken);
 
         Assert.Equal(["UX_Stations_Code"], indexes);
+
+        // Both raw-SQL and EF-generated migrations ship in the same bundle. LedgerMigrationTests
+        // owns the ledger's shape; what matters here is that the bundle created it at all.
+        var ledgerTables = await QueryStringsAsync(
+            """
+            SELECT t.name
+            FROM sys.tables AS t
+            JOIN sys.schemas AS s ON s.schema_id = t.schema_id
+            WHERE s.name = 'audit' AND t.ledger_type_desc = 'APPEND_ONLY_LEDGER_TABLE';
+            """,
+            cancellationToken);
+
+        Assert.Equal(["AuditEvents"], ledgerTables);
     }
 
     [Fact]
