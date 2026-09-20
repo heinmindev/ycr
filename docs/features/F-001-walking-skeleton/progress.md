@@ -171,3 +171,102 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** none. Still open with Myanma Railways: OQ26, OQ27, OQ28, tracked by T-014 as a release gate.
 
 **State of the branch:** builds clean, tests green, all work committed and pushed to `origin/feature/F-001`.
+
+---
+
+## 2026-09-20 05:10 Asia/Yangon — claude — T-004 — HANDOFF TO CODEX
+
+**Stage:** 4 (IMPLEMENT). Steps 1/13 complete. **Implementation passes to Codex from step 2** (decided by hein, 2026-09-20).
+**Commit Codex starts from:** `20e3d56` on `feature/F-001`, which is also `origin/feature/F-001`. This handoff entry is its only child.
+
+### State of the branch
+
+Clean tree, nothing uncommitted, local and `origin` in sync. `dotnet build YCR.sln` → **0 warnings, 0 errors**. `dotnet test YCR.sln` → **2 passed, 0 failed, 0 skipped**, exit 0. Twelve projects exist and are wired; only `YCR.Domain.Tests` has tests.
+
+Toolchain confirmed present on this machine: .NET SDK **10.0.302**, Docker **29.7.2**.
+
+### Exact next step
+
+**Plan step 2 — `YCR.Domain.Common`:** `Result`, `Result<T>`, `Error`, `ErrorType`, `Entity`, `AggregateRoot` in `src/YCR.Domain/Common/`, ending green with `YCR.Domain.Tests` covering Result and Error semantics.
+
+Constraints on step 2 specifically:
+
+- `ErrorType` must carry exactly ADR-0004's cases, because `ResultExtensions` maps them to status codes at step 11: `Validation` 400, `Unauthorized` 401, `Forbidden` 403, `NotFound` 404, `Conflict` 409, `BusinessRule` 422.
+- Error codes are the stable strings `<Module>.<Reason>` (`docs/20` §2).
+- `AggregateRoot` needs `Raise(...)` and a domain-event collection, because `docs/20` §3's reference slice calls it. **No dispatcher** — plan P6.
+- These four types are the ones `YCR.Api` is later allowed to reference; see "must not change" below.
+
+Then steps 3–13 in the plan's §Steps table, in order. Steps 1–6 need no Docker; 7 onward do.
+
+### The four step-1 discoveries Codex needs
+
+1. **`dotnet new sln` defaults to `.slnx` on .NET 10.** `YCR.sln` was created with `--format sln` because AGENTS.md §Commands names `YCR.sln`. **Do not regenerate the solution without `--format sln`** — a `.slnx` would silently break both documented commands.
+
+2. **xUnit v3 needs the Microsoft.Testing.Platform opt-in, and it lives in `global.json`**, not `dotnet.config`. The key is `test.runner` set to `Microsoft.Testing.Platform`. On .NET 10 the VSTest target is gone; without this, every test project fails with "Testing with VSTest target is no longer supported". `dotnet.config` was tried first and had no effect.
+
+3. **`Microsoft.NET.Sdk.Worker` does not reference `Microsoft.Extensions.Hosting` implicitly on .NET 10.** Without the explicit pin, `YCR.Worker`'s generated global usings do not compile. It is pinned at 10.0.12 and recorded in the plan's §New packages, because `docs/20` §8 requires that for every package.
+
+4. **Exit-8 waivers.** Microsoft.Testing.Platform exits 8 when a run discovers no tests. Rather than disabling that signal solution-wide, five projects carry a scoped `--ignore-exit-code 8` in their own csproj. **Delete each one in the step that gives that project its first test:**
+
+   | Project | Waiver removed at |
+   |---|---|
+   | `YCR.ArchitectureTests` | **step 6** |
+   | `YCR.Infrastructure.Tests` | **step 7** |
+   | `YCR.Application.Tests` | **step 10** |
+   | `YCR.Api.Tests` | **step 11** |
+   | `YCR.IntegrationTests` | **not in F-001** — intentionally empty for the whole feature (plan C4). The waiver stays, with that reason in the csproj comment |
+
+   Leaving a waiver in place after its step would let a suite silently stop running. Removing them early turns the build red for no reason.
+
+### What Codex must not change
+
+**Binding, supersede rather than edit:**
+
+- Accepted ADRs 0004, 0005, 0006, 0012, 0016, 0017, 0018, 0019, **0020**, **0021**. `docs/decisions/README.md` §Rules: never edit the Decision section of an Accepted ADR; propose a superseding one.
+- The **Approved** `spec.md` and `plan.md`. A spec gap goes **back to stage 2** for a human amendment (workflow 02), as happened for S27 — it does not get patched in code.
+- Spec scenario numbering **S1–S27**. The plan's test plan references these by number; renumbering silently breaks that mapping.
+
+**Plan decisions already made — changing one needs hein, not a judgement call:**
+
+- **P1** migrations are applied by `dotnet ef migrations bundle` under the migrator credential. **No `YCR.DbMigrator` project** unless **V6** fails, and then only with the ADR that would need.
+- **P3** xUnit v3, plain xUnit assertions. **No FluentAssertions** — its v8 licence change is the concern that made ADR-0004 reject MediatR.
+- **P5** keep both `StationDto` (Application) and `StationResponse` (Api).
+- **P6** domain events are collected, never dispatched, in F-001.
+- **P7** the audit ledger migration's `Down()` **throws**. Do not make it drop the table; ADR-0017 item 6 forbids it.
+- **P9** the `ycr_app` **role** is created by a migration; its **login and user** by provisioning. No credential in any migration file.
+- **P11** `YCR.Api` may reference **no** `YCR.Domain.<Module>` type, and from `YCR.Domain.Common` exactly four: `Result`, `Result<T>`, `Error`, `ErrorType`. The step-6 architecture test enforces the **allowlist by type**, not the namespace. Adding a fifth shared type is meant to fail the build.
+
+**The provisional-rules waiver (spec §Blocked behaviour), the easiest thing to break by accident:**
+
+- Rules R3 (station code), R4 (names) and R8 (permissions) are **ASSUMPTION (provisional, approved by hein 2026-09-20; replace when OQ26/OQ27/OQ28 answered)**. They live **only** in `StationCode`, `BilingualName` and `Permissions`, and that label belongs in an XML doc comment on each. Nothing else may encode or branch on them.
+- **Seed no role-to-permission grants** (OQ28). Tests mint permissions directly on the test principal.
+- OQ26, OQ27 and OQ28 stay open in `docs/19`; T-014 is the release gate.
+
+**Verifications that must not be quietly worked around:**
+
+- **V1** (ledger supported by the image's edition) and **V2** (`CHECK` constraints and nonclustered indexes on an append-only ledger table) run at step 8. If either fails, **stop and return to stage 2** — do not substitute a normal table. AGENTS.md rule 8.
+- **V3** (ledger DDL inside EF's migration transaction) and **V4** (EF `INSERT` into the ledger) have fallbacks already written in the plan; use those rather than inventing one.
+- **V6** (`dotnet ef migrations bundle` handles the raw-SQL ledger migration) runs at step 7.
+
+**Build and repository hygiene:**
+
+- Do not remove the SDK pin or the MTP opt-in from `global.json`.
+- Do not remove `TreatWarningsAsErrors`, and do not silence a warning with a pragma or a suppression to get a green build (`docs/20` §8).
+- Keep central package management: `PackageReference` with no `Version`, the version pinned in `Directory.Packages.props`. **Every new package needs a row in the plan's §New packages with its reason** (`docs/20` §8).
+- `tests/Directory.Build.props` excludes `YCR.TestSupport` by name from the test-runner setup; it is a fixture library, not a suite.
+- **Never disable or delete a test to make the build pass** (AGENTS.md rule 7).
+
+**Process:**
+
+- `TASKS.md` inside this worktree is **stale**. Read and edit the ledger only in the coordination checkout (`D:\MR\yangon-circular-railway`).
+- Push `main` after every ledger commit; **never push a `claim/*` ref** (`TASKS.md` §Protocol, §Checkouts and branches).
+- Push `feature/F-001` after every checkpoint (hein, 2026-09-20).
+- Log every finished step here with test counts and the commit SHA.
+- **Cross-review (`TASKS.md` §Protocol item 11):** T-005 scenario tests, T-006 code review and T-007 security review must be done by an agent **other than the T-004 implementer**. With implementation moving to Codex, Codex must not take T-005, T-006 or T-007; it does own T-008 remediation.
+- Step 13 must prove the CI workflow **green on `origin` for `feature/F-001`** and record the run URL here.
+
+### Ledger note
+
+`TASKS.md` was deliberately not touched in this handoff. The T-004 row still reads Owner `claude`, Status `doing`, and the `claim/T-004` ref still exists in the coordination checkout. Per §Protocol item 12 only a human may release a claimed task, so **hein needs to reassign the row and the claim ref to Codex** before Codex starts step 2.
+
+**Blockers / open questions:** none technical. Still open with Myanma Railways: OQ26, OQ27, OQ28 (T-014, release gate).
