@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.DependencyInjection;
 using YCR.Application.Common.Abstractions;
 using YCR.Application.Common.Authorization;
+using YCR.Application.Network;
 using YCR.Domain.Network;
 using YCR.Infrastructure;
 using YCR.Infrastructure.Persistence;
@@ -105,7 +106,10 @@ public sealed class LedgerMigrationTests(SqlServerFixture fixture) : IAsyncLifet
             UserId = actorId,
             Roles = ["Admin", "StationManager"],
             ClientIp = "203.0.113.7",
-            CorrelationId = "corr-ledger-1"
+            CorrelationId = "corr-ledger-1",
+            // Derived server-side from the endpoint's required permission (hein's ruling,
+            // 2026-09-20). The handler never names its own authority.
+            AuthorizedByPermission = Permissions.StationsManage
         };
 
         var stationId = Guid.CreateVersion7();
@@ -124,10 +128,10 @@ public sealed class LedgerMigrationTests(SqlServerFixture fixture) : IAsyncLifet
             context.Stations.Add(station);
             writer.Record(
                 "Network.StationCreated",
-                station,
+                NetworkAuditSubjects.Station,
+                station.Id,
                 before: null,
-                after: new { code = "YGN" },
-                authorizedByPermission: Permissions.StationsManage);
+                after: StationAuditSnapshot.From(station));
 
             // One SaveChangesAsync commits the station and its audit row together.
             await context.SaveChangesAsync(cancellationToken);
@@ -150,10 +154,14 @@ public sealed class LedgerMigrationTests(SqlServerFixture fixture) : IAsyncLifet
         Assert.Equal(actorId, reader.GetGuid(1));
         // ADR-0021: a JSON array, which the ISJSON constraint alone would not guarantee.
         Assert.Equal("""["Admin","StationManager"]""", reader.GetString(2));
-        Assert.Equal(nameof(Station), reader.GetString(3));
+        // The module-declared constant, not a CLR type name (hein's ruling, 2026-09-20).
+        Assert.Equal("Network.Station", reader.GetString(3));
+        Assert.Equal(NetworkAuditSubjects.Station, reader.GetString(3));
         Assert.Equal(stationId, reader.GetGuid(4));
         Assert.True(reader.IsDBNull(5));
-        Assert.Equal("""{"code":"YGN"}""", reader.GetString(6));
+        Assert.Equal(
+            """{"code":"YGN","nameEn":"Yangon Central","nameMy":"ရန်ကုန်ဘူတာကြီး","isActive":true}""",
+            reader.GetString(6));
         Assert.Equal("corr-ledger-1", reader.GetString(7));
         Assert.Equal("203.0.113.7", reader.GetString(8));
         Assert.Equal(Permissions.StationsManage, reader.GetString(9));
@@ -172,7 +180,7 @@ public sealed class LedgerMigrationTests(SqlServerFixture fixture) : IAsyncLifet
         {
             var context = scope.ServiceProvider.GetRequiredService<YcrDbContext>();
             scope.ServiceProvider.GetRequiredService<IAuditWriter>()
-                .Record("Network.SystemSweep", typeof(Station), before: null, after: null);
+                .Record("Network.SystemSweep", NetworkAuditSubjects.Station, subjectId: null, before: null, after: null);
             await context.SaveChangesAsync(cancellationToken);
         }
 
@@ -180,7 +188,76 @@ public sealed class LedgerMigrationTests(SqlServerFixture fixture) : IAsyncLifet
         Assert.Null(await ScalarAsync<object>("SELECT [ActorUserId] FROM [audit].[AuditEvents];"));
         Assert.Null(await ScalarAsync<object>("SELECT [ActorRole] FROM [audit].[AuditEvents];"));
         Assert.Null(await ScalarAsync<object>("SELECT [SubjectId] FROM [audit].[AuditEvents];"));
-        Assert.Equal(nameof(Station), await ScalarAsync<string>("SELECT [SubjectType] FROM [audit].[AuditEvents];"));
+        Assert.Null(await ScalarAsync<object>("SELECT [AuthorizedByPermission] FROM [audit].[AuditEvents];"));
+        Assert.Equal(
+            NetworkAuditSubjects.Station,
+            await ScalarAsync<string>("SELECT [SubjectType] FROM [audit].[AuditEvents];"));
+    }
+
+    /// <summary>
+    /// Hein's ruling, 2026-09-20: an entity must never become an audit payload. The parameters are
+    /// <c>object?</c>, so this is caught at runtime — loudly, on the first call, rather than by
+    /// writing a row that can never be redacted.
+    /// </summary>
+    [Fact]
+    public async Task AuditWriter_WhenHandedAnEntityAsASnapshot_Refuses()
+    {
+        var station = Station.Create(
+            Guid.CreateVersion7(),
+            StationCode.Create("TMW").Value,
+            BilingualName.Create("Thamaing", "သမိုင်း").Value,
+            DateTimeOffset.UtcNow);
+
+        await using var provider = BuildProvider(new StubCurrentUser { CorrelationId = "corr-entity" });
+        await using var scope = provider.CreateAsyncScope();
+        var writer = scope.ServiceProvider.GetRequiredService<IAuditWriter>();
+
+        var failure = Assert.Throws<ArgumentException>(() => writer.Record(
+            "Network.StationCreated",
+            NetworkAuditSubjects.Station,
+            station.Id,
+            before: null,
+            after: station));
+
+        Assert.Equal("after", failure.ParamName);
+        Assert.Contains("audit snapshot record", failure.Message, StringComparison.Ordinal);
+
+        // Nothing was tracked, so nothing can reach the ledger on a later save.
+        Assert.Equal(0, await ScalarAsync<int>("SELECT COUNT(*) FROM [audit].[AuditEvents];"));
+    }
+
+    [Fact]
+    public async Task AuditWriter_RecordsTheSnapshotShapeNotTheEntityShape()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var station = Station.Create(
+            Guid.CreateVersion7(),
+            StationCode.Create("DNN").Value,
+            BilingualName.Create("Danyingon", "ဒညင်းကုန်း").Value,
+            DateTimeOffset.UtcNow);
+
+        await using var provider = BuildProvider(new StubCurrentUser { CorrelationId = "corr-snapshot" });
+        await using (var scope = provider.CreateAsyncScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<YcrDbContext>();
+            scope.ServiceProvider.GetRequiredService<IAuditWriter>().Record(
+                "Network.StationDeactivated",
+                NetworkAuditSubjects.Station,
+                station.Id,
+                before: StationAuditSnapshot.From(station),
+                after: StationAuditSnapshot.From(station) with { IsActive = false });
+            await context.SaveChangesAsync(cancellationToken);
+        }
+
+        // Exactly the four snapshot fields: no Id, no DomainEvents, nothing the aggregate might
+        // grow later. PayloadVersion is what changes when this shape does (ADR-0021 rule 3).
+        Assert.Equal(
+            """{"code":"DNN","nameEn":"Danyingon","nameMy":"ဒညင်းကုန်း","isActive":true}""",
+            await ScalarAsync<string>("SELECT [BeforeJson] FROM [audit].[AuditEvents];"));
+        Assert.Equal(
+            """{"code":"DNN","nameEn":"Danyingon","nameMy":"ဒညင်းကုန်း","isActive":false}""",
+            await ScalarAsync<string>("SELECT [AfterJson] FROM [audit].[AuditEvents];"));
+        Assert.Equal(1, await ScalarAsync<int>("SELECT [PayloadVersion] FROM [audit].[AuditEvents];"));
     }
 
     [Fact]
@@ -301,5 +378,7 @@ public sealed class LedgerMigrationTests(SqlServerFixture fixture) : IAsyncLifet
         public string? ClientIp { get; init; }
 
         public required string CorrelationId { get; init; }
+
+        public string? AuthorizedByPermission { get; init; }
     }
 }

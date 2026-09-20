@@ -16,9 +16,9 @@ namespace YCR.Infrastructure.Tests.Persistence;
 /// opened, so the test proves the shared instance actually shares a transaction — which is
 /// the property ADR-0012's one-context-many-interfaces design depends on.
 /// <para>
-/// Credential: the migrator, because the least-privilege <c>ycr_app</c> role does not exist
-/// until the Security_AppDatabaseRole migration lands at plan step 9; this test moves onto
-/// that credential there.
+/// Credential: <c>ycr_app</c>, the identity the platform actually runs under (plan §Test
+/// fixture). Moved onto it at step 9, when <c>Security_AppDatabaseRole</c> created the role.
+/// A grant this scoping depends on therefore fails here rather than in production.
 /// </para>
 /// </remarks>
 [Collection(SqlServerCollection.Name)]
@@ -36,7 +36,7 @@ public sealed class ModuleInterfacesTests(SqlServerFixture fixture) : IAsyncLife
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var provider = new ServiceCollection()
-            .AddInfrastructure(database.MigratorConnectionString)
+            .AddInfrastructure(database.ApplicationConnectionString)
             .BuildServiceProvider();
 
         await using var firstScope = provider.CreateAsyncScope();

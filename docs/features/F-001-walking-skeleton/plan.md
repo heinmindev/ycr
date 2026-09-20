@@ -436,6 +436,8 @@ Each step ends with `dotnet test YCR.sln` green. No step leaves the branch red. 
 
 Documentation updates (`docs/07`, `docs/08`, `docs/20` §3, **`docs/20` §6's migration-naming correction**, the glossary contribution) belong to **stage 8**, not here.
 
+**`docs/20` §3's audit example must be corrected at stage 8** (hein's ruling, 2026-09-20, applied in step 9). Line 104 currently reads `audit.Record("Network.StationCreated", station, before: null, after: station);`, which passes the aggregate as both the subject and the state payload — exactly what the ruling forbids. The corrected call is `audit.Record("Network.StationCreated", NetworkAuditSubjects.Station, station.Id, before: null, after: StationAuditSnapshot.From(station));`. Recorded here so the edit is traceable to the ruling rather than appearing unexplained.
+
 ---
 
 ## Decisions

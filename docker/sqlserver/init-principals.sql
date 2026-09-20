@@ -31,8 +31,12 @@ BEGIN
 END
 GO
 
--- The application login. It holds no rights until Security_AppDatabaseRole creates the
--- `ycr_app` role and a later step adds this user to it (plan step 9).
+-- The application login. It holds no rights until it is added to the `ycr_app` database role,
+-- which the Security_AppDatabaseRole migration creates.
+--
+-- The login is `ycr_app` but the database user is `ycr_app_user`, because a role and a user are
+-- both database principals and SQL Server will not let them share a name. The role keeps the
+-- plain name, since the role is what grants are written against and what a reader looks for.
 IF SUSER_ID(N'ycr_app') IS NULL
 BEGIN
     CREATE LOGIN [ycr_app] WITH
@@ -52,11 +56,29 @@ BEGIN
 END
 GO
 
-IF USER_ID(N'ycr_app') IS NULL
+IF USER_ID(N'ycr_app_user') IS NULL
 BEGIN
-    CREATE USER [ycr_app] FOR LOGIN [ycr_app];
+    CREATE USER [ycr_app_user] FOR LOGIN [ycr_app];
 END
 GO
 
-PRINT 'YCR principals ready. Run the migration bundle as ycr_migrator, then add ycr_app to the ycr_app role.';
+-- Role membership is applied here only if the migration that creates the role has already run.
+-- On a first `docker compose up -d` it has not, so the developer runs the bundle and then this
+-- script again; the second run is what joins the two. Both runs are idempotent.
+IF DATABASE_PRINCIPAL_ID(N'ycr_app') IS NOT NULL
+   AND NOT EXISTS (SELECT 1
+                   FROM sys.database_role_members AS m
+                   WHERE m.role_principal_id = DATABASE_PRINCIPAL_ID(N'ycr_app')
+                     AND m.member_principal_id = DATABASE_PRINCIPAL_ID(N'ycr_app_user'))
+BEGIN
+    ALTER ROLE [ycr_app] ADD MEMBER [ycr_app_user];
+    PRINT 'ycr_app_user added to the ycr_app role.';
+END
+ELSE IF DATABASE_PRINCIPAL_ID(N'ycr_app') IS NULL
+BEGIN
+    PRINT 'The ycr_app role does not exist yet. Run the migration bundle as ycr_migrator, then re-run this script.';
+END
+GO
+
+PRINT 'YCR principals ready.';
 GO
