@@ -609,3 +609,85 @@ It has two branches:
 **State of the branch:** build and tests green; implementation committed and pushed; this progress entry is the only uncommitted change.
 
 **Review split so far:** steps 1, 7 and 8 implemented by claude; steps 2–6 and the step-5 review fixes implemented by Codex. Per `TASKS.md` §Protocol item 11, T-005, T-006 and T-007 over claude's steps must be done by an agent other than claude, and over Codex's steps by an agent other than Codex.
+
+---
+
+## 2026-09-20 21:10 Asia/Yangon — claude — T-004
+
+**Stage:** 4 (IMPLEMENT). Step 9 of 13 complete. **Hein's three rulings of 2026-09-20 applied.**
+**Commit:** `b6bf336` (`feat(F-001): add least-privilege role and audit contract rulings`), pushed to `origin/feature/F-001`.
+**Implemented by:** claude.
+
+### Rulings applied
+
+**Ruling 1 — the guard's edition probe: accepted as is.** No change; the step-8 implementation stands.
+
+**Ruling 2 — `IAuditWriter` changed before any handler depends on it.** The new contract is
+
+```csharp
+void Record(string action, string subjectType, Guid? subjectId,
+            object? before, object? after, string? reasonCode = null);
+```
+
+- **`subjectType` is a module-declared constant.** `YCR.Application.Network.NetworkAuditSubjects.Station` = `"Network.Station"`. Nothing derives it from a CLR type name any more. The reason is recorded on the type: ledger rows outlive the code that wrote them, so a class rename must not be able to change what a historical row appears to be about.
+- **`before`/`after` are explicit snapshot records.** `StationAuditSnapshot(Code, NameEn, NameMy, IsActive)`, with `From(Station)`. Its XML doc states that changing its shape requires bumping `PayloadVersion` (ADR-0021 rule 3).
+- **`authorizedByPermission` is gone from the signature.** `ICurrentUser` gained `AuthorizedByPermission`, and `AuditWriter` reads it from there. A handler can no longer name its own authority — the claim would be unfalsifiable once written to an append-only row.
+
+**Ruling 3 — the `UPDATE` grant narrowed to the column.** `GRANT UPDATE ON [network].[Stations]([IsActive])`, with `SELECT, INSERT` still at table level. `DeactivateStation` is the only update F-001 performs; a table-wide grant would also have let the application rewrite a station's code or names, which no endpoint offers. A future rename feature now needs its own grant and its own review.
+
+### Entity rejection — what was done and the choice behind it
+
+Hein asked for an entity passed as a snapshot to be "rejected or impossible by type". The signature in the ruling types `before`/`after` as `object?`, so **rejection** is what is implemented: `AuditWriter` throws `ArgumentException` naming the parameter and the entity type. `AuditWriter_WhenHandedAnEntityAsASnapshot_Refuses` proves it throws and that nothing was tracked, so a later save cannot carry it through.
+
+**The stronger option was not taken because it would change the ruled signature.** Typing the parameters as a marker interface — `IAuditSnapshot?` — would make the mistake fail to compile rather than fail at runtime, since `Station` would not implement it. That is a small change if hein wants it; it is noted rather than done because the signature was given explicitly.
+
+### What was implemented
+
+| File | What |
+|---|---|
+| `src/YCR.Infrastructure/Persistence/Migrations/20260920135245_Security_AppDatabaseRole.cs` | The `ycr_app` role and its grants. `Down()` revokes, drops members, drops the role |
+| `src/YCR.Application/Common/Abstractions/IAuditWriter.cs` | The ruled signature, with the reasoning for each of its three changes |
+| `src/YCR.Application/Common/Abstractions/ICurrentUser.cs` | `AuthorizedByPermission` |
+| `src/YCR.Application/Network/NetworkAuditSubjects.cs` | `Network.Station` |
+| `src/YCR.Application/Network/StationAuditSnapshot.cs` | The snapshot record and `From(Station)` |
+| `src/YCR.Infrastructure/Audit/AuditWriter.cs` | New contract, entity rejection, widened JSON encoder |
+| `src/YCR.Application/Common/UniqueConstraintViolationException.cs` | The provider-neutral boundary (tech-lead ruling, step 4) |
+| `src/YCR.Infrastructure/Persistence/SqlServerUniqueConstraintTranslator.cs` | SQL Server 2601/2627 → that exception |
+| `src/YCR.Infrastructure/Persistence/YcrDbContext.cs` | `SaveChanges`/`SaveChangesAsync` overrides that apply the translation |
+| `tests/YCR.TestSupport/SqlServerTestContainer.cs` | Per-container `ycr_app` login, per-database user, role membership after the bundle, two connection strings, and `CreateEmptyDatabaseAsync` |
+| `tests/YCR.Infrastructure.Tests/Persistence/DatabasePrivilegeTests.cs` | S22 |
+| `tests/YCR.Infrastructure.Tests/Persistence/UniqueConstraintTranslationTests.cs` | Both error numbers, against real SQL Server |
+| `docker/sqlserver/init-principals.sql` | **Step-7 defect fixed** — see below |
+
+### A step-7 defect this step exposed
+
+`init-principals.sql` created a database **user** named `ycr_app`. The migration creates a **role** of that name, and SQL Server will not allow a role and a user to share a name — the local dev stack would have failed the moment anyone ran the bundle against it. The plan's §Test fixture already specified `ycr_app_user`; step 7 simply did not follow it. Fixed: the **login** is `ycr_app`, the **user** is `ycr_app_user`, the **role** is `ycr_app`.
+
+The script also now joins the user to the role when the role exists, and prints what to do when it does not, because on a first `docker compose up -d` the migration has not run yet.
+
+### Things a reviewer should look at closely
+
+- **The unique-constraint translator parses SQL Server's message text.** There is no API that exposes the offending constraint name, so it has to be read out of the message. That is a real weakness and it is handled rather than hidden: when the name cannot be extracted — a localised server, or a changed message format — the translator returns null and the **original exception propagates untranslated**. A write then fails as an unexpected infrastructure error, which is correct, rather than being reported as whatever conflict the nearest handler happens to know about. Both error numbers are provoked from real DDL in tests rather than from hand-built exceptions, because a test over a fabricated message would only prove the regex matches a string the test wrote.
+- **`SaveChangesAsync(bool, CancellationToken)` is the overridden overload**, not the one-argument one. Every other overload delegates to it; overriding the shorter one would have left a direct two-argument call untranslated.
+- **The JSON encoder was widened to all Unicode ranges, and this was a real defect, not a preference.** `System.Text.Json`'s default escapes every non-ASCII character, so the first run stored `ရန်ကုန်ဘူတာကြီး` as a run of six-character escape sequences — unreadable to an investigator and several times larger, in a table that can never be rewritten. Myanmar names are the norm on this network. The change widens the character range only; HTML- and script-sensitive characters are still escaped. It changes a payload's encoding, not its shape, so **no `PayloadVersion` bump is required** — the JSON value is identical either way. The test that caught it asserts the literal Myanmar text, and it was the test that was right.
+- **S22 asserts absences.** `HAS_PERMS_BY_NAME` is used rather than an attempted `UPDATE` on the ledger, because the ledger engine also refuses updates — a failed statement would pass even if the grant were wrong. The permission itself is checked directly, and a separate test shows both controls hold.
+- **My first version of `ApplicationCredential_AttemptingDdl_IsDenied` asserted one exact sentence and failed four of its own five cases.** SQL Server words denial differently per statement: "CREATE TABLE permission denied", "User does not have permission to perform this action", and — where the credential cannot even see the object — "Cannot find the object ... or you do not have permission". The test now asserts the stable element and, more usefully, that the schema is genuinely unchanged afterwards.
+
+### Evidence
+
+- `dotnet build YCR.sln` — **0 warnings, 0 errors**.
+- `dotnet test YCR.sln --no-build` — **total 73, failed 0, succeeded 73, skipped 0**. Up from 57.
+- `YCR.Infrastructure.Tests` alone: **33 passed, 0 failed, 0 skipped**, all against the real pinned container.
+- **The local dev flow was run end to end, not assumed.** `docker compose up -d` → init reports the role does not exist yet → `dotnet ef migrations bundle` built and applied all three migrations under the real `ycr_migrator` credential (not `sa`) → `docker compose up -d sqlserver-init` → "ycr_app_user added to the ycr_app role". Connecting as `ycr_app` then returns `CURRENT_USER` = `ycr_app_user`, `UPDATE` on `IsActive` = 1, `UPDATE` on `Code` = 0, `INSERT` on the ledger = 1, `UPDATE` on the ledger = 0 — the same shape the fixture produces. Torn down with `down -v`.
+
+### Documentation debt recorded
+
+`plan.md` §Steps now carries the **stage-8 correction to `docs/20` §3**. Its line 104 reads `audit.Record("Network.StationCreated", station, before: null, after: station);`, which passes the aggregate as both subject and payload — exactly what ruling 2 forbids. The corrected call is recorded there so the edit is traceable to the ruling.
+
+**Next step (exact):** plan step 10 — Application handlers: `CreateStation`, `DeactivateStation` (`IsActive` concurrency token), `GetStation`, `ListStations`, and DI scanning. Ends green with all `YCR.Application.Tests` rows (S1, S3, S5–S8, S13, S14, S20, S27) under the `ycr_app` credential, and removes that project's exit-code-8 waiver at its named step.
+
+**Blockers / open questions:** none technical. OQ26, OQ27 and OQ28 remain open with Myanma Railways and are confined by the approved provisional-rules waiver; T-014 is the release gate.
+
+**State of the branch:** build and tests green; implementation committed and pushed; this progress entry is the only uncommitted change.
+
+**Review split so far:** steps 1, 7, 8 and 9 implemented by claude; steps 2–6 and the step-5 review fixes by Codex.
