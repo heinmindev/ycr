@@ -21,6 +21,8 @@
 | [0017](ADR-0017-ledger-audit-operational-boundaries.md) | Ledger audit operational boundaries | Accepted |
 | [0018](ADR-0018-time-business-date-and-money.md) | Time, business date and money representation | Accepted |
 | [0019](ADR-0019-operation-owned-business-dates.md) | Operation-owned business dates | Accepted |
+| [0020](ADR-0020-f001-authentication-scope-and-test-auth-handler.md) | F-001 authentication scope and the test authentication handler | Proposed |
+| [0021](ADR-0021-audit-event-record-shape.md) | Audit event record shape | Proposed |
 
 Rules for agents:
 - **Accepted** ADRs are binding. Do not work against one; propose a new ADR that supersedes it.

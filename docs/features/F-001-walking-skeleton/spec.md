@@ -1,15 +1,15 @@
 # F-001: Walking skeleton — solution, infrastructure and the `Station` reference slice
 
-Status: **Draft — BLOCKED at the stage-2 ⛔ stop.** Three blocking OPEN QUESTIONs (OQ26, OQ27, OQ28) and eight engineering decisions are unresolved. The spec cannot be Approved until they are answered (`docs/templates/feature-spec.md`; `docs/21-definition-of-done.md` §Specification).
+Status: **Approved (hein, 2026-09-20)**, subject to the explicit waiver recorded in §Blocked behaviour. The station field rules and the station permissions are **provisional, skeleton-only ASSUMPTIONs** and must be replaced before production (T-014).
 
 Module(s): `Network` (reference slice); cross-cutting `Audit`, `Identity` (authentication host only), plus solution-wide infrastructure
-Related: FR-001, UC "Manage stations" (`docs/03-use-cases.md` §16), ADR-0004, ADR-0005, ADR-0006, ADR-0012, ADR-0016, ADR-0017, ADR-0018, ADR-0019, `docs/20-coding-conventions.md` §3
+Related: FR-001, UC "Manage stations" (`docs/03-use-cases.md` §16), ADR-0004, ADR-0005, ADR-0006, ADR-0012, ADR-0016, ADR-0017, ADR-0018, ADR-0019, ADR-0020 (Proposed), ADR-0021 (Proposed), `docs/20-coding-conventions.md` §3
 
 Decision owner:
-- Business rules (station codes, names, role grants): **Myanma Railways**, routed through `hein` (`docs/19-open-questions.md`).
+- Business rules (station codes, names, role grants): **Myanma Railways**, routed through `hein` (`docs/19-open-questions.md`). The provisional values in §3 were approved by `hein` as tech lead for skeleton use only; they are **not** Myanma Railways decisions.
 - Engineering decisions: **tech lead (`hein`)**, recorded as ADRs per `docs/decisions/README.md`.
 
-Authoritative sources: `docs/01-functional-requirements.md` §FR-001; `docs/20-coding-conventions.md` §§1–8; `docs/06-system-architecture.md`; ADR-0004/0005/0006/0012/0016/0017/0018/0019; `docs/21-definition-of-done.md`; `docs/reviews/2026-09-19-starter-kit-review.md` §4 item 9 and §5 row D. **No authoritative source exists for station field rules or role grants** — see §3 and §Blocked behaviour.
+Authoritative sources: `docs/01-functional-requirements.md` §FR-001; `docs/20-coding-conventions.md` §§1–8; `docs/06-system-architecture.md`; ADR-0004/0005/0006/0012/0016/0017/0018/0019; `docs/21-definition-of-done.md`; `docs/reviews/2026-09-19-starter-kit-review.md` §4 item 9 and §5 row D. **No authoritative source exists for station field rules or role grants** — see §3, §Blocked behaviour and OQ26–OQ28.
 
 ---
 
@@ -36,23 +36,23 @@ Stage-1 output (`docs/workflows/02-feature-development.md` stage 1). Every note 
 | D1 | Target platform is "C# / ASP.NET Core 10", EF Core, SQL Server, Docker | `README.md` §Technology | Taken as the platform of record. The exact SDK pin is E2. |
 | D2 | No `src/`, `tests/`, `YCR.sln`, `docker-compose.yml`, CI workflow, `global.json`, `.editorconfig` or `.gitignore` exists | tracked files at commit `b6b6576`: only `AGENTS.md`, `CLAUDE.md`, `README.md`, `TASKS.md`, `.gitleaks.toml`, `docs/` | Every command in AGENTS.md §Commands is currently invalid. F-001 makes them valid. |
 | D3 | `.gitleaks.toml` exists but no CI invokes it | repository root | Secret scanning must be wired into the F-001 CI job (`docs/21` §Security). |
-| D4 | The repository trunk branch is `master`. `TASKS.md` §Protocol and rows T-001/T-009 say `main` | `git branch` in the coordination checkout | Process defect, not a code defect. Raised in §Notes; the T-002 claim ref was created from `master`. |
-| D5 | `docs/glossary.md` is referenced as binding vocabulary but does not exist | `docs/20-coding-conventions.md` §2; `TASKS.md` T-010 is an unclaimed human decision | `docs/21` §Documentation requires the glossary to be updated. F-001 cannot satisfy that item until T-010 is decided. Recorded as a Definition-of-Done gap, not an F-001 blocker. |
+| D4 | The repository trunk branch was `master`, while `TASKS.md` §Protocol and rows T-001/T-009 say `main` | `git branch` in the coordination checkout | **Resolved by hein 2026-09-20:** the trunk is being renamed `master` → `main`, so the Protocol text becomes correct. The `claim/T-002` ref was created from `master` before the rename. |
+| D5 | `docs/glossary.md` is referenced as binding vocabulary but does not exist | `docs/20-coding-conventions.md` §2; `TASKS.md` T-010 | **Resolved by hein 2026-09-20:** T-010 decided yes; the glossary is being written in parallel with F-001. F-001 contributes the Network-module vocabulary it introduces. |
 
-### 0.3 Contradictions found (to be resolved, not worked around)
+### 0.3 Contradictions found and how they were resolved
 
-| # | Contradiction | Sources | Proposed resolution | Owner |
+| # | Contradiction | Sources | Resolution | Owner |
 |---|---|---|---|---|
-| C1 | `docs/10-authorization-matrix.md` grants "Manage stations" to Admin and Railway Admin in its table, but the same file's §"Permission inventory requiring explicit approval" lists `stations.manage` and states "[t]heir role grants are **OPEN QUESTION** until the authorization matrix is approved; agents must not infer grants from the names." | `docs/10` §table vs §inventory | The file contradicts itself. Treated as unresolved → **OQ28**. F-001 must not seed any role→permission grant. | Myanma Railways |
-| C2 | The permission inventory contains `stations.manage` but no `stations.read`, while the matrix gives Auditor a "view" right over station management. | `docs/10` §table ("view") vs §inventory | Read authorization for `GET /stations` is undefined → folded into **OQ28**. | Myanma Railways |
-| C3 | AGENTS.md §Commands documents `docker compose up -d` as "SQL Server 2022 for local dev **and integration tests**", while `docs/20` §3 requires handler tests to run "against real SQL Server (Testcontainers `mssql/server:2022`)". | `AGENTS.md` §Commands vs `docs/20` §3 | Not a true conflict: compose serves local development, Testcontainers serves automated tests. Both are in scope; the shared constraint is one pinned 2022 image reference (E4). Documented, not escalated. | tech lead |
-| C4 | `docs/06` lists six test projects (`Domain`, `Application`, `Infrastructure`, `Api`, `Integration`, `Architecture`); `docs/20` §3 names only four as required per slice. | `docs/06` §Projects vs `docs/20` §3 | Create all six per `docs/06`; populate the four named in `docs/20` §3 plus `YCR.Infrastructure.Tests` for the ADR-0006 fragmentation control. `YCR.IntegrationTests` is created empty in F-001. | tech lead |
-| C5 | `docs/20` §3 fixes `HasMaxLength(10)` for `Code` and `HasMaxLength(100)` for names, but the same section says station field rules "are OPEN QUESTIONS until the authoritative station list arrives". | `docs/20` §3 | The lengths are illustration, not an approved rule. Adopting them silently would violate AGENTS.md rule 1 and `docs/20` §8. → **OQ26**, **OQ27**. | Myanma Railways |
-| C6 | `docs/21` §Documentation requires the glossary to be updated; the glossary does not exist and its creation is an undecided human task (T-010). | `docs/21` vs `TASKS.md` T-010 | F-001 cannot close that DoD item unilaterally. Flagged for the approver. | tech lead |
+| C1 | `docs/10-authorization-matrix.md` grants "Manage stations" to Admin and Railway Admin in its table, but the same file's §"Permission inventory requiring explicit approval" lists `stations.manage` and states "[t]heir role grants are **OPEN QUESTION** until the authorization matrix is approved; agents must not infer grants from the names." | `docs/10` §table vs §inventory | **Resolved by hein 2026-09-20:** the inventory governs and the table is labelled a proposal. `docs/10` updated accordingly. No role→permission grant is seeded in F-001; tests mint permissions directly. The underlying role question stays open as OQ28. | Myanma Railways (still open) |
+| C2 | The permission inventory contains `stations.manage` but no `stations.read`, while the matrix gives Auditor a "view" right over station management. | `docs/10` §table ("view") vs §inventory | **Resolved by hein 2026-09-20:** `stations.read` added to the `docs/10` inventory. Which roles hold it remains OQ28. | Myanma Railways (still open) |
+| C3 | AGENTS.md §Commands documents `docker compose up -d` as "SQL Server 2022 for local dev **and integration tests**", while `docs/20` §3 requires handler tests to run "against real SQL Server (Testcontainers `mssql/server:2022`)". | `AGENTS.md` §Commands vs `docs/20` §3 | Not a true conflict: compose serves local development, Testcontainers serves automated tests. Both are in scope; the shared constraint is one pinned 2022 image reference (E4). | tech lead — closed |
+| C4 | `docs/06` lists six test projects (`Domain`, `Application`, `Infrastructure`, `Api`, `Integration`, `Architecture`); `docs/20` §3 names only four as required per slice. | `docs/06` §Projects vs `docs/20` §3 | Create all six per `docs/06`; populate the four named in `docs/20` §3 plus `YCR.Infrastructure.Tests` for the ADR-0006 fragmentation control. `YCR.IntegrationTests` is created empty in F-001. | tech lead — closed |
+| C5 | `docs/20` §3 fixes `HasMaxLength(10)` for `Code` and `HasMaxLength(100)` for names, but the same section says station field rules "are OPEN QUESTIONS until the authoritative station list arrives". | `docs/20` §3 | **Resolved by hein 2026-09-20** as a provisional skeleton-only ASSUMPTION (R3, R4), matching those lengths. The open questions OQ26/OQ27 remain open for Myanma Railways; see §Blocked behaviour for the waiver and T-014 for the replacement task. | Myanma Railways (still open) |
+| C6 | `docs/21` §Documentation requires the glossary to be updated; the glossary did not exist and its creation was an undecided human task (T-010). | `docs/21` vs `TASKS.md` T-010 | **Resolved by hein 2026-09-20:** T-010 decided yes, glossary written in parallel. F-001 adds the Network vocabulary it introduces, so the DoD item is satisfiable. | tech lead — closed |
 
 ### 0.4 What discovery did **not** find
 
-No document in `docs/` defines: the station code format; whether the Myanmar-script station name is mandatory; which roles hold `stations.manage`; the column shape of `audit.AuditEvents`; a CI provider; a pinned SQL Server image tag or digest; or the two-credential database model that ADR-0017 §3 requires. The first three are business rules (§3, OQ26–OQ28). The rest are engineering decisions (E3, E4, E7, E8).
+No document in `docs/` defines: the station code format; whether the Myanmar-script station name is mandatory; which roles hold `stations.manage`; the column shape of `audit.AuditEvents`; a CI provider; a pinned SQL Server image tag or digest; or the two-credential database model that ADR-0017 §3 requires. The first three are business rules, now covered by provisional assumptions (§3) over still-open OQ26–OQ28. The rest are settled as engineering decisions E3, E4, E7 and E8.
 
 ---
 
@@ -66,9 +66,11 @@ Give every later feature an executable pattern to copy: a compiling, tested `YCR
 
 | Actor | Permission | Notes |
 |---|---|---|
-| Railway/system administrator | `stations.manage` | Creates and deactivates stations. **Which roles hold this permission is OQ28**; F-001 enforces the permission on the endpoint but must not seed any role→permission grant. |
-| Any authenticated staff user reading stations | *undefined* | `GET /stations` authorization is **blocked by OQ28** (C2). No read endpoint ships with a guessed permission. |
+| Railway/system administrator | `stations.manage` | Creates and deactivates stations. |
+| Staff user reading stations | `stations.read` | Added to the `docs/10` inventory by hein 2026-09-20 (C2). |
 | Anonymous | none | `GET /health/live` and `GET /health/ready` only, with an explicit `.AllowAnonymous()` and a comment giving the reason (`docs/20` §4). |
+
+**Which roles hold either permission is still OQ28.** F-001 seeds **no** role→permission grants. Tests mint the permission they need directly on the test principal (ADR-0020). Nothing in F-001 may imply a role mapping.
 
 ---
 
@@ -78,59 +80,60 @@ Give every later feature an executable pattern to copy: a compiling, tested `YCR
 |---|---|---|---|
 | R1 | Administrators can create, update, activate/deactivate, search and view stations. F-001 implements **create, deactivate, get-by-id and list** only; update/search/reactivate are deferred (§9). | FACT | `docs/01-functional-requirements.md` §FR-001 |
 | R2 | A station has a human-facing station code that is unique across stations. | FACT | ADR-0006 §3 (`StationCode` listed as a human-facing identifier with a unique constraint) |
-| R3 | The **format** of a station code — character set, length, case, and whether a code may be reused after deactivation — is undefined. | **OPEN QUESTION — OQ26 (blocking)** | ADR-0006 §3 "format: OPEN QUESTION, from authoritative station list"; `docs/20` §3; OQ1 |
-| R4 | A station has a name in English and a name in Myanmar script, stored as Unicode, never Zawgyi. | FACT for the storage encoding; **OPEN QUESTION — OQ27 (blocking)** for whether the Myanmar name is mandatory, whether names must be unique, and maximum lengths | `docs/20` §6 ("Never store Zawgyi") is FACT; `docs/20` §3 `BilingualName.Create(en, my)` and its `HasMaxLength(100)` are illustration only, per that same section |
+| R3 | A station code is 2–10 characters, drawn only from `A`–`Z` and `0`–`9`, unique across **all** stations including inactive ones, and **never reused** once assigned. | **ASSUMPTION (provisional, approved by hein 2026-09-20; replace when OQ26/OQ27/OQ28 answered)** | Not a Myanma Railways decision. Scoped to `StationCode`; see §Blocked behaviour and T-014. Underlying question: OQ26, related OQ1 |
+| R4 | `NameEn` and `NameMy` are both required, each 1–100 characters after trimming, and neither is unique. Both are stored as Unicode `nvarchar`, never Zawgyi. | "Unicode, never Zawgyi" is **FACT** (`docs/20` §6). The required/length/uniqueness rules are **ASSUMPTION (provisional, approved by hein 2026-09-20; replace when OQ26/OQ27/OQ28 answered)** | Not a Myanma Railways decision. Scoped to `BilingualName`; see §Blocked behaviour and T-014. Underlying question: OQ27 |
 | R5 | A newly created station is active. | ENGINEERING DECISION (tech lead, cite `docs/20` §3 reference slice, where `Station.Create(...)` sets `IsActive = true`) | `docs/20` §3 |
 | R6 | Deactivating an already-inactive station is rejected with `Network.StationAlreadyInactive`. | ENGINEERING DECISION (tech lead, cite `docs/20` §3 reference slice `Station.Deactivate()`) | `docs/20` §3 |
 | R7 | A duplicate station code is rejected with `Network.StationCodeAlreadyExists`, and the database unique index — not only the pre-check — is the authority under concurrency. | ENGINEERING DECISION (tech lead, cite ADR-0004 §Errors: "[a] DB unique-constraint violation on a business key is caught and mapped to `Conflict`") | `docs/20` §3; ADR-0004 |
-| R8 | Which roles may manage stations, and whether a separate read permission exists for stations. | **OPEN QUESTION — OQ28 (blocking)** | `docs/10` §table vs §inventory (C1, C2) |
+| R8 | Managing stations requires `stations.manage`; reading them requires `stations.read`. No role holds either by default; F-001 seeds no grants. | **ASSUMPTION (provisional, approved by hein 2026-09-20; replace when OQ26/OQ27/OQ28 answered)** for the permission constants themselves. The absence of grants is a deliberate consequence of OQ28 remaining open. | `docs/10` §inventory (updated 2026-09-20); C1, C2 |
 | R9 | Station identifiers are application-generated GUIDs, SQL-Server-ordered through `IIdGenerator`, mapped `ValueGeneratedNever()`. | ENGINEERING DECISION (tech lead, cite ADR-0006 §4 and its 2026-09-19 amendment) | ADR-0006 |
-| R10 | Creating and deactivating a station are business-significant actions and write audit events `Network.StationCreated` and `Network.StationDeactivated`, with actor fields taken only from the authenticated server-side context. | ENGINEERING DECISION (tech lead, cite ADR-0017 §Decision items 1–2); naming from `docs/20` §2 | ADR-0017; `docs/20` §§2, 7 |
+| R10 | Creating and deactivating a station are business-significant actions and write audit events `Network.StationCreated` and `Network.StationDeactivated`, with actor fields taken only from the authenticated server-side context. | ENGINEERING DECISION (tech lead, cite ADR-0017 §Decision items 1–2 and ADR-0021); naming from `docs/20` §2 | ADR-0017; ADR-0021; `docs/20` §§2, 7 |
 | R11 | Station management is not a financial or retryable command; no `Idempotency-Key` is required. | ENGINEERING DECISION (tech lead, cite `docs/20` §5, whose required list is sell / cancel / refund / payment / cashier-session and does not include station management) | `docs/20` §5 |
 | R12 | Instants are `DateTimeOffset` in code and `datetimeoffset(3)` in SQL, read only through `TimeProvider`. Stations own no `BusinessDate` — ADR-0019's rule table covers Sale, Payment, cancellation and Refund only. | ENGINEERING DECISION (tech lead, cite ADR-0018 §Time and ADR-0019 §Decision) | ADR-0018; ADR-0019 |
 
-**Blocking open questions:** **OQ26** (station code format), **OQ27** (station name rules), **OQ28** (who may manage and read stations). All three are newly registered in `docs/19-open-questions.md`. While they are open this spec **cannot be Approved** (`docs/workflows/02-feature-development.md` stage 2 exit criteria; `docs/21` §Specification).
+**Blocking open questions:** none remaining for implementation. **OQ26, OQ27 and OQ28 are still open with Myanma Railways**, but R3, R4 and R8 provide approved provisional values so F-001 can proceed. See §Blocked behaviour for the scope and the conditions of that waiver.
 
 ---
 
 ## 4. Scenarios (Given / When / Then)
 
-Scenarios marked **[B]** cannot be written as executable tests until the named OQ is answered. The infrastructure scenarios (S14–S23) are unaffected.
-
 ### Station slice — happy path
 
-- **S1.** Given an authenticated user holding `stations.manage`, when they POST a valid station, then the response is `201 Created` with `Location: /api/v1/stations/{id}` and body `{ "id": "<guid>" }`, the row exists in `network.Stations` with `IsActive = 1`, and one `Network.StationCreated` audit event is present. **[B — OQ26/OQ27 define "valid"]**
-- **S2.** Given an existing active station, when a permitted caller POSTs `/stations/{id}/deactivate`, then the response is `204 No Content`, `IsActive = 0`, and one `Network.StationDeactivated` audit event is written.
-- **S3.** Given three stations exist, when a permitted caller GETs `/stations?page=1&pageSize=50`, then the response is `200` with `items`, `page`, `pageSize` and `totalCount` (`docs/20` §4). **[B — OQ28 defines the read permission]**
-- **S4.** Given a station exists, when a permitted caller GETs `/stations/{id}`, then the response is `200` with a `StationResponse` and **no EF entity** is serialized (AGENTS.md rule 4). **[B — OQ28]**
+- **S1.** Given an authenticated user holding `stations.manage`, when they POST a valid station, then the response is `201 Created` with `Location: /api/v1/stations/{id}` and body `{ "id": "<guid>" }`, the row exists in `network.Stations` with `IsActive = 1`, and one `Network.StationCreated` audit event is present.
+- **S2.** Given an existing active station, when a caller holding `stations.manage` POSTs `/stations/{id}/deactivate`, then the response is `204 No Content`, `IsActive = 0`, and one `Network.StationDeactivated` audit event is written.
+- **S3.** Given three stations exist, when a caller holding `stations.read` GETs `/stations?page=1&pageSize=50`, then the response is `200` with `items`, `page`, `pageSize` and `totalCount` (`docs/20` §4).
+- **S4.** Given a station exists, when a caller holding `stations.read` GETs `/stations/{id}`, then the response is `200` with a `StationResponse` and **no EF entity** is serialized (AGENTS.md rule 4).
 
 ### Station slice — failures, each with its error code
 
-- **S5.** Duplicate code detected by the pre-check → `409` ProblemDetails, `errorCode = Network.StationCodeAlreadyExists`. **[B — OQ26]**
-- **S6.** Deactivate an already-inactive station → `422`, `errorCode = Network.StationAlreadyInactive` (ADR-0004: `BusinessRule` → 422).
-- **S7.** GET an unknown id → `404`, `errorCode = Network.StationNotFound`.
-- **S8.** Request body failing validation (blank code, missing required name) → `400` ProblemDetails carrying `errorCode` and `traceId`. **[B — OQ26/OQ27 define the validation rules]**
-- **S9.** `pageSize=201` → `400` (max 200, `docs/20` §4).
-- **S10.** Anonymous POST `/stations` → `401`.
-- **S11.** Authenticated user **without** `stations.manage` POSTs `/stations` → `403`. (`docs/21` §Tests requires both S10 and S11.)
+- **S5.** Duplicate code detected by the pre-check → `409` ProblemDetails, `errorCode = Network.StationCodeAlreadyExists`.
+- **S6.** Reuse of a **deactivated** station's code → `409 Network.StationCodeAlreadyExists` (R3, "never reused"). The deactivated row is retained, so the unique index enforces this without a separate mechanism; the test proves it rather than assuming it.
+- **S7.** Deactivate an already-inactive station → `422`, `errorCode = Network.StationAlreadyInactive` (ADR-0004: `BusinessRule` → 422).
+- **S8.** GET an unknown id → `404`, `errorCode = Network.StationNotFound`.
+- **S9.** Request body failing validation → `400` ProblemDetails carrying `errorCode` and `traceId`. Cases, each asserted separately (R3, R4): blank code; 1-character code; 11-character code; lower-case code; code containing a hyphen, space or punctuation; missing `nameEn`; missing `nameMy`; whitespace-only name; 101-character name after trim.
+- **S10.** `pageSize=201` → `400` (max 200, `docs/20` §4).
+- **S11.** Anonymous POST `/stations` → `401`.
+- **S12.** Authenticated user **without** `stations.manage` POSTs `/stations` → `403`. A user holding only `stations.read` is one such case. (`docs/21` §Tests requires both S11 and S12.)
 
 ### Concurrency and data integrity
 
-- **S12.** Two parallel POSTs with the same code → exactly one `201`; the other returns `409 Network.StationCodeAlreadyExists` through the unique-index violation mapped per ADR-0004, and exactly one row exists. **[B — OQ26]**
-- **S13.** Myanmar-script name round-trip: the value read back is identical to the value written (`nvarchar`, Unicode, `docs/20` §6). **[B — OQ27]**
+- **S13.** Two parallel POSTs with the same code → exactly one `201`; the other returns `409 Network.StationCodeAlreadyExists` through the unique-index violation mapped per ADR-0004, and exactly one row exists.
+- **S14.** Myanmar-script name round-trip: the value read back is identical to the value written (`nvarchar`, Unicode, `docs/20` §6). The fixture uses real Myanmar Unicode text, not a Latin placeholder.
 
-### Infrastructure — not blocked by any open question
+### Infrastructure
 
-- **S14.** `dotnet build YCR.sln` and `dotnet test YCR.sln` both succeed from a clean clone, with no skipped tests (`docs/21` §Tests).
-- **S15.** Architecture tests **fail** on each forbidden dependency and pass otherwise (ADR-0012 §Enforcement; `docs/21` §Code requires negative cases): (a) `YCR.Application.Network` referencing `ITicketingDbContext`; (b) `YCR.Application.Network` referencing a `YCR.Domain.Ticketing` type; (c) a Reporting type resolving a write context; (d) `YCR.Api` containing domain logic; (e) an endpoint returning an EF entity type.
-- **S16.** Every registered module context interface resolves to the *same* scoped `YcrDbContext` instance within one request scope (ADR-0012 §Decision item 3).
-- **S17.** Migrations applied against the pinned `mssql/server:2022` image create `network.Stations` and the `audit.AuditEvents` **ledger** table, and the ledger DDL executes successfully (ADR-0017 §Decision item 5).
-- **S18.** The audit migration **fails loudly** on an unsupported SQL Server version or edition rather than silently degrading to a normal table (ADR-0017 §Decision item 5; AGENTS.md rule 8).
-- **S19.** An audit event's `ActorUserId`/`ActorRole` come from the authenticated context; a request supplying actor fields in its body cannot influence them (ADR-0017 §Decision item 2).
-- **S20.** `IIdGenerator` fragmentation control: insert 10,000 rows into the clustered GUID key and compare index fragmentation with a `NEWSEQUENTIALID()` baseline; pass when no more than 10 percentage points worse. The test records row count, index name, fragmentation and database compatibility level (ADR-0006 §REQUIRED CONTROL).
-- **S21.** `GET /health/live` and `GET /health/ready` return `200` anonymously, and readiness reports SQL Server connectivity (`docs/02` §Reliability).
-- **S22.** An unhandled exception returns `500` as ProblemDetails with a `traceId` and **no** internal detail (ADR-0004 §Errors).
-- **S23.** CI runs build, tests (against the pinned SQL Server 2022 image) and the `.gitleaks.toml` secret scan, and fails the pipeline on any failure (D3; `docs/21` §Security).
+- **S15.** `dotnet build YCR.sln` and `dotnet test YCR.sln` both succeed from a clean clone, with no skipped tests (`docs/21` §Tests).
+- **S16.** Architecture tests **fail** on each forbidden dependency and pass otherwise (ADR-0012 §Enforcement; `docs/21` §Code requires negative cases): (a) `YCR.Application.Network` referencing `ITicketingDbContext`; (b) `YCR.Application.Network` referencing a `YCR.Domain.Ticketing` type; (c) a Reporting type resolving a write context; (d) `YCR.Api` containing domain logic; (e) an endpoint returning an EF entity type.
+- **S17.** Every registered module context interface resolves to the *same* scoped `YcrDbContext` instance within one request scope (ADR-0012 §Decision item 3).
+- **S18.** Migrations applied against the pinned `mssql/server:2022` image create `network.Stations` and the `audit.AuditEvents` **ledger** table, and the ledger DDL executes successfully (ADR-0017 §Decision item 5).
+- **S19.** The audit migration **fails loudly** on an unsupported SQL Server version or edition rather than silently degrading to a normal table (ADR-0017 §Decision item 5; AGENTS.md rule 8).
+- **S20.** An audit event's `ActorUserId`/`ActorRole` come from the authenticated context; a request supplying actor fields in its body cannot influence them (ADR-0017 §Decision item 2; ADR-0021).
+- **S21.** **Test authentication handler is environment-fenced (E1, ADR-0020):** the handler is registered only when the environment is `Testing`; if it is registered in any other environment, startup **throws**. A test asserts both halves — registration succeeds under `Testing`, and startup throws under `Production`.
+- **S22.** **The application login has no DDL rights (E7):** the application does not migrate at startup; migration runs as a separate step under the migrator credential. A test asserts that the application credential cannot execute DDL against `network` and holds only INSERT/SELECT on `audit` (ADR-0017 §Decision item 3).
+- **S23.** `IIdGenerator` fragmentation control: insert 10,000 rows into the clustered GUID key and compare index fragmentation with a `NEWSEQUENTIALID()` baseline; pass when no more than 10 percentage points worse. The test records row count, index name, fragmentation and database compatibility level (ADR-0006 §REQUIRED CONTROL).
+- **S24.** `GET /health/live` and `GET /health/ready` return `200` anonymously, and readiness reports SQL Server connectivity (`docs/02` §Reliability).
+- **S25.** An unhandled exception returns `500` as ProblemDetails with a `traceId` and **no** internal detail (ADR-0004 §Errors).
+- **S26.** CI (GitHub Actions) runs build, tests against the pinned SQL Server 2022 image, and the `.gitleaks.toml` secret scan, and fails the pipeline on any failure (D3; `docs/21` §Security).
 
 ---
 
@@ -138,11 +141,11 @@ Scenarios marked **[B]** cannot be written as executable tests until the named O
 
 | Entity | From | Event | Guard | To |
 |---|---|---|---|---|
-| Station | (none) | `CreateStation` | code satisfies OQ26 rules and is not already used; name satisfies OQ27 rules | Active |
-| Station | Active | `DeactivateStation` | caller holds `stations.manage` (OQ28) | Inactive |
+| Station | (none) | `CreateStation` | caller holds `stations.manage`; code matches `^[A-Z0-9]{2,10}$` and is unused by any station, active or inactive (R3); both names present and 1–100 characters after trim (R4) | Active |
+| Station | Active | `DeactivateStation` | caller holds `stations.manage` | Inactive |
 | Station | Inactive | `DeactivateStation` | — | rejected, `Network.StationAlreadyInactive` (R6) |
 
-Reactivation is out of scope (§9); FR-001's "activate" is deferred to the follow-up feature.
+Reactivation is out of scope (§9); FR-001's "activate" is deferred to the follow-up feature. Because codes are never reused (R3), deactivated rows are retained rather than deleted.
 
 ---
 
@@ -154,12 +157,12 @@ Base path `/api/v1`, JSON camelCase, GUID resource ids, RFC 9457 ProblemDetails 
 |---|---|---|---|---|---|---|
 | POST | `/stations` | `CreateStationRequest { code, nameEn, nameMy }` | `201` + `CreateStationResponse { id }` and a `Location` header | `400` validation · `401` · `403` · `409 Network.StationCodeAlreadyExists` | `stations.manage` | No (R11) |
 | POST | `/stations/{id}/deactivate` | — | `204` | `401` · `403` · `404 Network.StationNotFound` · `422 Network.StationAlreadyInactive` | `stations.manage` | No (R11) |
-| GET | `/stations/{id}` | — | `200` + `StationResponse { id, code, nameEn, nameMy, isActive, createdAtUtc }` | `401` · `403` · `404` | **blocked, OQ28** | n/a |
-| GET | `/stations` | `?page=1&pageSize=50` (max 200) | `200` + `{ items, page, pageSize, totalCount }` | `400` · `401` · `403` | **blocked, OQ28** | n/a |
+| GET | `/stations/{id}` | — | `200` + `StationResponse { id, code, nameEn, nameMy, isActive, createdAtUtc }` | `401` · `403` · `404 Network.StationNotFound` | `stations.read` | n/a |
+| GET | `/stations` | `?page=1&pageSize=50` (max 200) | `200` + `{ items, page, pageSize, totalCount }` | `400` · `401` · `403` | `stations.read` | n/a |
 | GET | `/health/live` | — | `200` | — | `.AllowAnonymous()` — a liveness probe must answer before auth is reachable | n/a |
 | GET | `/health/ready` | — | `200` / `503` | — | `.AllowAnonymous()` — readiness probe used by the reverse proxy | n/a |
 
-The exact request-field shape is provisional until OQ26/OQ27 fix the field rules. `docs/08-api-specification.md` lists `PATCH /stations`; update is deferred (§9).
+The request-field shape follows the provisional R3/R4 rules and changes when T-014 replaces them. `docs/08-api-specification.md` lists `PATCH /stations`; update is deferred (§9).
 
 ---
 
@@ -169,28 +172,30 @@ Schema `network` (`docs/07` §Module schemas; `docs/20` §2).
 
 **`network.Stations`**
 
-| Column | Type | Notes |
-|---|---|---|
-| `Id` | `uniqueidentifier` | PK, application-assigned, `ValueGeneratedNever()` (ADR-0006, R9) |
-| `Code` | `nvarchar(n)` | **unique index**; `n` and the character-set constraint are **blocked by OQ26** |
-| `NameEn` | `nvarchar(n)` | owned value object `BilingualName`; length **blocked by OQ27** |
-| `NameMy` | `nvarchar(n)` | Unicode, never Zawgyi (`docs/20` §6); nullability **blocked by OQ27** |
-| `IsActive` | `bit` | not null |
-| `CreatedAtUtc` | `datetimeoffset(3)` | UTC value (ADR-0018) |
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| `Id` | `uniqueidentifier` | no | PK, application-assigned, `ValueGeneratedNever()` (ADR-0006, R9) |
+| `Code` | `nvarchar(10)` | no | **unique index** across all rows, active and inactive (R3). `nvarchar` per `docs/20` §6 (a person types and reads it), even though R3 restricts the characters to ASCII. Character-set and length are enforced in `StationCode`, with the unique index as the concurrency authority (R7). |
+| `NameEn` | `nvarchar(100)` | no | owned value object `BilingualName` (R4) |
+| `NameMy` | `nvarchar(100)` | no | Unicode, never Zawgyi (`docs/20` §6; R4) |
+| `IsActive` | `bit` | no | |
+| `CreatedAtUtc` | `datetimeoffset(3)` | no | UTC value (ADR-0018) |
 
-No `rowversion` concurrency token: `docs/20` §6 requires one for Ticket, CashierSession and Refund; Station is not in that list, and F-001 has no concurrent-mutation path beyond the unique index. **ENGINEERING DECISION (tech lead, cite `docs/20` §6) — to be confirmed at approval.**
+No `rowversion` concurrency token — **accepted by hein 2026-09-20**. `docs/20` §6 requires one for Ticket, CashierSession and Refund; Station is not in that list, and F-001 has no concurrent-mutation path beyond the unique index.
 
-**`audit.AuditEvents`** — append-only SQL Server 2022 ledger table, created by **raw SQL in an EF migration** rather than by EF model building (ADR-0017 §Decision item 1). Its column shape is undefined anywhere in `docs/` and is engineering decision **E8**.
+Rows are never deleted, because R3 forbids code reuse and the unique index is what enforces it.
 
-**Not in F-001:** `IdempotencyRecords` (no financial command in scope, R11), `identity.AuthSessions` (depends on E1), and every other table in `docs/07` §Core tables.
+**`audit.AuditEvents`** — append-only SQL Server 2022 ledger table, created by **raw SQL in an EF migration** rather than by EF model building (ADR-0017 §Decision item 1). Column shape per **ADR-0021** (Proposed).
 
-Migrations are named `YYYYMMDD_<Module>_<Change>` and reviewed per `docs/workflows/04-database-change.md` (`docs/20` §6).
+**Not in F-001:** `IdempotencyRecords` (no financial command in scope, R11), `identity.AuthSessions` (deferred by ADR-0020), and every other table in `docs/07` §Core tables.
+
+Migrations are named `YYYYMMDD_<Module>_<Change>` and reviewed per `docs/workflows/04-database-change.md` (`docs/20` §6). **Migrations never run at application startup** (E7): the migrator is a separate step with its own credential, and the application login has no DDL rights.
 
 ---
 
 ## 8. Audit, logging, metrics
 
-- **Audit** (ADR-0017): `Network.StationCreated` and `Network.StationDeactivated` through `IAuditWriter`, written in the same `SaveChangesAsync` as the business change, with before/after state. Actor fields come only from the authenticated server context (S19). The application database login gets **INSERT/SELECT only** on the `audit` schema; migration and digest administration use separate credentials (ADR-0017 §Decision item 3) — see **E7**.
+- **Audit** (ADR-0017, ADR-0021): `Network.StationCreated` and `Network.StationDeactivated` through `IAuditWriter`, written in the same `SaveChangesAsync` as the business change, with before/after state. Actor fields come only from the authenticated server context (S20). The application database login gets **INSERT/SELECT only** on the `audit` schema and no DDL rights anywhere; migration and digest administration use separate credentials (ADR-0017 §Decision item 3; E7; S22).
 - **Logging** (`docs/20` §7): `ILogger` with message templates, never interpolation. Correlation from `traceparent`. Never log passwords, tokens, refresh cookies, QR payloads, keys or personal data.
 - **Metrics** (`docs/17`): F-001 ships the baseline request-latency, error-rate and database-latency instrumentation that later features extend. None of `docs/17`'s listed business events belongs to the Network module, so no business metric is added here.
 - **Out of scope:** digest generation, WORM storage, scheduling and alert routing — ADR-0017 §Blocked behaviour leaves the provider, schedule and ownership open.
@@ -199,7 +204,7 @@ Migrations are named `YYYYMMDD_<Module>_<Change>` and reviewed per `docs/workflo
 
 ## 9. Out of scope
 
-Update/rename a station (`PATCH /stations`), reactivation, search and filtering beyond simple pagination, `Routes`/`RouteStations` and the remaining tables in `docs/07` §Core tables, the full ADR-0016 authentication stack beyond what **E1** decides, `IdempotencyRecords`, `YCR.Worker` behaviour (the project is created empty), the SPA and its CSP/dependency-audit controls (ADR-0016 §Browser security — no frontend exists yet), ledger digest operations, seed/fixture station data (blocked by OQ1), and the creation of `docs/glossary.md` (human decision T-010).
+Update/rename a station (`PATCH /stations`), reactivation, search and filtering beyond simple pagination, `Routes`/`RouteStations` and the remaining tables in `docs/07` §Core tables, the ADR-0016 token and refresh implementation (deferred by ADR-0020), `IdempotencyRecords`, `YCR.Worker` behaviour (the project is created empty), the SPA and its CSP/dependency-audit controls (ADR-0016 §Browser security — no frontend exists yet), ledger digest operations, and seed/fixture station data (blocked by OQ1, and by R3 being provisional).
 
 Renaming a station raises a data-history question — does a rename rewrite historical station names on already-issued tickets? — that the follow-up feature must resolve before implementing `PATCH`.
 
@@ -207,37 +212,54 @@ Renaming a station raises a data-history question — does a rename rewrite hist
 
 ## Blocked behaviour
 
-Required by `docs/21` §Specification. No placeholder rule is implemented for any item below.
+Required by `docs/21` §Specification.
+
+### Explicit waiver — approved by hein, tech lead, 2026-09-20
+
+`docs/21` §Specification requires that "[n]o unresolved OPEN QUESTION affects the implemented behaviour", and AGENTS.md §"When a business rule is missing" forbids placeholder rules. **For F-001 only, that rule is explicitly waived by the tech lead**, so the walking skeleton is not blocked behind Myanma Railways' availability.
+
+Terms of the waiver:
+
+1. **Scope.** The provisional rules live **only** in the `StationCode` value object, the `BilingualName` value object, and the permission constants. No other code, migration, seed script or document may encode them, and nothing may branch on them.
+2. **Labelling.** R3, R4 and R8 are labelled `ASSUMPTION (provisional, approved by hein 2026-09-20; replace when OQ26/OQ27/OQ28 answered)` wherever they appear, including in XML doc comments on the two value objects and the permission constants, so the next agent cannot mistake them for settled rules.
+3. **OQ26, OQ27 and OQ28 stay open** in `docs/19-open-questions.md`. The provisional values are a tech-lead convenience for the skeleton; they are **not** Myanma Railways decisions and must not be presented as such anywhere.
+4. **Not for production.** F-001's station rules must not reach production until they are replaced by answers to OQ26–OQ28. **T-014** in `TASKS.md` (status `blocked`, blocker type `business`) tracks the replacement and is a release gate.
+5. **Not a precedent.** This waiver covers F-001's station field rules and permission constants only. Every other missing business rule follows AGENTS.md §"When a business rule is missing" unchanged.
+
+### Still blocked
 
 | Behaviour | Blocking item | Effect on F-001 |
 |---|---|---|
-| `StationCode` value-object validation | **OQ26** | `StationCode.Create` cannot be written. S1, S5, S8 and S12 cannot be finalised. |
-| `BilingualName` validation, column nullability and length | **OQ27** | S1, S8 and S13 cannot be finalised; the `Stations` DDL cannot be fixed. |
-| Authorization for `GET /stations` and `GET /stations/{id}`; all role→permission grants | **OQ28** | The read endpoints cannot ship. `docs/10` cannot be updated with a grant. S3 and S4 cannot be finalised. |
-| Role/permission **seed data** | **OQ28** | No seeding in F-001. Tests must mint permissions directly rather than through seeded roles. |
+| Role→permission grants and any permission seed data | **OQ28** | No seeding in F-001. Tests mint permissions directly on the test principal. `docs/10`'s role table stays a proposal. |
+| Real station data (seed/fixture station list) | **OQ1**, and R3 being provisional | No station fixtures ship. Tests construct their own stations. |
 | Ledger digest schedule, storage and verification | ADR-0017 §Blocked behaviour | Out of scope (§9); F-001 proves the DDL only. |
-| Glossary update required by `docs/21` §Documentation | T-010 (undecided) | That DoD item cannot be closed by F-001. The approver must waive it or decide T-010 first. |
+| Audit retention and archival for ledger rows | **OQ14** (ADR-0017 §Blocked behaviour) | No retention behaviour is implemented. |
 
 ---
 
-## Engineering decisions required before stage 3
+## Engineering decisions — accepted by hein, tech lead, 2026-09-20
 
-These are not business rules, so per `TASKS.md` §Protocol item 8 they are engineering blockers and do **not** go in `docs/19`. Each needs a tech-lead decision at the ⛔ stop; those marked *(ADR)* should be recorded as a new ADR per `docs/decisions/README.md`.
+`TASKS.md` §Protocol item 8 classes these as engineering, so they are recorded here and as ADRs rather than in `docs/19`.
 
-| # | Decision | Why it is needed | Recommendation |
-|---|---|---|---|
-| **E1** | *(ADR)* How much authentication ships in F-001. | `docs/21` §Tests requires 401 and 403 tests, so endpoints must be genuinely protected. ADR-0016's full stack (JWT with `sub`/`sid` only, `identity.AuthSessions`, hashed rotating refresh cookies, the 20-second predecessor grace, ≤30-second revocation latency, Origin checks) is a feature in its own right and would dominate the skeleton. | Ship the **permission-based authorization pipeline** (`Permissions` constants, policy registration, `.RequireAuthorization(...)` on every endpoint) with a **test-only authentication handler**, and defer the ADR-0016 token and refresh implementation to a dedicated follow-up feature. Record the deferral in the new ADR so no later agent mistakes the shim for the design. Alternative: implement ADR-0016 in full and accept a much larger F-001. |
-| **E2** | SDK and target-framework pin. | `README.md` says ASP.NET Core 10 but nothing pins an SDK, and CI and local builds must agree. | Add `global.json` with a pinned SDK and `rollForward`, plus `.gitignore`, `.editorconfig`, `Directory.Build.props` (nullable enabled, warnings as errors) and `Directory.Packages.props` for central package management. |
-| **E3** | CI provider and workflow location. | ADR-0017 §5 mandates a CI job; none exists (D2). | GitHub Actions at `.github/workflows/ci.yml`: restore → build → test (Testcontainers, pinned image) → gitleaks. Confirm the remote host before committing to a provider, since the repository currently has no remote. |
-| **E4** | The pinned SQL Server 2022 image reference. | ADR-0017 §5 requires it to be pinned, and C3 means compose and Testcontainers must use the same one. | Pin by **digest** rather than a floating tag, in one shared constant consumed by both `docker-compose.yml` and the test fixture. |
-| **E5** | Scope of the ADR-0006 fragmentation control in F-001. | It is a REQUIRED CONTROL, but a 10,000-row insert lengthens every CI run. | Implement it in `YCR.Infrastructure.Tests` within F-001, in a test category that CI runs on the trunk build. Decide separately whether it also runs on every pull request. |
-| **E6** | *(VERIFY)* Ledger support in the chosen image's edition, and the exact ledger DDL. | ADR-0017 §Blocked behaviour already carries this as a VERIFY, and F-001 is where it gets verified. | Verify against the E4 image during stage 4 and record the result in `progress.md`. If the edition does not support ledger tables, stop and return to stage 2 rather than substituting a normal table. |
-| **E7** | The two-credential database model. | ADR-0017 §3: the application login has only INSERT/SELECT on `audit`, and migrations use a separate credential. This shapes connection-string handling, compose, CI and the test fixture. | Two connection strings from the start (`Migrator`, `Application`) with the least-privilege grants scripted in the migration. Retrofitting this later is expensive, and it is a REQUIRED CONTROL. |
-| **E8** | *(ADR)* The `audit.AuditEvents` column shape. | Flagged as an open engineering decision in `docs/reviews/2026-09-19-starter-kit-review.md` §3 item 14 and never resolved; ADR-0017 names only `ActorUserId` and `ActorRole`. ADR-0017 §6 requires audit schema changes to be additive, so the initial shape must be deliberate. | Decide it as a small ADR before stage 3. At minimum: id, occurred-at UTC, action (`<Module>.<Event>`), actor user id, actor role, subject type, subject id, before/after JSON, and correlation/trace id. |
+| # | Decision as accepted |
+|---|---|
+| **E1** | **Accepted with additions — new ADR-0020 (Proposed).** F-001 ships the permission-based authorization pipeline (`Permissions` constants, policy registration, `.RequireAuthorization(...)` on every endpoint) with a **test-only authentication handler**; the ADR-0016 token and refresh implementation is deferred to a dedicated follow-up feature. **Additions:** the test handler is registered only when the environment is `Testing`; startup **throws** if it is registered in any other environment; a test proves both halves (S21). |
+| **E2** | **Accepted as recommended.** `global.json` with a pinned SDK and `rollForward`, plus `.gitignore`, `.editorconfig`, `Directory.Build.props` (nullable enabled, warnings as errors) and `Directory.Packages.props` for central package management. |
+| **E3** | **Accepted — CI provider is GitHub Actions** (confirmed by hein 2026-09-20). `.github/workflows/ci.yml`: restore → build → test (Testcontainers, pinned image) → gitleaks. The repository has no remote yet; adding one is a prerequisite for the workflow actually running. |
+| **E4** | **Accepted as recommended.** The SQL Server 2022 image is pinned **by digest**, not by a floating tag, in one shared constant consumed by both `docker-compose.yml` and the test fixture. |
+| **E5** | **Accepted as recommended.** The ADR-0006 fragmentation control is implemented in `YCR.Infrastructure.Tests` in F-001, in a test category CI runs on the trunk build. Whether it also runs on every pull request is decided when the workflow is written. |
+| **E6** | **Accepted as recommended (VERIFY).** Ledger support in the chosen image's edition, and the exact ledger DDL, are verified against the E4 image during stage 4, with the result recorded in `progress.md`. If the edition does not support ledger tables, stop and return to stage 2 rather than substituting a normal table. |
+| **E7** | **Accepted with additions.** Two connection strings from the start (`Migrator`, `Application`) with least-privilege grants scripted in the migration. **Additions:** **no migrations at application startup**; the migrator is a separate step; the application login has **no DDL rights**. Covered by S22. |
+| **E8** | **Accepted with additions — new ADR-0021 (Proposed).** `audit.AuditEvents` carries id, occurred-at UTC, action (`<Module>.<Event>`), actor user id, actor role, subject type, subject id, before/after JSON and correlation/trace id, **plus `ClientIp`, nullable `ReasonCode`, and `PayloadVersion`**. |
+| — | **Station has no `rowversion` concurrency token: accepted** (§7). |
+
+Both new ADRs start as **Proposed** and will be accepted by hein.
 
 ---
 
-## Notes for the ledger and the next stage
+## Notes for the next stage
 
-- **D4 (process):** `TASKS.md` §Protocol and rows T-001/T-009 refer to branch `main`, but the repository trunk is `master`. The T-002 claim ref was created as `claim/T-002` from `master`. A human should either correct the protocol text or rename the branch; agents should not do either unilaterally.
-- **Next stage (T-003, PLAN)** must not start until a human has answered OQ26, OQ27 and OQ28 and decided E1–E8, because E1, E7 and E8 change the project and migration layout that the plan would enumerate.
+- **Trunk rename:** the trunk is being renamed `master` → `main` (D4), which makes `TASKS.md` §Protocol correct as written. The `claim/T-002` ref was created from `master` before the rename.
+- **Glossary:** T-010 decided yes and is being written in parallel (D5). F-001 contributes the Network vocabulary it introduces — `Station`, `StationCode`, `BilingualName`, active/inactive — so `docs/21` §Documentation is satisfiable.
+- **T-003 (PLAN)** is unblocked by this approval but must not be started until hein says so.
+- **T-014** tracks replacing the provisional station rules and is a release gate, not an F-001 blocker.
