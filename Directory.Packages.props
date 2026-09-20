@@ -23,6 +23,10 @@
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.12" />
   </ItemGroup>
 
+  <ItemGroup Label="Persistence abstractions (ADR-0004; provider-neutral Application dependency)">
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.12" />
+  </ItemGroup>
+
   <ItemGroup Label="Architecture tests (plan P4, resolved by V5 — see step 1 in progress.md)">
     <PackageVersion Include="TngTech.ArchUnitNET" Version="0.13.4" />
     <PackageVersion Include="TngTech.ArchUnitNET.xUnitV3" Version="0.13.4" />

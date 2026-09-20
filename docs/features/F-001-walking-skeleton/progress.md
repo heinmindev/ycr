@@ -329,3 +329,20 @@ Then steps 3–13 in the plan's §Steps table, in order. Steps 1–6 need no Doc
 **Blockers / open questions:** ENGINEERING BLOCKER — the approved plan is missing the direct EF Core package required for `INetworkDbContext` in the Application project. No business OQ is added. OQ26, OQ27 and OQ28 remain unchanged.
 
 **State of the branch:** last completed checkpoint builds and tests green; this progress entry is the only uncommitted change.
+
+---
+
+## 2026-09-20 12:45 Asia/Yangon — hein ruling recorded by codex — T-004
+
+**Stage:** 4 (IMPLEMENT). Step 4 unblocked by tech-lead ruling.
+**Commit:** pending checkpoint commit; ruling and plan correction are included in the next feature push.
+
+**Ruling applied:**
+- Added provider-neutral `Microsoft.EntityFrameworkCore` 10.0.12 to `YCR.Application` and recorded it in `plan.md` §New packages with ADR-0004 §Request flow as the source.
+- Recorded the step-6 architecture control and `Violations` fixture requirement forbidding `Microsoft.EntityFrameworkCore.SqlServer` and `Microsoft.Data.SqlClient` dependencies from Application.
+- Recorded the step-9 `UniqueConstraintViolationException` boundary and SQL Server 2601/2627 translation rule. `CreateStationHandler` will map only the named `UX_Stations_Code` constraint; other violations remain unexpected.
+- T-004 is returned to `doing` in the coordination ledger; no other ledger row was changed.
+
+**Next step (exact):** continue plan step 4 by implementing `IIdGenerator`, `IAuditWriter`, `ICurrentUser`, `Permissions`, `PagedResult`, and `INetworkDbContext` using the newly approved provider-neutral EF reference.
+
+**Blockers / open questions:** none technical after the ruling. OQ26, OQ27 and OQ28 remain open with Myanma Railways and are confined by the approved provisional-rules waiver.

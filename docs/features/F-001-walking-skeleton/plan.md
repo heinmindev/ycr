@@ -82,6 +82,7 @@ Twelve projects: five `src/` exactly as `docs/06` §Projects lists them, six `te
 | `src/YCR.Application/Common/Abstractions/IIdGenerator.cs` | New | ADR-0006 §4 amendment |
 | `src/YCR.Application/Common/Abstractions/IAuditWriter.cs` | New | ADR-0017, ADR-0021 |
 | `src/YCR.Application/Common/Abstractions/ICurrentUser.cs` | New | Supplies server-side actor fields; ADR-0017 §2 forbids taking them from the request |
+| `src/YCR.Application/Common/UniqueConstraintViolationException.cs` | New (step 9) | Application-owned exception boundary for provider-neutral unique-constraint translation; the infrastructure translator supplies the constraint name |
 | `src/YCR.Application/Common/Authorization/Permissions.cs` | New | `docs/20` §1 fixes this exact path. **Sole home of provisional rule R8** |
 | `src/YCR.Application/Common/Pagination/PagedResult.cs` | New | `docs/20` §4 pagination envelope |
 | `src/YCR.Application/Network/INetworkDbContext.cs` | New | ADR-0012 §Decision item 2. Path confirmed by P10; `docs/20` §1 gains the row at stage 8 |
@@ -157,6 +158,10 @@ This replaces the revision-2 design of an explicit transaction plus a hand-writt
 One consequence worth recording: the token applies to **every** update of a `Station`, not just deactivation. F-001 has no other update, and when rename or reactivation arrives the same check will guard them too — which is wanted, not merely tolerated. It does become a fact the `PATCH /stations` feature must know about.
 
 No column is added, so spec §7's no-`rowversion` decision is untouched.
+
+### Unique-constraint translation (tech-lead ruling, 2026-09-20)
+
+`YCR.Application.Common.UniqueConstraintViolationException` carries the database constraint name without exposing a provider-specific exception to Application. In step 9, Infrastructure translates SQL Server error numbers **2601** and **2627** to this exception in a `SaveChanges` interceptor or translator. `CreateStationHandler` catches only this application exception and maps it to `Network.StationCodeAlreadyExists` when the named constraint is the station `Code` unique index (`UX_Stations_Code`); any other unique-constraint violation is not caught by that handler and propagates as an unexpected infrastructure failure. This preserves ADR-0004's provider-neutral Application boundary and prevents unrelated uniqueness failures from being misreported as station-code conflicts.
 
 ---
 
@@ -330,6 +335,7 @@ Each rule runs twice: once over the `src/` assemblies asserting **zero** violati
 | `NetworkApplication_DependingOnTicketingDomain_IsDetected` | S16b |
 | `Reporting_DependingOnWriteContext_IsDetected` | S16c |
 | `Api_DependingOnModuleDomainNamespace_IsDetected` · `Api_DependingOnNonAllowlistedCommonType_IsDetected` | **S16d (replaced — see below and P11)** |
+| `Application_DependentOnSqlServerProvider_IsDetected` | S16e (tech-lead ruling; provider boundary) |
 | `Src_ContainingAuthenticationHandler_IsDetected` | S21a |
 
 **Review item 3 applied.** The old S16d ("`YCR.Api` contains domain logic") and S16e ("an endpoint returns an EF entity type") are replaced by one stronger rule: **`YCR.Api` must not depend on `YCR.Domain`**, except the composition root.
@@ -356,7 +362,8 @@ The architecture test enforces the **allowlist**, not merely the namespace, so a
 
 | Package | Where | Reason |
 |---|---|---|
-| `Microsoft.EntityFrameworkCore.SqlServer` | Infrastructure | Persistence provider (docs/06) |
+| `Microsoft.EntityFrameworkCore` 10.0.12 | Application | Provider-neutral `DbSet` and `SaveChangesAsync` abstractions are accepted in Application by ADR-0004 §Request flow; the same EF Core version is used by the Infrastructure provider packages |
+| `Microsoft.EntityFrameworkCore.SqlServer` | Infrastructure | Persistence provider (docs/06), pinned to the same EF Core version as the provider-neutral Application package |
 | `Microsoft.EntityFrameworkCore.Design` | Infrastructure | Migration tooling and `dotnet ef migrations bundle` (P1) |
 | `FluentValidation` + `FluentValidation.DependencyInjectionExtensions` | Api | `docs/20` §3 names FluentValidation behind an endpoint filter. The bundled `FluentValidation.AspNetCore` package is deprecated, so the filter is wired by hand |
 | `Microsoft.AspNetCore.Mvc.Testing` | Api.Tests | `WebApplicationFactory`, required by `docs/20` §3 |

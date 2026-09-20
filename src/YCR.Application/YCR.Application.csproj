@@ -3,6 +3,7 @@
   <!-- Use cases, module context interfaces (ADR-0012) and Permissions. -->
   <ItemGroup>
     <ProjectReference Include="../YCR.Domain/YCR.Domain.csproj" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
   </ItemGroup>
 
 </Project>
