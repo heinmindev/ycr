@@ -346,3 +346,23 @@ Then steps 3–13 in the plan's §Steps table, in order. Steps 1–6 need no Doc
 **Next step (exact):** continue plan step 4 by implementing `IIdGenerator`, `IAuditWriter`, `ICurrentUser`, `Permissions`, `PagedResult`, and `INetworkDbContext` using the newly approved provider-neutral EF reference.
 
 **Blockers / open questions:** none technical after the ruling. OQ26, OQ27 and OQ28 remain open with Myanma Railways and are confined by the approved provisional-rules waiver.
+
+---
+
+## 2026-09-20 12:56 Asia/Yangon — codex — T-004
+
+**Stage:** 4 (IMPLEMENT). Step 4 of 13 complete.
+**Commit:** `704d872fe310b5b2a90f02af6b691a3201dc4b1f` (`feat(F-001): add application contracts`), pushed to `origin/feature/F-001`.
+
+**Done this session:**
+- Added `IIdGenerator`, `IAuditWriter`, `ICurrentUser`, `Permissions`, `PagedResult<T>`, and the EF-backed `INetworkDbContext` abstraction.
+- Applied the ruling's provider-neutral `Microsoft.EntityFrameworkCore` 10.0.12 reference to `YCR.Application`; the package and rationale are recorded in `plan.md` §New packages.
+- Recorded the step-6 provider-boundary architecture rule and step-9 unique-constraint translation design in the approved plan.
+
+**Evidence:** `dotnet build D:\MR\ycr-F-001\YCR.sln` succeeded with 0 warnings and 0 errors. `dotnet test D:\MR\ycr-F-001\YCR.sln` passed with total 30, failed 0, succeeded 30, skipped 0. Files changed: `src/YCR.Application/Common/*.cs`, `src/YCR.Application/Network/INetworkDbContext.cs`, `Directory.Packages.props`, `src/YCR.Application/YCR.Application.csproj`, and the feature plan/progress records.
+
+**Next step (exact):** plan step 5 — implement `YcrDbContext`, `StationConfiguration`, `SqlServerSequentialGuidIdGenerator`, Infrastructure DI registration, and the `Network_CreateStations` migration. The SQL-backed scope test remains scheduled for step 7.
+
+**Blockers / open questions:** none technical. OQ26, OQ27 and OQ28 remain open with Myanma Railways and are confined by the approved provisional-rules waiver.
+
+**State of the branch:** build and tests green; implementation committed and pushed; this progress entry is the only uncommitted change.
