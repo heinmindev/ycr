@@ -691,3 +691,60 @@ The script also now joins the user to the role when the role exists, and prints 
 **State of the branch:** build and tests green; implementation committed and pushed; this progress entry is the only uncommitted change.
 
 **Review split so far:** steps 1, 7, 8 and 9 implemented by claude; steps 2–6 and the step-5 review fixes by Codex.
+
+---
+
+## 2026-09-20 21:45 Asia/Yangon — claude — T-004
+
+**Stage:** 4 (IMPLEMENT). Step 9 amended by two further rulings; step 10 not yet started.
+**Commit:** `6dfb67a` (`feat(F-001): make audit snapshots type-safe and pin session language`), pushed to `origin/feature/F-001`.
+**Implemented by:** claude.
+
+### Ruling 1 — audit snapshots are impossible-by-type
+
+`IAuditSnapshot` is a member-less marker interface in `YCR.Application.Common.Abstractions`. `IAuditWriter.Record` now takes `IAuditSnapshot? before, IAuditSnapshot? after`, `StationAuditSnapshot` implements it, and the runtime entity check is **removed**.
+
+**The compiler proved the ruling immediately.** The first build after the change failed with `CS1503: cannot convert from 'YCR.Domain.Network.Station' to 'IAuditSnapshot?'` — the old runtime-rejection test could no longer compile, which is exactly the outcome the ruling wanted. That test is replaced by `Station_IsNotAnAuditSnapshot_SoPassingItCannotCompile`, which asserts the aggregate does not implement the marker and the snapshot does. The barrier disappears silently if an entity ever implements the interface, and every call site would keep compiling, so it is worth one assertion.
+
+**Architecture test added** — `AuditSnapshots_AreRecordsInAnApplicationModuleNamespace`. Every `IAuditSnapshot` implementation must be a record and must live in `YCR.Application.<Module>`. Three planted fixtures prove both halves bite: `NonRecordAuditSnapshot` (a class), `MisplacedAuditSnapshot` (right kind, wrong namespace) and `YCR.Domain.Network.Violations.DomainAuditSnapshot` (a record that drifted into Domain). A second test, `AuditSnapshots_ExistAtAllSoTheRuleIsNotVacuous`, fails if `src/` ever contains no snapshot at all — without it the rule would pass trivially the day someone deleted the last one.
+
+Written with reflection rather than as an ArchUnit rule because "is a record" is not a dependency fact: it is detected by the compiler-generated `<Clone>$` member, which ArchUnit's fluent API does not express.
+
+### A trap the marker interface introduced, and what it would have cost
+
+`JsonSerializer.Serialize(snapshot, PayloadOptions)` serialises against the **static** type. With the parameter now typed as `IAuditSnapshot` — which declares no members — that overload would have written **`{}` into every `BeforeJson` and `AfterJson`**: a silent, total loss of audit state, in a table that can never be corrected, with no error anywhere. `SerializeSnapshot` therefore passes the runtime type explicitly, and the comment says why so nobody "simplifies" it back.
+
+This was caught by the existing tests that assert exact payload JSON. It is the second time in two steps that an exact-value assertion caught something an existence assertion would have missed.
+
+### Ruling 2 — `us_english` pinned, and VERIFIED
+
+| Where | How |
+|---|---|
+| Test fixture | `SqlServerImage.SessionLanguage = "us_english"`, applied via `SqlConnectionStringBuilder.CurrentLanguage` to **both** connection strings |
+| Compose | Both logins in `init-principals.sql` now set `DEFAULT_LANGUAGE = us_english` |
+| Connection strings | `.env.example` documents both, each carrying `Current Language=us_english`, with the reason and "do not drop this setting" |
+| CI | Recorded as a step-13 obligation in `plan.md` §Steps |
+
+**VERIFY — SqlClient accepts it: PASS.** Two levels of evidence. `SqlConnectionStringBuilder.CurrentLanguage` is a strongly typed property, so the build itself proves the keyword exists; and `BothCredentials_ConnectOnAUsEnglishSession` opens both connections and asserts `SELECT @@LANGUAGE` returns `us_english`. Against the local compose stack, connecting as `ycr_app` likewise returns `us_english` and database `YCR`.
+
+**The translator's own input is asserted, not just some connection.** `SaveChanges_WithDuplicateStationCode_...` checks `@@LANGUAGE` on the very connection whose exception it then parses. Asserting the language on a different connection would not have proven anything about the message that was actually read.
+
+**Why login `DEFAULT_LANGUAGE` as well as the connection string:** the connection string covers the application; the login default covers any tool that connects without naming a language — sqlcmd, a migration bundle run by hand, a DBA session. Belt and braces, because the failure mode is silent.
+
+The dependency is documented on `SqlServerUniqueConstraintTranslator` itself as a REQUIRED CONTROL, naming every place the language is pinned, so the next person to touch the regex finds the constraint next to the code rather than in a progress file.
+
+### Evidence
+
+- `dotnet build YCR.sln` — **0 warnings, 0 errors**.
+- `dotnet test YCR.sln --no-build` — **total 76, failed 0, succeeded 76, skipped 0**. Up from 73.
+- Local compose stack re-verified after editing `init-principals.sql`: init runs clean, and `ycr_app` reports `@@LANGUAGE` = `us_english`, `DB_NAME()` = `YCR`. Torn down with `down -v`.
+
+### One thing I broke and fixed within this session
+
+A `perl -0pi` edit to `init-principals.sql` consumed the `$(YcrDatabase)` sqlcmd variable, leaving `DEFAULT_DATABASE = []`. Caught by re-reading the file, fixed with a plain edit, and confirmed by the compose run above reporting `DB_NAME()` = `YCR`. Recorded because the failure would only ever have surfaced at runtime in someone's local environment.
+
+**Next step (exact):** plan step 10 — Application handlers: `CreateStation`, `DeactivateStation` (`IsActive` concurrency token), `GetStation`, `ListStations`, and DI scanning. They are the first real callers of the new audit contract. Ends green with all `YCR.Application.Tests` rows (S1, S3, S5–S8, S13, S14, S20, S27) under the `ycr_app` credential, and removes that project's exit-code-8 waiver at its named step.
+
+**Blockers / open questions:** none technical. OQ26, OQ27 and OQ28 remain open with Myanma Railways; T-014 is the release gate.
+
+**State of the branch:** build and tests green; committed and pushed; this progress entry is the only uncommitted change.
