@@ -25,6 +25,9 @@
 23. Does a reprint invalidate earlier printed tickets? If yes, validation accepts only the current signed `printSequence`. (ADR-0013/ADR-0014)
 24. Can one Sale contain multiple Tickets, and what payment/fare semantics apply? (blocks Sell/Sale creation)
 25. Who owns and approves the key-compromise response procedure, including revocation timing, trust-list publication, and inspector-device refresh? (blocks operational QR key management)
+26. Does a YCR station have an official station code, and what is its format — character set, length, letter case, and may a code be reused after a station is deactivated? (blocks `StationCode` validation and the `network.Stations` unique index; F-001 spec R3. Related to OQ1. The `HasMaxLength(10)` in `docs/20` §3 is illustration, not an approved rule.)
+27. What are the naming rules for a station: is a Myanmar-script name mandatory for every station, must English or Myanmar names be unique, what are the maximum lengths, and is any additional name — short name, printed name, transliteration — required? (blocks `BilingualName` validation and the `NameEn`/`NameMy` column definitions; F-001 spec R4. The `HasMaxLength(100)` in `docs/20` §3 is illustration, not an approved rule.)
+28. Which operator roles may manage stations, and is there a separate read permission for viewing stations? `docs/10-authorization-matrix.md` grants "Manage stations" to Admin and Railway Admin in its table, yet the same file states that role grants for `stations.manage` are an OPEN QUESTION and must not be inferred; the inventory also has no `stations.read` even though the table gives Auditor a "view" right. (blocks authorization for `GET /stations` and `GET /stations/{id}`, and all role→permission seed data; F-001 spec R8, contradictions C1 and C2. Depends on OQ12.)
 
 ## Engineering decisions resolved on 2026-09-19
 
