@@ -447,3 +447,84 @@ Then steps 3–13 in the plan's §Steps table, in order. Steps 1–6 need no Doc
 **Blockers / open questions:** none technical. OQ26, OQ27 and OQ28 remain open with Myanma Railways and are confined by the approved provisional-rules waiver.
 
 **State of the branch:** build and tests green; implementation committed and pushed; this progress entry is the only uncommitted change.
+
+---
+
+## 2026-09-20 19:30 Asia/Yangon — claude — T-004
+
+**Stage:** 4 (IMPLEMENT). Step 7 of 13 complete. **Step-7 environment blocker cleared.**
+**Commit:** `0375cce` (`feat(F-001): add pinned container fixture and migration bundle`), pushed to `origin/feature/F-001`.
+**Implemented by:** claude. Reviews are split by author: steps 1 and 7 are claude's; steps 2–6 and the step-5 review fixes are Codex's.
+
+### Environment blocker resolved
+
+Codex's 19:03 entry blocked step 7 on a missing Docker runtime and an unavailable `Testcontainers.MsSql`. Both are gone:
+
+- `docker version` reports client **29.8.0** and **Docker Desktop 4.91.0 (239619)**, engine 29.8.0 on WSL2. Hein installed it (ruling, 2026-09-20).
+- `Testcontainers.MsSql` **4.15.0** restored from nuget.org and pinned centrally; `plan.md` §New packages carries the row with its reason.
+
+### E4 — the image pin (hein's ruling applied)
+
+| | |
+|---|---|
+| **Tag** | `mcr.microsoft.com/mssql/server:2022-CU27-ubuntu-22.04` |
+| **Digest** | `sha256:4402d880dd4c34bfa7d8705e56a86cd6c88da80a1f6bbbe741f999e76264a090` |
+| **Pinned on** | 2026-09-20 |
+| **Why this tag** | Newest SQL Server 2022 cumulative update published on `mcr.microsoft.com` as of that date. The tag list ends at CU27; CU26 is the newest with a GDR variant, and CU27 supersedes it |
+| **Verified as** | `ProductVersion` = **16.0.4295.3**, `ProductMajorVersion` = **16**, `Edition` = **Developer Edition (64-bit)** |
+
+The digest was read from the MCR manifest and then confirmed against the pulled image's `RepoDigests` — they match, so the pin names the bits that actually ran.
+
+**Single shared constant:** `tests/YCR.TestSupport/SqlServerImage.cs` holds `Tag`, `Digest` and `Reference`. `docker-compose.yml` names the same reference on both services. A YAML file cannot import a C# constant, so `SqlServerImagePinTests.ComposeFile_PinsExactlyTheFixtureImage` reads the compose file and asserts every `image:` line equals `SqlServerImage.Reference`. That test, not convention, is what makes the constant shared — without it the two pins would drift the first time one was bumped alone. No floating tag exists anywhere in the repository.
+
+`MSSQL_PID=Developer` is set explicitly in both compose and the fixture rather than inherited from the image default, so an image change cannot quietly downgrade the edition underneath V1.
+
+### V6 — RESOLVED, PASS
+
+`dotnet ef migrations bundle` builds on EF 10 and produces a working self-contained migrator. Plan decision **P1 stands**: no `YCR.DbMigrator` project and no superseding ADR are needed.
+
+The fixture applies schema **through the bundle**, not through in-process `Migrate()`. That was deliberate: in-process migration would pass while leaving the artifact that actually ships untested, which is the exact failure V6 exists to retire. `Migrate_AgainstPinnedImage_RecordsEveryMigrationAsApplied` compares `__EFMigrationsHistory` against `Database.GetMigrations()`, so a migration the assembly carries but the bundle omits fails the build.
+
+**`dotnet-ef` 10.0.12 is now pinned as a local tool** in `.config/dotnet-tools.json`, and the fixture runs `dotnet tool restore` before building the bundle. Without it the bundle would be built by whatever version happened to be installed globally, and V6 would be a statement about one laptop rather than about the repository. Recorded in `plan.md` §New packages.
+
+### Files added or changed
+
+| File | What |
+|---|---|
+| `tests/YCR.TestSupport/SqlServerImage.cs` | The E4 constant: tag, digest, combined reference, and how to move it |
+| `tests/YCR.TestSupport/SqlServerTestContainer.cs` | One pinned container per collection; a fresh migrated database per test class; per-container random `sa` password with a redactor |
+| `tests/YCR.TestSupport/MigrationBundle.cs` | Builds the bundle once per test process, applies it per database, redacts passwords from tooling output |
+| `tests/YCR.Infrastructure.Tests/SqlServerFixture.cs` | The xUnit collection-fixture adapter |
+| `tests/YCR.Infrastructure.Tests/Persistence/MigrationBundleTests.cs` | V6 plus the migrate-and-query smoke test |
+| `tests/YCR.Infrastructure.Tests/Persistence/SqlServerImagePinTests.cs` | Compose-vs-constant pin equality; tag-and-digest shape |
+| `tests/YCR.Infrastructure.Tests/Persistence/ModuleInterfacesTests.cs` | S17 moved onto the real container |
+| `docker-compose.yml` | Local dev server plus a one-shot init service, both on the pinned image |
+| `docker/sqlserver/init-principals.sql` | Database, `ycr_migrator` and `ycr_app` logins and users. Idempotent |
+| `.env.example` | The three required passwords, no defaults |
+| `.config/dotnet-tools.json` | `dotnet-ef` 10.0.12 |
+| `Directory.Packages.props`, `tests/YCR.TestSupport/YCR.TestSupport.csproj` | `Testcontainers.MsSql` 4.15.0 |
+| `tests/YCR.Infrastructure.Tests/YCR.Infrastructure.Tests.csproj` | **Exit-code-8 waiver removed at its named step** |
+
+### Evidence
+
+- `dotnet build YCR.sln` — **0 warnings, 0 errors**.
+- `dotnet test YCR.sln --no-build` — **total 48, failed 0, succeeded 48, skipped 0**. Up from 43; the five new tests are three in `MigrationBundleTests` and two in `SqlServerImagePinTests`, with `ModuleInterfacesTests` rewritten rather than added to.
+- `YCR.Infrastructure.Tests` alone: **8 passed, 0 failed, 0 skipped** in 28s, all against the real container.
+- `docker compose config` validates. `docker compose up -d` brings the server to healthy and the init service exits **0**; a second `up -d` is clean, so the script is idempotent. `sys.database_principals` then contains `ycr_app` and `ycr_migrator`, both `SQL_USER`. The stack was torn down with `down -v` afterwards.
+
+**`docker compose up -d --wait` is not the documented command and does not work here**, because `--wait` treats a one-shot init service that exits as a failure even on exit 0. AGENTS.md §Commands documents plain `docker compose up -d`, which is what was verified.
+
+### Design notes worth a reviewer's attention
+
+- **`YCR.TestSupport` still references no test framework.** `tests/Directory.Build.props` excludes it from the runner, so the container class is a plain `IAsyncDisposable` and each consuming test project supplies its own thin collection-fixture adapter. The alternative — adding `xunit.v3.extensibility.core` to TestSupport — would have been a new package and would have coupled the fixture library to the runner.
+- **No `Microsoft.Data.SqlClient` pin was added.** `SqlConnection` arrives with the EF Core SQL Server provider through `YCR.Infrastructure`, and central transitive pinning fixes its version; a second explicit pin could only drift from the provider's own requirement. Recorded in `plan.md` §New packages under "Deliberately not added".
+- **Credentials.** The `sa` password is generated per container from `RandomNumberGenerator` and never written to source. Connection strings are passed to the bundle on the command line, so `MigrationBundle.Redact` strips `Password=...` from any tooling output before it can reach an exception message or a log. Compose defaults no password at all — a missing variable stops compose rather than creating a known credential.
+- **S17 now proves something.** It previously asserted over a connection string that was never opened. It now runs against the real database and shows that work tracked through `INetworkDbContext` is saved by the concrete `YcrDbContext` in one `SaveChangesAsync`, which is the property ADR-0012's one-context-many-interfaces design actually depends on.
+- **Credential caveat, deliberate.** S17 and the smoke tests run under the migrator credential, not `ycr_app`, because the `ycr_app` **role** does not exist until the `Security_AppDatabaseRole` migration at **step 9**. The plan's §Test fixture table assigns S17 to `ycr_app`; that move belongs to step 9 and is called out in the test's own XML comment so it cannot be forgotten.
+- **`init-principals.sql` creates no role and no grant.** Logins and users only. Every privilege stays in the migration, so a grant cannot enter the system through a provisioning script nobody diffs (plan P9, ADR-0017 item 3).
+
+**Next step (exact):** plan step 8 — run **V1–V4** against the pinned image first, then implement the audit ledger: `AuditEvent` mapping with `ExcludeFromMigrations()`, `AuditWriter`, and the `Audit_CreateAuditEventsLedger` raw-SQL migration with its version and edition guard, three `ISJSON` check constraints and two nonclustered indexes. **If V1 or V2 fails, stop and return to stage 2 — do not substitute a normal table** (AGENTS.md rule 8).
+
+**Blockers / open questions:** none technical. OQ26, OQ27 and OQ28 remain open with Myanma Railways and are confined by the approved provisional-rules waiver; T-014 is the release gate.
+
+**State of the branch:** build and tests green; implementation committed and pushed; this progress entry is the only uncommitted change.
