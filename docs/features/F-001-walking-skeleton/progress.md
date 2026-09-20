@@ -270,3 +270,23 @@ Then steps 3–13 in the plan's §Steps table, in order. Steps 1–6 need no Doc
 `TASKS.md` was deliberately not touched in this handoff. The T-004 row still reads Owner `claude`, Status `doing`, and the `claim/T-004` ref still exists in the coordination checkout. Per §Protocol item 12 only a human may release a claimed task, so **hein needs to reassign the row and the claim ref to Codex** before Codex starts step 2.
 
 **Blockers / open questions:** none technical. Still open with Myanma Railways: OQ26, OQ27, OQ28 (T-014, release gate).
+
+---
+
+## 2026-09-20 12:08 Asia/Yangon — codex — T-004
+
+**Stage:** 4 (IMPLEMENT). Step 2 of 13 complete.
+**Commit:** `80b741951f887bf9f4830d2611ab4e388c03eddf` (`feat(F-001): implement domain common primitives`), pushed to `origin/feature/F-001`.
+
+**Done this session:**
+- Added `YCR.Domain.Common` primitives: `Result`, `Result<T>`, `Error`, `ErrorType`, `Entity`, `AggregateRoot`, and `IDomainEvent`.
+- Added domain tests for success/failure semantics, all ADR-0004 error categories and value equality, implicit conversions used by the reference slice, and collected-but-undispatched aggregate events.
+- No new package was required; `plan.md` §New packages is unchanged.
+
+**Evidence:** `dotnet build D:\MR\ycr-F-001\YCR.sln` succeeded with 0 warnings and 0 errors. `dotnet test D:\MR\ycr-F-001\YCR.sln` passed with total 11, failed 0, succeeded 11, skipped 0. Files changed: `src/YCR.Domain/Common/*.cs` and `tests/YCR.Domain.Tests/Common/*.cs`.
+
+**Next step (exact):** plan step 3 — implement `YCR.Domain.Network`: `StationCode`, `BilingualName`, `Station`, `NetworkErrors`, and `StationDeactivated`, with the listed `YCR.Domain.Tests` cases for S1, S2, S7 and S9.
+
+**Blockers / open questions:** none technical. OQ26, OQ27 and OQ28 remain open with Myanma Railways and are confined by the approved provisional-rules waiver.
+
+**State of the branch:** build and tests green; committed and pushed; no uncommitted work.
