@@ -3,6 +3,11 @@
   <!-- YcrDbContext, EF configurations, migrations, IIdGenerator and IAuditWriter implementations. -->
   <ItemGroup>
     <ProjectReference Include="../YCR.Application/YCR.Application.csproj" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
   </ItemGroup>
 
 </Project>
