@@ -60,14 +60,6 @@ For each question, record the selected policy, the accountable approver, its eff
 - **Suggested decision owner:** MR IT and business system owners (roles to be nominated).
 - **Sources:** `docs/19-open-questions.md` OQ16; `docs/07-database-design.md` if migration is confirmed.
 
-### OQ22 — Which SPA framework will the frontend use, and where will its repository live?
-
-- **Why it matters:** The frontend framework and repository boundary affect delivery ownership, CI, dependency controls, same-origin deployment, and security evidence.
-- **Blocks or constrains:** Frontend repository setup; build/deploy pipeline; CSP and dependency-audit implementation; API client conventions.
-- **Suggested options (non-binding):** (a) select and own a separate SPA repository under the MR/project organization; (b) use an existing MR-approved SPA standard; (c) run a short evaluation against accessibility, offline-browser behavior, staffing, and security criteria before selection.
-- **Suggested decision owner:** MR IT architecture / delivery lead (role to be nominated).
-- **Sources:** `docs/19-open-questions.md` OQ22; ADR-0005; ADR-0016; `docs/18-threat-model.md`.
-
 ## Ticket product and validation
 
 ### OQ3 — Is ticketing per journey, per day, or another model?
@@ -225,6 +217,6 @@ The following dependencies should be considered when scheduling decisions:
 - **Ticket product first:** OQ3, OQ4, OQ5, OQ19, and OQ23 jointly define what is sold and what validation accepts.
 - **Fare and payment:** OQ1, OQ2, OQ9, OQ11, OQ17, OQ21, and OQ24 jointly determine a reproducible sale and reconciliation result.
 - **Outage and validation:** OQ8 and OQ18 must align with the fraud, reconciliation, and operational controls in ADR-0014 and ADR-0015.
-- **Governance:** OQ12, OQ13, OQ14, OQ15, OQ16, OQ22, and OQ25 determine ownership, evidence, and operating readiness.
+- **Governance:** OQ12, OQ13, OQ14, OQ15, OQ16, and OQ25 determine ownership, evidence, and operating readiness.
 
 No dependency listed here is a proposed sequencing decision; it is a prompt for the MR workshop agenda.
