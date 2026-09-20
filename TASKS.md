@@ -68,4 +68,7 @@ Agents: read this whole file, including the Protocol, before picking a task.
     - The implementation task becomes `done` only when the human approval and merge task (T-009) is `done`.
 11. **Cross-review.** Scenario tests, code review and security review must be done by a different agent than the implementer. Remediation is done by the implementer.
 12. **Stale claims.** Only a human may release a `doing` task whose progress file has had no entry for 24 hours. The human deletes its `claim/` ref and resets the row.
-13. **New work.** Agents may add `todo` rows (next free ID, Owner `—`). They must not reorder, delete or reassign other rows; humans own the priorities.
+13. **CI evidence (R-6).** For `feature/F-001`, prove the CI workflow is green on `origin` and record the workflow run URL in `docs/features/F-001-walking-skeleton/progress.md`.
+14. **New work.** Agents may add `todo` rows (next free ID, Owner `—`). They must not reorder, delete or reassign other rows; humans own the priorities.
+15. **Ledger push.** After each ledger commit on `main`, push `main` to `origin`.
+16. **Claim refs.** Never push `claim/*` refs.
