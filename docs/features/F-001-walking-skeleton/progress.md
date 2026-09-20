@@ -387,3 +387,24 @@ Then steps 3–13 in the plan's §Steps table, in order. Steps 1–6 need no Doc
 **Blockers / open questions:** none technical. OQ26, OQ27 and OQ28 remain open with Myanma Railways and are confined by the approved provisional-rules waiver.
 
 **State of the branch:** build and tests green; implementation committed and pushed; this progress entry is the only uncommitted change.
+
+---
+
+## 2026-09-20 14:03 Asia/Yangon — codex — T-004
+
+**Stage:** 4 (IMPLEMENT). Step 6 of 13 complete; stop point reached.
+**Commit:** `27c9922b947688a81fe62c2a8e8101b532a8f348` (`test(F-001): enforce architecture boundaries`), pushed to `origin/feature/F-001`.
+
+**Done this session:**
+- Added ArchUnitNET rules and planted `Violations` fixtures for Network-to-Ticketing context/domain boundaries, Reporting write-context access, API module-domain and Common-type allowlist boundaries, Application provider dependencies, and deployable authentication handlers.
+- The provider-boundary rule rejects dependencies on both `Microsoft.EntityFrameworkCore.SqlServer` and `Microsoft.Data.SqlClient`; Application may retain provider-neutral `Microsoft.EntityFrameworkCore` per the tech-lead ruling.
+- Removed the `YCR.ArchitectureTests` exit-code-8 waiver at its named step.
+- Module-boundary pattern: one `YcrDbContext` is exposed to each Application module through module-scoped `I<Module>DbContext` interfaces; architecture rules scan source assemblies for forbidden cross-module context/domain/provider dependencies and scan the test assembly's `Violations` namespace to prove each rule has teeth.
+
+**Evidence:** `dotnet build D:\MR\ycr-F-001\YCR.sln` succeeded with 0 warnings and 0 errors. `dotnet test D:\MR\ycr-F-001\YCR.sln` passed with total 39, failed 0, succeeded 39, skipped 0. Architecture-focused tests: 7 passed, 0 failed, 0 skipped. Files changed: `tests/YCR.ArchitectureTests/YCR.ArchitectureTests.csproj`, `ArchitectureRuleTests.cs`, `ArchitectureRules.cs`, and `Violations/*.cs`.
+
+**Next step (exact):** stop for the mandated T-004 report. After human acknowledgment, plan step 7 starts with the Testcontainers fixture, pinned SQL Server 2022 image, `docker-compose.yml`, `init-principals.sql`, migration bundle, and V6 verification.
+
+**Blockers / open questions:** none technical. OQ26, OQ27 and OQ28 remain open with Myanma Railways and are confined by the approved provisional-rules waiver.
+
+**State of the branch:** build and tests green; implementation committed and pushed; this progress entry is the only uncommitted change.
