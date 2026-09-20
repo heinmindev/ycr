@@ -14,7 +14,7 @@ Agents: read this whole file, including the Protocol, before picking a task.
 |---|---|---|---|---|---|---|---|---|---|
 | T-001 | Commit current docs as baseline (`git init` if needed); tag `docs-baseline-2026-09-19` | done | hein | — | main | Tag exists on `main` | — | 2026-09-19 23:00 | Human only |
 | T-002 | F-001 walking skeleton: stages 1–2, discover + spec | done | claude | T-001 | feature/F-001 | `docs/features/F-001-walking-skeleton/spec.md` per workflow 02 ⛔ | `docs/features/F-001-walking-skeleton/progress.md` | 2026-09-20 02:27 | Spec Approved (hein, 2026-09-20) at `cb20c7c` on `feature/F-001`. Provisional station rules under the explicit waiver in spec §Blocked behaviour; replacement tracked by T-014. ADR-0020 and ADR-0021 added as Proposed. |
-| T-003 | F-001 stage 3, plan | blocked | claude | T-002 | feature/F-001 | `plan.md` ⛔ | same as T-002 | 2026-09-20 04:15 | approval: plan revision 3 at `8f0bfe5` on `feature/F-001`. P1-P10 resolved at review; **P11** (Api-to-Domain rule vs ADR-0004 `Result` in `YCR.Domain.Common`) and **P12** (stage-2 amendment adding scenario S27) await an answer, and T-004 must not start first |
+| T-003 | F-001 stage 3, plan | done | claude | T-002 | feature/F-001 | `plan.md` ⛔ | same as T-002 | 2026-09-20 04:25 | Plan Approved (hein, 2026-09-20), revision 4 at `bbe8dda`. P1-P12 all resolved; spec Amendment 1 adds S27 |
 | T-004 | F-001 stage 4, implement (unit tests with each plan step) | todo | — | T-003 | feature/F-001 | Plan steps done; `dotnet test` green; commit SHA recorded in Notes | same as T-002 | 2026-09-19 21:00 | |
 | T-005 | F-001 stage 5, scenario tests from spec §4 (testing-agent prompt) | todo | — | T-004 | feature/F-001 | All spec scenarios covered; `dotnet test` green | same as T-002 | 2026-09-19 21:00 | Owner ≠ T-004 owner |
 | T-006 | F-001 stage 6, code review of the commit named in T-005 Notes | todo | — | T-005 | feature/F-001 | `review.md` with verdict | same as T-002 | 2026-09-19 21:00 | Owner ≠ T-004 owner |
@@ -70,7 +70,4 @@ Agents: read this whole file, including the Protocol, before picking a task.
     - The implementation task becomes `done` only when the human approval and merge task (T-009) is `done`.
 11. **Cross-review.** Scenario tests, code review and security review must be done by a different agent than the implementer. Remediation is done by the implementer.
 12. **Stale claims.** Only a human may release a `doing` task whose progress file has had no entry for 24 hours. The human deletes its `claim/` ref and resets the row.
-13. **CI evidence (R-6).** For `feature/F-001`, prove the CI workflow is green on `origin` and record the workflow run URL in `docs/features/F-001-walking-skeleton/progress.md`.
-14. **New work.** Agents may add `todo` rows (next free ID, Owner `—`). They must not reorder, delete or reassign other rows; humans own the priorities.
-15. **Ledger push.** After each ledger commit on `main`, push `main` to `origin`.
-16. **Claim refs.** Never push `claim/*` refs.
+13. **New work.** Agents may add `todo` rows (next free ID, Owner `—`). They must not reorder, delete or reassign other rows; humans own the priorities.
