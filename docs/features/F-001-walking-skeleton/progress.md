@@ -290,3 +290,23 @@ Then steps 3–13 in the plan's §Steps table, in order. Steps 1–6 need no Doc
 **Blockers / open questions:** none technical. OQ26, OQ27 and OQ28 remain open with Myanma Railways and are confined by the approved provisional-rules waiver.
 
 **State of the branch:** build and tests green; committed and pushed; no uncommitted work.
+
+---
+
+## 2026-09-20 12:16 Asia/Yangon — codex — T-004
+
+**Stage:** 4 (IMPLEMENT). Step 3 of 13 complete.
+**Commit:** `21d236b6f8f64df66265e8c80d2e83e65cbcbe85` (`feat(F-001): implement station domain slice`), pushed to `origin/feature/F-001`.
+
+**Done this session:**
+- Added `StationCode`, `BilingualName`, `Station`, `NetworkErrors`, and `StationDeactivated` in `YCR.Domain.Network`.
+- Added all planned domain tests for S1, S2, S7 and S9, including trimming, length, character-set, required-name, active-state, and event-collection behavior.
+- Kept the approved provisional R3/R4 rules confined to the two value objects and labeled them in XML documentation.
+
+**Evidence:** `dotnet build D:\MR\ycr-F-001\YCR.sln` succeeded with 0 warnings and 0 errors. `dotnet test D:\MR\ycr-F-001\YCR.sln` passed with total 30, failed 0, succeeded 30, skipped 0. Files changed: `src/YCR.Domain/Network/*.cs` and `tests/YCR.Domain.Tests/Network/*.cs`.
+
+**Next step (exact):** plan step 4 — add Application abstractions: `IIdGenerator`, `IAuditWriter`, `ICurrentUser`, `Permissions`, `PagedResult`, and `INetworkDbContext`; compile with no behavior yet.
+
+**Blockers / open questions:** none technical. OQ26, OQ27 and OQ28 remain open with Myanma Railways and are confined by the approved provisional-rules waiver.
+
+**State of the branch:** build and tests green; committed and pushed; no uncommitted work.
