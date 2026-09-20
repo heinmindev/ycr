@@ -141,3 +141,33 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** blocked at the ⛔ approval stop, blocker type `approval`. P11 and P12 pending. Still open with Myanma Railways: OQ26, OQ27, OQ28, tracked by T-014. Spec E3's "no remote yet" wording is now stale and is corrected at stage 8.
 
 **State of the branch:** documentation only, no `src/`, nothing to build or test. All work committed on `feature/F-001`. Not yet pushed to `origin`.
+
+---
+
+## 2026-09-20 04:55 Asia/Yangon — claude — T-004
+
+**Stage:** 4 (IMPLEMENT) — **step 1 of 13 done**
+**Commit:** `1028cff` on `feature/F-001`
+
+**Done this session:**
+- Applied hein's T-003 approval to `spec.md` and `plan.md`, set both to Approved, and marked T-003 `done` (ledger `bbe8dda` / plan revision 4). Claimed T-004.
+- **Step 1 complete.** `global.json` (SDK 10.0.302, `rollForward` latestPatch), `Directory.Build.props` (net10.0, nullable, implicit usings, `TreatWarningsAsErrors`, deterministic), `Directory.Packages.props` (central package management, every version pinned), `.gitignore`, `.editorconfig` (UTF-8), `YCR.sln` with all twelve projects wired, and `BuildConfigurationTests`.
+
+**Evidence:**
+- `dotnet build YCR.sln` from a cleaned tree: **Build succeeded, 0 Warning(s), 0 Error(s)**. Warnings-as-errors has no runtime trace, so a clean build with it enabled is the evidence, and `BuildConfigurationTests` says so in a comment rather than faking an assertion.
+- `dotnet test YCR.sln`: **total 2, failed 0, succeeded 2, skipped 0**, exit code 0. Both in `YCR.Domain.Tests.BuildConfigurationTests` — `RuntimeVersion_UnderPinnedSdk_IsNet10` and `TestAssembly_TargetsNet10`.
+- Twelve projects: `YCR.Domain`, `YCR.Application`, `YCR.Infrastructure`, `YCR.Api`, `YCR.Worker`; `YCR.TestSupport`, `YCR.Domain.Tests`, `YCR.Application.Tests`, `YCR.Infrastructure.Tests`, `YCR.Api.Tests`, `YCR.IntegrationTests`, `YCR.ArchitectureTests`.
+
+**V5 resolved (plan P4):** `NetArchTest.Rules` last shipped **1.3.2 on 2021-05-23** — over five years old, no .NET 10 signal — so the fallback applies. Architecture tests will use **`TngTech.ArchUnitNET` 0.13.4** (published 2026-08-20) with `TngTech.ArchUnitNET.xUnitV3`, which pairs with the xUnit v3 choice in P3. Both pinned in `Directory.Packages.props`; the plan's §New packages row records the reasoning.
+
+**Four things the plan did not foresee, and how each was handled:**
+1. **`dotnet new sln` defaults to the new `.slnx` format on .NET 10.** AGENTS.md §Commands names `YCR.sln`, so the solution was created with `--format sln`. The constitution's documented commands work as written.
+2. **xUnit v3 needs an opt-in to the Microsoft.Testing.Platform runner.** On .NET 10 the VSTest target is gone, and the opt-in lives in `global.json` under `"test": { "runner": "Microsoft.Testing.Platform" }` — not in `dotnet.config`, which was tried first and had no effect.
+3. **`Microsoft.NET.Sdk.Worker` does not reference `Microsoft.Extensions.Hosting` implicitly on .NET 10**, so its generated global usings did not compile. Added as an explicit pinned reference and recorded in the plan's §New packages, because `docs/20` §8 requires every package to be stated there.
+4. **Five test projects have no tests yet**, and Microsoft.Testing.Platform exits 8 on a run that discovers none. Rather than disabling that signal solution-wide, each carries a scoped `--ignore-exit-code 8` waiver naming the step that must delete it — steps 6, 7, 10 and 11 respectively. `YCR.IntegrationTests` keeps its waiver for all of F-001 with plan C4 as the reason. An empty suite therefore cannot hide once it should have tests.
+
+**Next step (exact):** plan step 2 — `YCR.Domain.Common`: `Result`, `Error`, `ErrorType`, `Entity`, `AggregateRoot`, with `YCR.Domain.Tests` covering Result and Error semantics.
+
+**Blockers / open questions:** none. Still open with Myanma Railways: OQ26, OQ27, OQ28, tracked by T-014 as a release gate.
+
+**State of the branch:** builds clean, tests green, all work committed and pushed to `origin/feature/F-001`.
