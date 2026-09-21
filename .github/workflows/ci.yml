@@ -1,0 +1,327 @@
+# YCR continuous integration (plan step 13, spec S26).
+#
+# Third-party actions are pinned by commit SHA, never by tag: a tag is mutable, so `@v4` means
+# "whatever that account pushes there next", which is a supply-chain hole in a pipeline that
+# holds database credentials and can write to the repository.
+#
+# Permissions are read-only at the workflow level and granted per job only where more is needed.
+#
+# No password is stored as a secret or written to a file. Every credential is generated per run
+# and lives only in that run's environment, so there is nothing to leak between runs and nothing
+# for a fork to exfiltrate.
+
+name: CI
+
+on:
+  push:
+    branches: [main, 'feature/**']
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: 'true'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
+  DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+
+jobs:
+  build-and-test:
+    name: Build and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: |
+          dotnet tool restore
+          dotnet restore YCR.sln
+
+      - name: Build
+        run: dotnet build YCR.sln --no-restore --configuration Debug
+
+      # Built once, then handed to every test process through YCR_MIGRATION_BUNDLE. Each process
+      # would otherwise build its own, and `dotnet ef migrations bundle` publishes through the
+      # Infrastructure project's obj/ directory, so parallel builds collide.
+      - name: Build the migration bundle once
+        run: |
+          mkdir -p "$RUNNER_TEMP/bundle"
+          dotnet ef migrations bundle --force \
+            --project src/YCR.Infrastructure \
+            --startup-project src/YCR.Infrastructure \
+            --output "$RUNNER_TEMP/bundle/efbundle"
+          echo "YCR_MIGRATION_BUNDLE=$RUNNER_TEMP/bundle/efbundle" >> "$GITHUB_ENV"
+
+      - name: Test
+        run: >
+          dotnet test YCR.sln --no-build
+          --
+          --report-xunit-trx
+          --results-directory "${{ runner.temp }}/test-results"
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: test-results-build-and-test
+          path: ${{ runner.temp }}/test-results
+          retention-days: 7
+          if-no-files-found: warn
+
+      # Testcontainers cleans up after itself, so on a failure the container is usually already
+      # gone. Whatever survives is captured, because a SQL Server that refused to start is
+      # otherwise invisible in the test output.
+      - name: Upload container logs
+        if: failure()
+        run: |
+          mkdir -p "$RUNNER_TEMP/container-logs"
+          for id in $(docker ps -aq); do
+            name=$(docker inspect --format '{{.Name}}' "$id" | tr -d '/')
+            docker logs "$id" > "$RUNNER_TEMP/container-logs/$name.log" 2>&1 || true
+          done
+          docker ps -a > "$RUNNER_TEMP/container-logs/docker-ps.txt" 2>&1 || true
+
+      - name: Upload container logs artifact
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: container-logs-build-and-test
+          path: ${{ runner.temp }}/container-logs
+          retention-days: 7
+          if-no-files-found: warn
+
+  api-smoke:
+    name: API smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          global-json-file: global.json
+
+      # Generated per run, never stored. These exist only inside this job's environment.
+      - name: Generate credentials
+        run: |
+          {
+            echo "MSSQL_SA_PASSWORD=Sa1!$(openssl rand -hex 16)"
+            echo "YCR_APP_PASSWORD=Ap1!$(openssl rand -hex 16)"
+            echo "YCR_MIGRATOR_PASSWORD=Mg1!$(openssl rand -hex 16)"
+          } >> "$GITHUB_ENV"
+
+      - name: Start the database
+        run: docker compose up -d
+
+      - name: Build
+        run: |
+          dotnet tool restore
+          dotnet restore YCR.sln
+          dotnet build src/YCR.Api/YCR.Api.csproj --no-restore --configuration Release
+
+      # Applied under the migrator credential, then the app user is joined to the role the
+      # migration created. The API itself never has DDL rights (spec E7, S22).
+      - name: Apply migrations and finish provisioning
+        run: |
+          dotnet ef migrations bundle --force \
+            --project src/YCR.Infrastructure \
+            --startup-project src/YCR.Infrastructure \
+            --output "$RUNNER_TEMP/efbundle"
+          "$RUNNER_TEMP/efbundle" --connection \
+            "Server=localhost,1433;Database=YCR;User Id=ycr_migrator;Password=${YCR_MIGRATOR_PASSWORD};TrustServerCertificate=True;Current Language=us_english"
+          docker compose up -d sqlserver-init
+          sleep 10
+          docker logs ycr-sqlserver-init
+
+      # Against the built API and a real database — not the test host. Every API test registers
+      # the test authentication handler, so the suite is structurally blind to the shape that
+      # actually ships; that is how an unauthenticated request returning 500 instead of 401
+      # reached step 11 undetected. This job is the check that would have caught it.
+      #
+      # ASPNETCORE_ENVIRONMENT is deliberately NOT Development: the OpenAPI document must not be
+      # served outside it, and that is asserted below.
+      - name: Run the API
+        env:
+          ASPNETCORE_ENVIRONMENT: Production
+          ASPNETCORE_URLS: http://127.0.0.1:5080
+          ConnectionStrings__Application: Server=localhost,1433;Database=YCR;User Id=ycr_app;Password=${{ env.YCR_APP_PASSWORD }};TrustServerCertificate=True;Current Language=us_english
+        run: |
+          # The built assembly, run directly. `dotnet run` would background a launcher whose PID
+          # is not the API's, leaving nothing reliable to stop afterwards.
+          dotnet src/YCR.Api/bin/Release/net10.0/YCR.Api.dll > "$RUNNER_TEMP/api.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/api.pid"
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:5080/health/live > /dev/null 2>&1; then
+              echo "API is up after ${attempt}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "API did not become healthy"; cat "$RUNNER_TEMP/api.log"; exit 1
+
+      - name: Smoke the API
+        run: |
+          set -euo pipefail
+          fail=0
+
+          check() {
+            local name=$1 expected=$2 actual=$3
+            if [ "$actual" = "$expected" ]; then
+              echo "PASS  $name (got $actual)"
+            else
+              echo "FAIL  $name: expected $expected, got $actual"
+              fail=1
+            fi
+          }
+
+          check "/health/live is 200" 200 \
+            "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:5080/health/live)"
+
+          check "/health/ready is 200" 200 \
+            "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:5080/health/ready)"
+
+          # The document maps every route and the permission each one requires. A deployed
+          # instance has no reason to hand that out, so it is Development-only.
+          check "/openapi/v1.json is not served outside Development" 404 \
+            "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:5080/openapi/v1.json)"
+
+          check "GET /api/v1/stations is 401" 401 \
+            "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:5080/api/v1/stations)"
+
+          body=$(curl -s http://127.0.0.1:5080/api/v1/stations)
+          echo "401 body: $body"
+          # Not merely a 401: ProblemDetails with a stable errorCode, which is what a caller
+          # actually branches on (docs/20 §4).
+          check "401 carries errorCode Common.Unauthenticated" "Common.Unauthenticated" \
+            "$(echo "$body" | sed -n 's/.*"errorCode":"\([^"]*\)".*/\1/p')"
+
+          exit $fail
+
+      - name: Collect logs
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/smoke-logs"
+          cp "$RUNNER_TEMP/api.log" "$RUNNER_TEMP/smoke-logs/api.log" 2>/dev/null || true
+          docker compose logs --no-color > "$RUNNER_TEMP/smoke-logs/compose.log" 2>&1 || true
+
+      - name: Upload smoke logs
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: smoke-logs
+          path: ${{ runner.temp }}/smoke-logs
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Stop the API
+        if: always()
+        run: |
+          [ -f "$RUNNER_TEMP/api.pid" ] && kill "$(cat "$RUNNER_TEMP/api.pid")" 2>/dev/null || true
+          docker compose down -v || true
+
+  trunk-only-tests:
+    name: Trunk-only tests
+    # On a pull request into main AND on push to main. Running them only after merge would mean
+    # the first time anyone learns the ledger guard or the fragmentation control broke is when
+    # main is already red.
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore and build
+        run: |
+          dotnet tool restore
+          dotnet restore YCR.sln
+          dotnet build YCR.sln --no-restore --configuration Debug
+
+      - name: Build the migration bundle once
+        run: |
+          mkdir -p "$RUNNER_TEMP/bundle"
+          dotnet ef migrations bundle --force \
+            --project src/YCR.Infrastructure \
+            --startup-project src/YCR.Infrastructure \
+            --output "$RUNNER_TEMP/bundle/efbundle"
+          echo "YCR_MIGRATION_BUNDLE=$RUNNER_TEMP/bundle/efbundle" >> "$GITHUB_ENV"
+
+      # The exact complement of the default run: YCR_RUN_TRUNK_ONLY_TESTS lifts the exclusion in
+      # tests/Directory.Build.props, and the trait filter selects only these. Between the two
+      # jobs every test in the solution runs.
+      - name: Run trunk-only tests
+        env:
+          YCR_RUN_TRUNK_ONLY_TESTS: '1'
+        run: >
+          dotnet test YCR.sln --no-build
+          --
+          --filter-trait "Category=TrunkOnly"
+          --report-xunit-trx
+          --results-directory "${{ runner.temp }}/test-results"
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: test-results-trunk-only
+          path: ${{ runner.temp }}/test-results
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Upload container logs
+        if: failure()
+        run: |
+          mkdir -p "$RUNNER_TEMP/container-logs"
+          for id in $(docker ps -aq); do
+            name=$(docker inspect --format '{{.Name}}' "$id" | tr -d '/')
+            docker logs "$id" > "$RUNNER_TEMP/container-logs/$name.log" 2>&1 || true
+          done
+          docker ps -a > "$RUNNER_TEMP/container-logs/docker-ps.txt" 2>&1 || true
+
+      - name: Upload container logs artifact
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: container-logs-trunk-only
+          path: ${{ runner.temp }}/container-logs
+          retention-days: 7
+          if-no-files-found: warn
+
+  secret-scan:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          # gitleaks scans history, which needs the whole history rather than one commit.
+          fetch-depth: 0
+
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

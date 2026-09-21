@@ -1,0 +1,29 @@
+# Line endings.
+#
+# Development happens on Windows, CI runs on Linux, and two kinds of file break if they carry
+# CRLF into a Linux container:
+#   *.sh  — a shebang line ending in CR makes the kernel look for an interpreter named
+#           "/bin/bash\r", which fails with a bare "no such file or directory".
+#   *.sql — sqlcmd tolerates CRLF, but a stray CR inside a quoted string or a sqlcmd variable
+#           travels silently into the database, so the safe form is the same everywhere.
+#
+# These are forced to LF in the working tree as well as in the repository, so what a Windows
+# developer runs through Docker is byte-identical to what CI runs.
+
+* text=auto
+
+*.sh   text eol=lf
+*.sql  text eol=lf
+
+# Same reasoning: these are read by Linux tooling or by Docker.
+Dockerfile      text eol=lf
+*.dockerfile    text eol=lf
+docker-compose*.yml text eol=lf
+.github/**/*.yml    text eol=lf
+.github/**/*.yaml   text eol=lf
+
+# Binary, never touched.
+*.png binary
+*.jpg binary
+*.ico binary
+*.pdf binary
