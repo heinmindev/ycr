@@ -1398,3 +1398,20 @@ finding S-007A-2. No code was changed; the verdict is Not ready pending T-008 re
 **Blockers / open questions:** OQ29 is intentionally open and tracked by T-014.
 
 **State of the branch:** committed at `bde5542`; review status for C-11 now names the fixing SHA.
+
+---
+
+## 2026-09-21 23:00 Asia/Yangon — codex — T-008b
+
+**Stage:** 8b (C-12 checkpoint; implementation findings complete).
+**Commit:** `0beaa87` — null generic-result success rejection.
+
+**Done this session:** Added `ArgumentNullException.ThrowIfNull(value)` to `Result<T>.Success` and a regression test for `Result<string>.Success(null)`.
+
+**Evidence:** The regression test first failed (32 total, 1 failed, 31 passed); after the guard, the full Domain suite passed 32/32 with 0 skipped.
+
+**Next step (exact):** Run the complete non-Docker build and test coverage, inspect every C-1..C-8/C-11/C-12 status, then push feature/F-001 and wait for the green CI run.
+
+**Blockers / open questions:** OQ29 remains intentionally open under T-014; Docker-backed tests are deferred to CI.
+
+**State of the branch:** implementation commits are clean and committed through `0beaa87`; review-status checkpoint is uncommitted.
