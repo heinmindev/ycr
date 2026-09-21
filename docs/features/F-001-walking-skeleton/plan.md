@@ -79,6 +79,7 @@ Twelve projects: five `src/` exactly as `docs/06` §Projects lists them, six `te
 | `src/YCR.Domain/Network/BilingualName.cs` | New | Value object. **Sole home of provisional rule R4** |
 | `src/YCR.Domain/Network/NetworkErrors.cs` | New | `docs/20` §3; adds `StationNotFound` for spec S8 |
 | `src/YCR.Domain/Network/StationDeactivated.cs` | New | Domain event raised by `Station.Deactivate()` |
+| `src/YCR.Domain/Properties/AssemblyInfo.cs` | New | Grants `YCR.Infrastructure` access to the internal `StationCode.From` EF materialisation path |
 | `src/YCR.Application/Common/Abstractions/IIdGenerator.cs` | New | ADR-0006 §4 amendment |
 | `src/YCR.Application/Common/Abstractions/IAuditWriter.cs` | New | ADR-0017, ADR-0021 |
 | `src/YCR.Application/Common/Abstractions/ICurrentUser.cs` | New | Supplies server-side actor fields; ADR-0017 §2 forbids taking them from the request |
@@ -92,6 +93,7 @@ Twelve projects: five `src/` exactly as `docs/06` §Projects lists them, six `te
 | `src/YCR.Application/Network/ListStations/ListStationsQuery.cs`, `ListStationsHandler.cs` | New | ″ |
 | `src/YCR.Application/DependencyInjection.cs` | New | Handler registration by assembly scanning (ADR-0004 §Consequences) |
 | `src/YCR.Infrastructure/Persistence/YcrDbContext.cs` | New | One concrete context implementing every module interface (ADR-0012 item 3) |
+| `src/YCR.Infrastructure/Persistence/YcrDbContextFactory.cs` | New | EF design-time factory for migrations; reads required `YCR_DESIGN_TIME_CONNECTION` with no fallback target |
 | `src/YCR.Infrastructure/Persistence/Configurations/Network/StationConfiguration.cs` | New | `docs/20` §1 fixes this path |
 | `src/YCR.Infrastructure/Persistence/Configurations/Audit/AuditEventConfiguration.cs` | New | Maps the ledger table with `ExcludeFromMigrations()` so EF inserts but never creates or alters it (ADR-0017 §6) |
 | `src/YCR.Infrastructure/Persistence/Migrations/<ts>_Network_CreateStations.cs` | New | EF timestamp naming, see §DB changes |
