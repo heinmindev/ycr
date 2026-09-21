@@ -77,6 +77,49 @@ public sealed class CreateStationHandlerTests(SqlServerFixture fixture) : Networ
         Assert.Equal(MyanmarName.Length, station.Name.My.Length);
     }
 
+    /// <summary>
+    /// Guards the <c>{}</c> serialisation trap. <c>IAuditWriter.Record</c> takes
+    /// <c>IAuditSnapshot</c>, which declares no members, so serialising against the static type
+    /// would write an empty object into every payload — a silent, total loss of audit state in a
+    /// table that can never be corrected, with no error anywhere.
+    /// </summary>
+    /// <remarks>
+    /// Read straight out of <c>audit.AuditEvents</c> and asserted verbatim, including the
+    /// Myanmar name unescaped, so both the runtime-type serialisation and the widened JSON
+    /// encoder are covered by the same assertion.
+    /// </remarks>
+    [Fact]
+    public async Task Handle_WithValidCommand_WritesTheStationStateIntoAfterJsonVerbatim()
+    {
+        const string Code = "INS";
+        const string MyanmarName = "အင်းစိန်";
+        await using var provider = BuildProvider();
+
+        await using (var scope = provider.CreateAsyncScope())
+        {
+            var result = await scope.ServiceProvider.GetRequiredService<CreateStationHandler>()
+                .Handle(new CreateStationCommand(Code, "Insein", MyanmarName), CancellationToken);
+            Assert.True(result.IsSuccess);
+        }
+
+        var afterJson = await ScalarAsync<string>(
+            "SELECT [AfterJson] FROM [audit].[AuditEvents] WHERE [Action] = N'Network.StationCreated';");
+
+        Assert.NotNull(afterJson);
+        Assert.NotEqual("{}", afterJson);
+        Assert.Contains(Code, afterJson, StringComparison.Ordinal);
+        // Verbatim, not as \uXXXX escapes: an investigator reads this column directly.
+        Assert.Contains(MyanmarName, afterJson, StringComparison.Ordinal);
+        Assert.DoesNotContain("\\u", afterJson, StringComparison.Ordinal);
+        Assert.Equal(
+            """{"code":"INS","nameEn":"Insein","nameMy":"အင်းစိန်","isActive":true}""",
+            afterJson);
+
+        // Creation events have no prior state (ADR-0021), which is null rather than "{}".
+        Assert.Null(await ScalarAsync<string>(
+            "SELECT [BeforeJson] FROM [audit].[AuditEvents] WHERE [Action] = N'Network.StationCreated';"));
+    }
+
     [Fact]
     public async Task Handle_WithDuplicateCode_ReturnsConflict()
     {

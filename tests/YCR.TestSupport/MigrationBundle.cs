@@ -19,6 +19,19 @@ namespace YCR.TestSupport;
 /// </remarks>
 public static partial class MigrationBundle
 {
+    /// <summary>
+    /// Names a bundle that has already been built, so the fixture uses it instead of building
+    /// one (hein's ruling, 2026-09-21).
+    /// </summary>
+    /// <remarks>
+    /// CI builds the bundle once, as its own step, and sets this. Every test process then skips
+    /// the build entirely — which removes the slowest part of the run and, more importantly,
+    /// removes the contention that made the local build need a cross-process lock at all.
+    /// Unset, the fixture falls back to building under that lock, which is what a developer's
+    /// machine does.
+    /// </remarks>
+    public const string BundlePathVariable = "YCR_MIGRATION_BUNDLE";
+
     private static readonly SemaphoreSlim BuildGate = new(1, 1);
     private static string? builtBundlePath;
 
@@ -28,6 +41,21 @@ public static partial class MigrationBundle
         if (builtBundlePath is not null)
         {
             return builtBundlePath;
+        }
+
+        var supplied = Environment.GetEnvironmentVariable(BundlePathVariable);
+        if (!string.IsNullOrWhiteSpace(supplied))
+        {
+            // Fail loudly rather than silently building a second bundle: if CI set this and the
+            // file is missing, the run is not testing what CI thinks it is.
+            if (!File.Exists(supplied))
+            {
+                throw new FileNotFoundException(
+                    $"{BundlePathVariable} is set to '{supplied}' but no file exists there.", supplied);
+            }
+
+            builtBundlePath = supplied;
+            return supplied;
         }
 
         await BuildGate.WaitAsync(cancellationToken).ConfigureAwait(false);

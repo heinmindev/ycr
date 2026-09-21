@@ -12,9 +12,14 @@ namespace YCR.Application.Network.ListStations;
 /// in a different sequence between pages, and a caller walking the pages would silently see
 /// duplicates and omissions. <c>Code</c> is unique, so it is a total order on its own.
 /// <para>
-/// The entity is materialised and then mapped for the same reason as <c>GetStationHandler</c>:
-/// EF cannot translate member access through the <c>StationCode</c> value converter. Only one
-/// page is materialised at a time, and <see cref="Paging.MaxPageSize"/> bounds that.
+/// <strong>All of the paging happens in SQL.</strong> The count is a <c>SELECT COUNT(*)</c> and
+/// the page is <c>ORDER BY ... OFFSET ... FETCH NEXT</c>, so only the requested rows cross the
+/// wire — never the whole table. <c>ListStationsSqlTests</c> asserts this against the generated
+/// SQL, because it is the kind of property that silently regresses into a client-side evaluation.
+/// </para>
+/// <para>
+/// The projection takes whole value-object properties; <see cref="StationProjection"/> explains
+/// why reaching inside them does not translate.
 /// </para>
 /// </remarks>
 public sealed class ListStationsHandler(INetworkDbContext db)
@@ -32,14 +37,23 @@ public sealed class ListStationsHandler(INetworkDbContext db)
 
         var stations = db.Stations.AsNoTracking().OrderBy(station => station.Code);
 
+        // A SQL COUNT over the whole table, before any row is fetched.
         var totalCount = await stations.CountAsync(cancellationToken);
+
         var page = await stations
             .Skip((query.Page - 1) * query.PageSize)
             .Take(query.PageSize)
+            .Select(station => new StationProjection(
+                station.Id,
+                station.Code,
+                station.Name.En,
+                station.Name.My,
+                station.IsActive,
+                station.CreatedAtUtc))
             .ToListAsync(cancellationToken);
 
         return new PagedResult<StationDto>(
-            [.. page.Select(StationDto.From)],
+            [.. page.Select(projection => projection.ToDto())],
             query.Page,
             query.PageSize,
             totalCount);
