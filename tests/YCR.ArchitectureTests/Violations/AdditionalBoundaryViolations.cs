@@ -35,3 +35,11 @@ namespace YCR.Domain.Network.Violations
         public DbContext Context { get; } = null!;
     }
 }
+
+namespace YCR.Domain.Common.Violations
+{
+    public sealed class CommonUsingNetworkModule
+    {
+        public YCR.Domain.Network.Station Station { get; } = null!;
+    }
+}

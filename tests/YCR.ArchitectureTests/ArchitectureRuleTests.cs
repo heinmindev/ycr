@@ -7,6 +7,7 @@ using ApiUsingAggregateRoot = YCR.Api.Violations.ApiUsingAggregateRoot;
 using ApiUsingNetworkDomain = YCR.Api.Violations.ApiUsingNetworkDomain;
 using ApplicationUsingInfrastructure = YCR.Application.Network.Violations.ApplicationUsingInfrastructure;
 using ApplicationUsingSqlServerProvider = YCR.Application.Violations.ApplicationUsingSqlServerProvider;
+using CommonUsingNetworkModule = YCR.Domain.Common.Violations.CommonUsingNetworkModule;
 using DomainUsingEntityFrameworkCore = YCR.Domain.Network.Violations.DomainUsingEntityFrameworkCore;
 using DomainUsingOtherModule = YCR.Domain.Network.Violations.DomainUsingOtherModule;
 using DomainUsingApplication = YCR.Domain.Network.Violations.DomainUsingApplication;
@@ -71,6 +72,14 @@ public sealed class ArchitectureRuleTests
         AssertRuleProtectsFixture(
             ArchitectureRules.DomainModuleMustNotDependOnOtherDomains("Network"),
             nameof(DomainUsingOtherModule));
+    }
+
+    [Fact]
+    public void CommonKernel_WithModuleDependency_DetectsViolation()
+    {
+        AssertRuleProtectsFixture(
+            ArchitectureRules.CommonMustNotDependOnAnyModule,
+            nameof(CommonUsingNetworkModule));
     }
 
     [Fact]

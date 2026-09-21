@@ -12,6 +12,14 @@ public static class ArchitectureRules
         "Payments", "Operations", "Reporting", "Audit"
     ];
 
+    public static readonly IArchRule CommonMustNotDependOnAnyModule = Types().That()
+        .ResideInNamespaceMatching("^YCR\\.(Domain|Application)\\.Common(?:\\..*)?$")
+        .Should()
+        .NotDependOnAny(
+            Types().That().HaveFullNameMatching(
+                "^YCR\\.(Domain|Application)\\.(?!Common(?:\\.|$)).+"))
+        .WithoutRequiringPositiveResults();
+
     public static IArchRule ApplicationModuleMayDependOnlyOnAllowedTypes(string module)
     {
         var modulePattern = RegexEscape(module);
