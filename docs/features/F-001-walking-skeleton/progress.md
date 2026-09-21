@@ -1360,3 +1360,24 @@ finding S-007A-2. No code was changed; the verdict is Not ready pending T-008 re
 **Blockers / open questions:** none.
 
 **State of the branch:** committed at `9e9f164`; review status for C-7 now names the fixing SHA.
+
+---
+
+## 2026-09-21 22:15 Asia/Yangon — codex — T-008b
+
+**Stage:** 8b (C-8 checkpoint).
+**Commit:** `0c3d0fd` — explicit EF design-time connection.
+
+**Done this session:**
+- Changed `YcrDbContextFactory` to require `YCR_DESIGN_TIME_CONNECTION` and throw a clear `InvalidOperationException` when absent.
+- Added unit coverage for unset and configured environment behavior.
+- Set `YCR_DESIGN_TIME_CONNECTION` on every CI step that builds an EF migration bundle (build-and-test, API smoke, and trunk-only).
+- Added the factory and `Domain/Properties/AssemblyInfo.cs` to the approved plan inventory; `docs/07` records their reasons.
+
+**Evidence:** Factory tests passed 2/2 with 0 skipped; the local `dotnet ef migrations bundle --force` smoke build passed with the variable set and produced the bundle successfully.
+
+**Next step (exact):** Add OQ29 to `docs/19-open-questions.md) exactly as instructed for C-11, preserving CRLF and doing no code change.
+
+**Blockers / open questions:** C-11 is documentation-only and will add the explicitly supplied OQ29; Docker-backed checks remain deferred to CI.
+
+**State of the branch:** committed at `0c3d0fd`; review status for C-8 now names the fixing SHA.
