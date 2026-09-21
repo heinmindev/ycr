@@ -84,9 +84,20 @@ Security reviewer: pending T-007a
 Threat IDs reviewed: pending security pass against `docs/prompts/security-agent.md` and `docs/18`
 Evidence: authentication/authorization, actor provenance, least-privilege SQL role, ledger immutability,
 gitleaks CI, and production-composition tests are listed above; the dedicated security review is still pending.
-Open Critical/High findings: pending T-007a
+Open Critical/High findings: F-006A-1 is security-relevant and remains open pending remediation; T-007a may add or refine findings.
+
+## T-006a code review: claude scope
+
+Scope reviewed at `9106d532ee4a10729748e6040c1290f03dd6ec7c`: step 1 (`1028cff`) and the implementation
+commits for steps 7-13 (`0375cce`, `aa0ae50`, `b6bf336`, `6dfb67a`, `63adc65`, `00d1341`, `a57b491`,
+`f63c754`, `cfd6cc5`, `34531f4`, `8d28f40`). Codex's steps 2-6 and step-5 review fixes are excluded.
+
+| # | Severity | Finding | Evidence (file:line, test) | Recommended action | Status |
+|---|---|---|---|---|---|
+| F-006A-1 | High | The Testcontainers fixture does not create or use a dedicated migrator credential. `StartAsync` creates only `ycr_app`; `MigratorConnectionString` is built from `_container.GetConnectionString()`, which is the Testcontainers SA connection, so migration and grant setup run as SA. The S22/privilege tests therefore do not prove the separate migrator boundary required by E7/ADR-0017. | `tests/YCR.TestSupport/SqlServerTestContainer.cs:66-83` creates only `ycr_app`; `:94-104` applies migrations and grants using `database.MigratorConnectionString`; `:126-138` builds that value from `ConnectionStringFor(database)`; `:150-156` derives it directly from `_container.GetConnectionString()` (SA). `tests/YCR.Infrastructure.Tests/Persistence/DatabasePrivilegeTests.cs:158-186` labels this path migrator but never verifies its identity. | Generate a second password, create `ycr_migrator` at server scope and its database user, and construct `MigratorConnectionString` with that login. Reserve the SA connection for fixture provisioning only, then rerun all container-backed tests and assert the migration credential identity/rights explicitly. | Open |
+| F-006A-2 | Low | The CI workflow's `paths-ignore` does not match the feature progress files it claims to skip, so every progress-only checkpoint under `docs/features/**/progress.md` still runs the full container-backed workflow. | `.github/workflows/ci.yml:23-28` ignores `docs/progress/**`; the actual progress file is `docs/features/F-001-walking-skeleton/progress.md`. | Either change the ignore pattern to the actual progress-file scope (while retaining required checks for code/spec/review changes) or correct the comment and accept the extra runs as an explicit engineering decision. | Open |
 
 ## Verdict
 
-Not ready. F-005-1 must be addressed before the scenario-test stage can claim complete S1-S27 coverage;
-T-006a and T-007a must append their code/security findings before the final verdict is revisited.
+Not ready. F-005-1 and the blocking security boundary finding F-006A-1 must be addressed; T-007a must
+append its dedicated security review before the final verdict is revisited.

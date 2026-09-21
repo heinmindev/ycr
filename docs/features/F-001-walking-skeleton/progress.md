@@ -1158,6 +1158,18 @@ case. No production code was changed.
 
 ---
 
+## 2026-09-21 16:35 Asia/Rangoon — codex — T-006a
+
+**Stage:** 6a (CODE REVIEW, claude scope). **Commit reviewed:** `9106d532ee4a10729748e6040c1290f03dd6ec7c`.
+
+Reviewed step 1 and steps 7-13 only, excluding Codex's steps 2-6 and step-5 review fixes. The report
+records two findings: a High finding that the Testcontainers fixture labels the SA connection as the
+migrator connection and therefore does not test the required credential separation, and a Low CI path
+ignore mismatch for feature progress files. No production code was changed. The report remains Not ready
+pending T-008 remediation and the dedicated T-007a security pass.
+
+---
+
 ## 2026-09-21 09:40 Asia/Yangon — claude — T-006b and T-007b
 
 **Stage:** 6b and 7b (REVIEW and SECURITY REVIEW) — the **codex half** of stages 6 and 7, split by author under `TASKS.md` §Protocol item 11.
