@@ -13,18 +13,20 @@ Agents: read this whole file, including the Protocol, before picking a task.
 | ID | Task | Status | Owner | Depends on | Branch | Output / exit criteria | Progress file | Updated | Notes / blocker |
 |---|---|---|---|---|---|---|---|---|---|
 | T-001 | Commit current docs as baseline (`git init` if needed); tag `docs-baseline-2026-09-19` | done | hein | — | main | Tag exists on `main` | — | 2026-09-19 23:00 | Human only |
-| T-002 | F-001 walking skeleton: stages 1–2, discover + spec | todo | — | T-001 | feature/F-001 | `docs/features/F-001-walking-skeleton/spec.md` per workflow 02 ⛔ | `docs/features/F-001-walking-skeleton/progress.md` | 2026-09-19 21:00 | Stops for human approval |
-| T-003 | F-001 stage 3, plan | todo | — | T-002 | feature/F-001 | `plan.md` ⛔ | same as T-002 | 2026-09-19 21:00 | Stops for human approval |
-| T-004 | F-001 stage 4, implement (unit tests with each plan step) | todo | — | T-003 | feature/F-001 | Plan steps done; `dotnet test` green; commit SHA recorded in Notes | same as T-002 | 2026-09-19 21:00 | |
+| T-002 | F-001 walking skeleton: stages 1–2, discover + spec | done | claude | T-001 | feature/F-001 | `docs/features/F-001-walking-skeleton/spec.md` per workflow 02 ⛔ | `docs/features/F-001-walking-skeleton/progress.md` | 2026-09-20 02:27 | Spec Approved (hein, 2026-09-20) at `cb20c7c` on `feature/F-001`. Provisional station rules under the explicit waiver in spec §Blocked behaviour; replacement tracked by T-014. ADR-0020 and ADR-0021 added as Proposed. |
+| T-003 | F-001 stage 3, plan | done | claude | T-002 | feature/F-001 | `plan.md` ⛔ | same as T-002 | 2026-09-20 04:25 | Plan Approved (hein, 2026-09-20), revision 4 at `bbe8dda`. P1-P12 all resolved; spec Amendment 1 adds S27 |
+| T-004 | F-001 stage 4, implement (unit tests with each plan step) | doing | codex | T-003 | feature/F-001 | Plan steps done; `dotnet test` green; commit SHA recorded in Notes | same as T-002 | 2026-09-20 12:45 | hein ruling recorded: provider-neutral Microsoft.EntityFrameworkCore is approved in YCR.Application; step-6 provider-boundary architecture control and step-9 unique-constraint translation are recorded in plan.md. Reviews T-005–T-007 must be claude. |
 | T-005 | F-001 stage 5, scenario tests from spec §4 (testing-agent prompt) | todo | — | T-004 | feature/F-001 | All spec scenarios covered; `dotnet test` green | same as T-002 | 2026-09-19 21:00 | Owner ≠ T-004 owner |
 | T-006 | F-001 stage 6, code review of the commit named in T-005 Notes | todo | — | T-005 | feature/F-001 | `review.md` with verdict | same as T-002 | 2026-09-19 21:00 | Owner ≠ T-004 owner |
 | T-007 | F-001 stage 7, security review | todo | — | T-006 | feature/F-001 | `review.md` §Security, no open Critical/High | same as T-002 | 2026-09-19 21:00 | Owner ≠ T-004 owner |
 | T-008 | F-001 stage 8, remediate findings + update docs | todo | — | T-006, T-007 | feature/F-001 | All blocking findings fixed; affected reviews re-run; docs match behaviour | same as T-002 | 2026-09-19 21:00 | Owner = T-004 owner |
 | T-009 | F-001 stage 9, human approval + merge `feature/F-001` → `main` | todo | hein | T-008 | main | Merged; `docs/21` fully checked | same as T-002 | 2026-09-19 21:00 | Human only; closes T-004 |
-| T-010 | Decide: create glossary (`docs/glossary.md`) | todo | hein | — | — | Decision recorded in Notes | — | 2026-09-19 21:00 | Human decision |
-| T-011 | Decide: accept ADR-0001 and ADR-0002 | todo | hein | — | — | ADR status updated | — | 2026-09-19 21:00 | Human decision |
-| T-012 | Draft business-questions pack for Myanma Railways from docs/19 (why each matters, what it blocks, suggested options) | todo | — | T-001 | task/T-012-mr-questions | `docs/business/mr-questions-pack.md` | `docs/progress/T-012.md` | 2026-09-19 21:00 | Must not propose answers as decisions |
+| T-010 | Decide: create glossary (`docs/glossary.md`) | done | hein | — | — | Decision recorded in Notes | — | 2026-09-20 02:37 | Decided yes; see T-015 |
+| T-011 | Decide: accept ADR-0001 and ADR-0002 | done | hein | — | — | ADR status updated | — | 2026-09-20 02:37 | ADR-0001 and ADR-0002 Accepted (hein, 2026-09-20) at `564e081` on `feature/F-001`; index updated |
+| T-012 | Draft business-questions pack for Myanma Railways from docs/19 (why each matters, what it blocks, suggested options) | review | codex | T-001 | task/T-012-mr-questions | `docs/business/mr-questions-pack.md` | `docs/progress/T-012.md` | 2026-09-20 09:35 | OQ22 excluded as tech-lead engineering decision; OQ26–28 added as provisional F-001 placeholders, not answers; merge cb8d575; output bf87872; progress 34ddc2e |
 | T-013 | Physical QR print/scan test using the `ticket-qr-v1.json` valid vector (ADR-0014 VERIFY) | blocked | — | — | task/T-013-qr-physical | `docs/reviews/qr-physical-test.md`: printer, paper, size, scanner, results | `docs/progress/T-013.md` | 2026-09-19 21:00 | hardware: thermal printer + inspector scanner. Needs no app code |
+| T-014 | Replace F-001's provisional station rules with the answered OQ26/OQ27/OQ28 rules | blocked | — | T-009 | task/T-014-station-rules | `StationCode`, `BilingualName` and the station permission constants match the approved answers; spec R3/R4/R8 relabelled; the waiver in spec §Blocked behaviour removed; `docs/10` role grants recorded | `docs/progress/T-014.md` | 2026-09-20 02:27 | business: OQ26, OQ27, OQ28 unanswered by Myanma Railways. Release gate — F-001's provisional station rules must not reach production until this is done |
+| T-015 | Create `docs/glossary.md` from docs 03/04/05/10/11 and the ADRs; canonical English term, Myanmar term (OPEN QUESTION where unknown, never invented), forbidden synonyms | review | codex | T-010 | task/T-015-glossary | `docs/glossary.md` | `docs/progress/T-015.md` | 2026-09-20 11:48 | Glossary commit b053a65; progress commits 2849f67 and c4bf936; Myanmar translations remain OPEN QUESTION where no authoritative term exists |
 
 ## Done
 
@@ -41,6 +43,8 @@ Agents: read this whole file, including the Protocol, before picking a task.
 - **Standalone tasks** (not feature stages) use `task/T-xxx-<slug>` in their own worktree, and are merged to `main` by a human when done.
 - Reviews always name the exact commit SHA they reviewed.
 - **The only live ledger is `TASKS.md` in the coordination checkout.** Every worktree also has a copy of `TASKS.md`, and that copy is stale. Never read the worktree copy for status and never edit it. When merging a branch to `main`, keep `main`'s version of `TASKS.md`.
+- **Push `main` after every ledger commit** (`git push origin main`), so the ledger other agents read is never stale.
+- **Never push a `claim/*` ref.** Locks are local coordination; pushing one would leave a stale claim that another machine cannot clear.
 
 ### Picking and claiming a task
 
