@@ -1139,3 +1139,32 @@ The two runs are complements: 147 + 4 = every test in the solution, each execute
 All thirteen plan steps are done, every VERIFY is resolved, and both CI events are green on `8d28f40`. T-004 moves to `review` with that SHA, per `TASKS.md` §Protocol item 10. It becomes `done` only when T-009 — the human approval and merge — is done.
 
 **PR #1 is left open and ready for review, and is not merged by an agent.** Stages 5 to 8 have not run: T-005 scenario tests, T-006 code review and T-007 security review must each be taken by an agent **other than claude** (§Protocol item 11), since claude implemented steps 1 and 7 to 13. Codex implemented steps 2 to 6 and the step-5 review fixes, so neither implementer can review their own work — the reviews need to be split by author, or taken by a third party.
+
+---
+
+## 2026-09-21 09:40 Asia/Yangon — claude — T-006b and T-007b
+
+**Stage:** 6b and 7b (REVIEW and SECURITY REVIEW) — the **codex half** of stages 6 and 7, split by author under `TASKS.md` §Protocol item 11.
+**Commit:** this entry and `docs/features/F-001-walking-skeleton/review-claude.md`, on `feature/F-001`.
+
+**Done this session:**
+- Added ledger rows **T-006b** and **T-007b** in the coordination checkout (`e622cd6`, `chore(tasks): claim T-006b`), locked with `claim/T-006b` / `claim/T-007b`, and pushed `main`. T-006 and T-007 are untouched and stay open for claude's steps 1 and 7–13.
+- Reviewed **only codex's commits** — plan steps 2–6 and the step-5 review fixes, `0572ff3..89551cb` — as they stand **at `9106d53`**, with claude's later edits to the same files excluded file-section by file-section.
+- Wrote `review-claude.md` from `docs/templates/review-report.md`: scope and commit table, Definition-of-Done check, production-composition check, twelve findings, security review, verdict.
+- **No code was changed.** Remediation is T-008's, and belongs to the implementer.
+
+**Evidence:**
+- `dotnet build YCR.sln` — **succeeded, 0 warnings, 0 errors** (12.06 s), under `TreatWarningsAsErrors`.
+- `dotnet test tests/YCR.Domain.Tests` — **30 passed, 0 failed, 0 skipped**.
+- `dotnet test tests/YCR.ArchitectureTests` — **12 passed, 0 failed, 0 skipped**.
+- `dotnet test tests/YCR.Infrastructure.Tests --filter-class …StationModelTests --filter-class …ModuleInterfacesTests` — **3 passed, 0 failed, 0 skipped** (34.2 s, against the pinned SQL Server 2022 container).
+- `grep` over `src/` and `tests/` (excluding `obj/`) found no `[Skip]`, no `#pragma warning disable` and no credential in any file in scope.
+- Whole-suite evidence is CI's at `9106d53`, cited from T-004 Notes rather than re-run.
+
+**Verdict: Ready. No blocking finding, and no open Critical or High security finding.** Twelve non-blocking findings, C-1 to C-12. C-9 (the original `IAuditWriter` shape) and C-10 (the S17 test that never opened its connection) were **already fixed** by later commits and need no action. The remaining ten are T-008's; **C-1 — nothing enforces that `CreatedAtUtc` is actually UTC** — is the one worth doing before the reference slice is copied, and **C-11 — R4's "never Zawgyi" half has no control** — needs an OPEN QUESTION in `docs/19`, not code.
+
+**Next step (exact):** T-008 remediates C-1 to C-8, C-11 and C-12 after **T-006 and T-007** have also run over claude's steps 1 and 7–13. Those two still need an agent that is neither claude nor codex, or a further split by author. **T-005 (scenario tests) has not run at all** and this review deliberately does not stand in for it: nothing here asserts that spec §4's S1–S27 are covered.
+
+**Blockers / open questions:** none technical. OQ26, OQ27 and OQ28 remain open with Myanma Railways; C-11 proposes one more open question about Zawgyi input handling, for T-008 to raise and T-014 to absorb.
+
+**State of the branch:** builds and tests green; review and this entry committed and pushed; no uncommitted work. PR #1 remains open and unmerged — T-009 is the human gate.
