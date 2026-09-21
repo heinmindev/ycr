@@ -1306,3 +1306,20 @@ finding S-007A-2. No code was changed; the verdict is Not ready pending T-008 re
 **Blockers / open questions:** none.
 
 **State of the branch:** committed at `b3d7ce0`; review status for C-4 now names the fixing SHA.
+
+---
+
+## 2026-09-21 21:00 Asia/Yangon — codex — T-008b
+
+**Stage:** 8b (C-5 checkpoint).
+**Commit:** `e57a3a2` — explicit EF exclusion for aggregate domain events.
+
+**Done this session:** Added `builder.Ignore(station => station.DomainEvents)` and a model test asserting that `DomainEvents` is absent from scalar properties and navigations.
+
+**Evidence:** The focused infrastructure build passed with 0 warnings / 0 errors; `StationModelTests` passed 4/4 with 0 skipped.
+
+**Next step (exact):** Apply the C-6 naming clarification and resolve any codex tests with a meaningful state.
+
+**Blockers / open questions:** none.
+
+**State of the branch:** committed at `e57a3a2`; review status for C-5 now names the fixing SHA.
