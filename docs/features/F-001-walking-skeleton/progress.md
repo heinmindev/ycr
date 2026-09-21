@@ -899,3 +899,101 @@ Covers all four station endpoints plus both probes and the OpenAPI document, inc
 **State of the branch:** build and tests green; committed and pushed; this progress entry is the only uncommitted change.
 
 **Review split so far:** steps 1, 7, 8, 9, 10 and 11 implemented by claude; steps 2–6 and the step-5 review fixes by Codex.
+
+---
+
+## 2026-09-21 02:30 Asia/Yangon — claude — T-004
+
+**Stage:** 4 (IMPLEMENT). Step 12 of 13 complete.
+**Commit:** `f63c754` (`feat(F-001): add trunk-only fragmentation and ledger guard controls`), pushed to `origin/feature/F-001`.
+**Implemented by:** claude.
+
+### Hein's ruling 1 — the production-composition requirement
+
+`docs/21` §Tests gains: **"At least one test runs the unmodified production composition"** — no `ConfigureTestServices` overrides, no substituted services — with F-001's `MissingSchemeTests` named as the reference and the step-11 defect given as the reason.
+
+`docs/templates/review-report.md` gains a **Production-composition check** section, a table for the reviewer to name the qualifying test, and the statement that finding none is a **blocking finding, not a note**.
+
+**ADR-0020 §Follow-up work** now records that the ADR-0016 feature must prove `AuthorizationResultHandler` steps aside once a real scheme is registered — asserting the framework's own `401` with its `WWW-Authenticate` header, and `Common.Unauthenticated` no longer appearing — and must delete the interception if it turns out to be unnecessary rather than leaving a dormant branch in the authorization path. Recorded in the ADR rather than in this feature's notes because the ADR-0016 feature is what has to act on it. Only the Consequences/Follow-up section was touched; the Decision section is untouched, as `docs/decisions/README.md` §Rules requires.
+
+### Ruling 2 — the 2019 image pin
+
+| | |
+|---|---|
+| **Tag** | `mcr.microsoft.com/mssql/server:2019-CU32-GDR1-ubuntu-20.04` |
+| **Digest** | `sha256:cb917712eb2c8a1a497f71a0287ef9aaccd5ce549515c2ace0ae5e734f293d3e` |
+| **Pinned on** | 2026-09-21 |
+| **Why** | Newest SQL Server 2019 cumulative update on `mcr.microsoft.com` at that date. Reports `ProductMajorVersion` 15, below the 16 the guard requires |
+
+Digest read from the MCR manifest, then confirmed against the pulled image's `RepoDigests`. It lives in `SqlServerImage.Unsupported` beside the 2022 pin, and `SqlServerImagePinTests.UnsupportedVersionImage_CarriesBothATagAndADigest` covers it on the same terms — tag shape, digest shape, composed reference, and that it is genuinely a different image from the supported one. A floating tag here would let the version S19 asserts drift underneath the test.
+
+### Ruling 2 — the fragmentation test's credential exception, stated in code
+
+`SequentialGuidFragmentationTests`' XML documentation now carries the exception in full: it runs under the **migrator** credential, not `ycr_app`, because it creates measurement tables and reads `sys.dm_db_index_physical_stats`, which needs `VIEW DATABASE STATE`. Granting that to `ycr_app` would widen the very role spec E7 and ADR-0017 item 3 exist to keep narrow, and `DatabasePrivilegeTests` asserts that role holds nothing beyond its four grants. It is an infrastructure characterisation test, not an application-path test, and it is the single documented exception in the plan's §Test fixture table.
+
+### Ruling 2 — the measured fragmentation
+
+Measured on the pinned 2022 image, 2026-09-21:
+
+| | |
+|---|---|
+| **Rows** | 10,000 |
+| **Database compatibility level** | **160** (SQL Server 2022) |
+| **Our generator** — index `PK_GeneratedIds` | **1.79 %** |
+| **`NEWSEQUENTIALID()` baseline** — index `PK_BaselineIds` | **1.79 %** |
+| **Delta** | **0.00 points** |
+| **ADR-0006 budget** | 10.00 points |
+
+`SqlServerSequentialGuidIdGenerator` matches SQL Server's own sequential generator exactly, to two decimal places.
+
+### The measurement was suspicious, so it was checked
+
+Two numbers identical to two decimals is the right answer here — and it is also precisely what a measurement that always returned the same value would look like. A control that cannot fail is not a control.
+
+So the same instrument was fed a known-bad input: `Guid.NewGuid()`, through the same table shape, insert loop and DMV query.
+
+| | |
+|---|---|
+| **Random GUIDs** — index `PK_RandomIds` | **97.33 %** |
+| **Baseline in the same run** — `PK_RandomBaselineIds` | **1.79 %** |
+| **Delta** | **95.55 points**, far outside the 10-point budget |
+
+`Insert10000RandomGuids_FragmentsFarWorseThanBaseline_ProvingTheMeasurementWorks` asserts that, and its failure message says what a pass would mean: the control proves nothing. This is the negative case `docs/21` requires for architecture rules, applied to a performance control for the same reason.
+
+### S19 — the guard against a real 2019 server
+
+`LedgerGuardTests` runs the **migration bundle** against the pinned 2019 container and asserts the failure is ours: it contains `YCR requires SQL Server 2022`, `ADR-0017`, `Detected version 15.` and the edition, and **not** a SQL Server parse error about `LEDGER`, which would mean the guard ran too late to matter.
+
+A second test asserts the rejected server is left with **no `audit` schema and no `AuditEvents` table** — the guard runs before any DDL, so nothing partial survives.
+
+**What S19 still does not cover, stated in the test itself:** the guard's **edition** branch. No readily available container runs a 2022 edition without ledger support. That branch is covered by V1 at step 8, which showed the pinned image's Developer edition does create a ledger table, and by code review.
+
+### Trunk-only: excluded, not skipped
+
+Both controls are `[Trait("Category", "TrunkOnly")]`. `tests/Directory.Build.props` excludes that trait from the default run, so a branch build still reports **`skipped: 0`** — S15 requires no skipped tests, and marking them `Skip` would have broken it while looking like compliance.
+
+- Branch run: `dotnet test YCR.sln` → **147 passed, 0 failed, 0 skipped**.
+- Trunk run: the filter-trait option with `Category=TrunkOnly` → **4 passed, 0 failed, 0 skipped**.
+- Locally: `YCR_RUN_TRUNK_ONLY_TESTS=1` lifts the exclusion.
+
+151 tests exist; the two runs are complements, so every one of them runs somewhere.
+
+### Ruling 3 — the step-13 CI smoke job, recorded
+
+`plan.md` §Steps step 13 now requires a smoke job **against the built API and a compose database**, asserting `/health/live` 200, `/health/ready` 200, `/openapi/v1.json` **not served** outside Development, and `GET /api/v1/stations` 401 carrying an `errorCode`. The plan states why it runs against the real artifact rather than the test host: it is the check that would have caught the step-11 defect. Step 13 also now records that a trunk job must run the `TrunkOnly` complement.
+
+### Evidence
+
+- `dotnet build YCR.sln` — **0 warnings, 0 errors**.
+- `dotnet test YCR.sln --no-build` — **total 147, failed 0, succeeded 147, skipped 0**.
+- Trunk-only run — **total 4, failed 0, succeeded 4, skipped 0**, in 2m31s.
+- Measurements above captured from the run's own CTRF report, not retyped from memory.
+- An XML comment containing the `--filter` option text broke every test project's build (`MSB4024`: an XML comment cannot contain `--`). Caught by the build, reworded, not worked around.
+
+**Next step (exact):** plan step 13 — `.github/workflows/ci.yml`: restore, build, test against the pinned images, gitleaks, the bundle built once and passed in `YCR_MIGRATION_BUNDLE`, `Current Language=us_english` on every connection string, the API smoke job above, and a trunk job for the `TrunkOnly` complement. Push `feature/F-001` and **prove the run green on `origin`**, recording the run URL here.
+
+**Blockers / open questions:** none technical. OQ26, OQ27 and OQ28 remain open with Myanma Railways; T-014 is the release gate.
+
+**State of the branch:** build and tests green; committed and pushed; this progress entry is the only uncommitted change.
+
+**Review split so far:** steps 1, 7, 8, 9, 10, 11 and 12 implemented by claude; steps 2–6 and the step-5 review fixes by Codex.
