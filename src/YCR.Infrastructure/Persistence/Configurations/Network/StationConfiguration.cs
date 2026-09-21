@@ -11,6 +11,7 @@ public sealed class StationConfiguration : IEntityTypeConfiguration<Station>
         builder.ToTable("Stations", "network");
         builder.HasKey(station => station.Id);
         builder.Property(station => station.Id).ValueGeneratedNever();
+        builder.Ignore(station => station.DomainEvents);
 
         builder.Property(station => station.Code)
             .HasConversion(code => code.Value, value => StationCode.From(value))

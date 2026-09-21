@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Migrations.Operations;
 using YCR.Application.Network;
+using YCR.Domain.Common;
 using YCR.Domain.Network;
 using YCR.Infrastructure.Identifiers;
 using YCR.Infrastructure.Persistence;
@@ -38,6 +39,25 @@ public sealed class StationModelTests
         var isActive = entity.FindProperty(nameof(Station.IsActive));
         Assert.NotNull(isActive);
         Assert.True(isActive.IsConcurrencyToken);
+    }
+
+    [Fact]
+    public void Model_WithDomainEvents_IgnoresDomainEventsExplicitly()
+    {
+        var options = new DbContextOptionsBuilder<YcrDbContext>()
+            .UseSqlServer("Server=(localdb)\\MSSQLLocalDB;Database=YcrModelTest")
+            .Options;
+
+        using var context = new YcrDbContext(options);
+        var entity = context.Model.FindEntityType(typeof(Station));
+
+        Assert.NotNull(entity);
+        Assert.DoesNotContain(
+            entity.GetProperties(),
+            property => property.Name == nameof(AggregateRoot.DomainEvents));
+        Assert.DoesNotContain(
+            entity.GetNavigations(),
+            navigation => navigation.Name == nameof(AggregateRoot.DomainEvents));
     }
 
     [Fact]
