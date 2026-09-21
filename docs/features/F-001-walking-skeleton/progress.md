@@ -1250,3 +1250,23 @@ finding S-007A-2. No code was changed; the verdict is Not ready pending T-008 re
 **Blockers / open questions:** none beyond the deferred Docker-backed C-1 integration assertion.
 
 **State of the branch:** committed at `700500a`; review status for C-1 now names the fixing SHA.
+
+---
+
+## 2026-09-21 20:15 Asia/Yangon — codex — T-008b
+
+**Stage:** 8b (C-2 checkpoint).
+**Commit:** `e8ae962` — shared-kernel architecture boundary.
+
+**Done this session:**
+- Added `CommonMustNotDependOnAnyModule` over both `YCR.Domain.Common` and `YCR.Application.Common`.
+- Added a deliberate `CommonUsingNetworkModule` violation fixture and a negative architecture assertion.
+- Recorded the clarification under ADR-0012's Enforcement section.
+
+**Evidence:** The test-first fixture initially failed to compile because the rule was absent; after implementation, `dotnet build tests/YCR.ArchitectureTests/YCR.ArchitectureTests.csproj --no-restore` succeeded with 0 warnings / 0 errors and Architecture tests passed 13/13 with 0 skipped.
+
+**Next step (exact):** Add the C-3 rollback schema-drop test and migration change.
+
+**Blockers / open questions:** none.
+
+**State of the branch:** committed at `e8ae962`; review status for C-2 now names the fixing SHA.
