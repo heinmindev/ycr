@@ -10,4 +10,17 @@
     <ProjectReference Include="../YCR.Infrastructure/YCR.Infrastructure.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!--
+      FluentValidation behind an endpoint filter (docs/20 section 3). The bundled
+      FluentValidation.AspNetCore package is deprecated, so the filter is wired by hand.
+    -->
+    <PackageReference Include="FluentValidation" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+    <!-- OpenAPI document for YCR.Api.http and client generation; Development only at runtime. -->
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <!-- /health/ready must report database connectivity (docs/02 section Reliability). -->
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" />
+  </ItemGroup>
+
 </Project>
