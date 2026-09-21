@@ -1270,3 +1270,22 @@ finding S-007A-2. No code was changed; the verdict is Not ready pending T-008 re
 **Blockers / open questions:** none.
 
 **State of the branch:** committed at `e8ae962`; review status for C-2 now names the fixing SHA.
+
+---
+
+## 2026-09-21 20:35 Asia/Yangon — codex — T-008b
+
+**Stage:** 8b (C-3 checkpoint).
+**Commit:** `c79afcc` — station migration rollback schema cleanup.
+
+**Done this session:**
+- Added a red/green migration-operation test for the station `Down()` path.
+- Added `DropSchema("network")` after dropping `network.Stations`; the approved plan remains unchanged.
+
+**Evidence:** The new focused test initially failed because only `DropTableOperation` existed; after the fix, `dotnet build tests/YCR.Infrastructure.Tests/YCR.Infrastructure.Tests.csproj --no-restore` succeeded with 0 warnings / 0 errors and `StationModelTests` passed 3/3 with 0 skipped.
+
+**Next step (exact):** Document the verified EF Core version dependency for the sequential GUID generator (C-4).
+
+**Blockers / open questions:** none.
+
+**State of the branch:** committed at `c79afcc`; review status for C-3 now names the fixing SHA.
