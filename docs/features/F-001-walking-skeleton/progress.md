@@ -1142,6 +1142,22 @@ All thirteen plan steps are done, every VERIFY is resolved, and both CI events a
 
 ---
 
+## 2026-09-21 16:05 Asia/Rangoon — codex — T-005
+
+**Stage:** 5 (SCENARIO TEST REVIEW). **Commit reviewed:** `9106d532ee4a10729748e6040c1290f03dd6ec7c`.
+
+The full S1-S27 matrix was checked against the tests and the recorded CI runs. The solution build
+passed locally; Domain (30/30) and Architecture (12/12) test projects passed locally. The complete
+container-backed suite could not run on this workstation because Docker is unavailable, so the review
+uses the recorded green CI evidence (147 default tests plus 4 trunk-only tests, zero skipped, runs
+35564512468 and 35564888120).
+
+One coverage finding is recorded in `docs/features/F-001-walking-skeleton/review-codex.md`: S9 does not
+have separate cases for an exact 11-character code, an embedded-space code, and the API blank-code
+case. No production code was changed.
+
+---
+
 ## 2026-09-21 09:40 Asia/Yangon — claude — T-006b and T-007b
 
 **Stage:** 6b and 7b (REVIEW and SECURITY REVIEW) — the **codex half** of stages 6 and 7, split by author under `TASKS.md` §Protocol item 11.
