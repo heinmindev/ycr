@@ -51,7 +51,11 @@ public sealed class Result<T> : Result
         ? _value!
         : throw new InvalidOperationException("A failed result has no value.");
 
-    public static Result<T> Success(T value) => new(value);
+    public static Result<T> Success(T value)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+        return new Result<T>(value);
+    }
 
     public new static Result<T> Failure(Error error)
     {

@@ -36,6 +36,12 @@ public sealed class ResultTests
     }
 
     [Fact]
+    public void GenericSuccess_WithNullReferenceValue_ThrowsArgumentNullException()
+    {
+        Assert.Throws<ArgumentNullException>(() => Result<string>.Success(null!));
+    }
+
+    [Fact]
     public void ReadValue_WhenResultIsFailure_ThrowsInvalidOperationException()
     {
         var result = Result<int>.Failure(Error.Validation("Network.Invalid", "The value is invalid."));
