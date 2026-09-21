@@ -997,3 +997,84 @@ Both controls are `[Trait("Category", "TrunkOnly")]`. `tests/Directory.Build.pro
 **State of the branch:** build and tests green; committed and pushed; this progress entry is the only uncommitted change.
 
 **Review split so far:** steps 1, 7, 8, 9, 10, 11 and 12 implemented by claude; steps 2–6 and the step-5 review fixes by Codex.
+
+---
+
+## 2026-09-21 05:30 Asia/Yangon — claude — T-004
+
+**Stage:** 4 (IMPLEMENT). **Step 13 of 13 complete — stage 4 finished.**
+**Commit:** `cfd6cc5` (`ci(F-001): add the CI workflow`), pushed to `origin/feature/F-001`.
+**Implemented by:** claude.
+
+### The workflow
+
+`.github/workflows/ci.yml`, four jobs:
+
+| Job | What it does |
+|---|---|
+| **build-and-test** | Restore, build, build the migration bundle **once**, run the whole suite under `YCR_MIGRATION_BUNDLE` |
+| **api-smoke** | The **built API** against a compose database, in `Production` |
+| **trunk-only-tests** | The `Category=TrunkOnly` complement, on `pull_request` into `main` **and** on push to `main` |
+| **secret-scan** | gitleaks over full history (S26) |
+
+### Hein's additions of 2026-09-21, each applied
+
+**1. Trunk-only on PR *and* push to main.** The job's condition is
+`github.event_name == 'pull_request' || github.ref == 'refs/heads/main'`. Running them only after merge would mean the first anyone learns the ledger guard or the fragmentation control broke is when `main` is already red. The feature-branch push run confirms the other half: the job reports **skipped** there, which is what keeps every branch build off a second multi-gigabyte image pull.
+
+**2. Actions pinned by commit SHA, permissions minimal.** All four third-party actions are pinned to a commit, with the tag kept only as a trailing comment:
+
+| Action | Commit |
+|---|---|
+| `actions/checkout` | `11d5960a326750d5838078e36cf38b85af677262` |
+| `actions/setup-dotnet` | `67a3573c9a986a3f9c594539f4ab511d57bb3ce9` |
+| `actions/upload-artifact` | `ea165f8d65b6e75b540449e92b4886f43607fa02` |
+| `gitleaks/gitleaks-action` | `ff98106e4c7b2bc287b24eaf42907196329070c7` |
+
+`gitleaks-action@v2` resolved to an **annotated tag**, so the tag object had to be dereferenced to the commit it points at; pinning the tag object's own SHA would not have been a commit pin at all. Workflow permissions are `contents: read`, with nothing raised per job.
+
+**3. Credentials generated per run.** The `sa`, migrator and application passwords are generated with `openssl rand -hex 16` inside the job and written only to `$GITHUB_ENV`. **None is a repository secret and none is written to a file**, so there is nothing to leak between runs and nothing for a fork to exfiltrate.
+
+**4. `.gitattributes`.** `*.sh` and `*.sql` are forced to LF in the working tree as well as the repository — a shebang ending in CR makes the Linux kernel look for an interpreter named `/bin/bash\r`, and a stray CR inside a sqlcmd variable travels silently into the database. `docker-compose*.yml` and the workflow files are covered for the same reason.
+
+**Verified on Windows after renormalising**, which is the half that could have broken quietly: `git ls-files --eol` reports `i/lf w/lf` for `init-principals.sql` and `docker-compose.yml` even though `core.autocrlf=true`, and a fresh `docker compose up -d` then ran the init script successfully — *"Changed database context to 'YCR' … YCR principals ready."*
+
+**5. Artifacts on failure.** TRX results and container logs are uploaded for both test jobs, and API plus compose logs for the smoke job. All guarded by `if: failure()`, so a green run uploads nothing.
+
+### The smoke job, and why it runs against the built artifact
+
+It hosts `YCR.Api.dll` directly — not `dotnet run`, which would background a launcher whose PID is not the API's — against a compose database, under `ASPNETCORE_ENVIRONMENT=Production`. Four assertions:
+
+| Assertion | Result |
+|---|---|
+| `/health/live` → `200` | **PASS** |
+| `/health/ready` → `200` | **PASS** |
+| `/openapi/v1.json` **not served** outside Development | **PASS** |
+| `GET /api/v1/stations` → `401` carrying `errorCode` `Common.Unauthenticated` | **PASS** |
+
+This is the check that would have caught the step-11 defect. Every API test registers the test authentication handler through `ConfigureTestServices`, so the suite is structurally blind to the shape that actually ships; an unauthenticated request returned `500` instead of `401` for exactly that reason. The smoke job has no such blind spot because it runs the real artifact with the real configuration.
+
+All four were verified locally in Production mode **before** the push, including the exact `sed` extraction the job uses — the workflow was not written hoping it would pass.
+
+### Evidence — branch run
+
+**Run URL: https://github.com/heinmindev/ycr/actions/runs/35562606107** — `push` on `feature/F-001` at `cfd6cc5`, **success**.
+
+| Job | Result |
+|---|---|
+| Build and test | **success** — `total: 147, failed: 0, succeeded: 147, skipped: 0`, identical to the local run |
+| API smoke test | **success** — all four assertions PASS, on the first attempt |
+| Secret scan | **success** |
+| Trunk-only tests | **skipped**, correctly: a feature-branch push is neither a PR into `main` nor a push to `main` |
+
+CI reporting `skipped: 0` while four trunk-only tests exist is the point of excluding by trait rather than by `Skip` — S15 holds and nothing is quietly not running.
+
+### A merge conflict was blocking the pull_request event
+
+The draft PR ([#1](https://github.com/heinmindev/ycr/pull/1)) produced **no `pull_request` run at all**, and `gh pr view` reported `mergeable=UNKNOWN` for as long as that was true. Closing and reopening the PR did not help.
+
+The cause was a real conflict, not a GitHub delay. `main` carries `9a25d48 docs: sync approved shared docs from feature/F-001`, which copied ADR-0020 onto `main` from an earlier point on this branch; step 12 then added the `AuthorizationResultHandler` follow-up to the branch's copy. `git merge-tree` confirmed an add/add conflict on that file. **GitHub does not dispatch a `pull_request` run while it cannot compute the merge commit**, so the trunk-only job could not have been proved green until the branch was merged up.
+
+Resolved by merging `origin/main` into `feature/F-001` (`6691708`). The resolution is main's ADR-0020 **plus** the one added bullet, verified as **zero removals** against main's version rather than eyeballed. `TASKS.md` took main's content as the live ledger, renormalised to LF by the new `.gitattributes`; a whitespace-insensitive diff confirmed the content is otherwise identical. `mergeable` became `MERGEABLE` immediately afterwards.
+
+**Worth a reviewer's attention:** this is a standing hazard, not a one-off. `main` receives synced copies of shared docs while feature branches keep editing them, so any shared doc touched on both sides will conflict the same way, and the symptom is a *missing* CI run rather than a failing one — which is far easier to miss.
