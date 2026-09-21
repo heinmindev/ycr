@@ -1323,3 +1323,23 @@ finding S-007A-2. No code was changed; the verdict is Not ready pending T-008 re
 **Blockers / open questions:** none.
 
 **State of the branch:** committed at `e57a3a2`; review status for C-5 now names the fixing SHA.
+
+---
+
+## 2026-09-21 21:25 Asia/Yangon — codex — T-008b
+
+**Stage:** 8b (C-6 checkpoint).
+**Commit:** `2ec9708` — codex test naming alignment.
+
+**Done this session:**
+- Kept state-free two-segment names permitted by the amended `docs/20` rule.
+- Renamed codex-owned tests with meaningful setup states to `Method_State_ExpectedResult`, including architecture fixtures, failed-result reads, invalid error inputs, domain-event raising, and station-model tests.
+- Left claude's step-1 and steps-7–13 tests untouched.
+
+**Evidence:** Domain tests passed 31/31, Architecture tests passed 13/13, and `StationModelTests` passed 4/4, all with 0 skipped; the solution build was green before the rename commit.
+
+**Next step (exact):** Delete the dead Reporting read-context carve-out and run the reporting architecture test (C-7).
+
+**Blockers / open questions:** none.
+
+**State of the branch:** committed at `2ec9708`; review status for C-6 now names the fixing SHA.
