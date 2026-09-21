@@ -1289,3 +1289,20 @@ finding S-007A-2. No code was changed; the verdict is Not ready pending T-008 re
 **Blockers / open questions:** none.
 
 **State of the branch:** committed at `c79afcc`; review status for C-3 now names the fixing SHA.
+
+---
+
+## 2026-09-21 20:45 Asia/Yangon — codex — T-008b
+
+**Stage:** 8b (C-4 checkpoint).
+**Commit:** `b3d7ce0` — EF sequential GUID compatibility note.
+
+**Done this session:** Documented at the `null!` call site that EF Core 10.0.12 ignores the `EntityEntry` argument and that the assumption must be reverified on upgrade.
+
+**Evidence:** Infrastructure tests built with 0 warnings / 0 errors; `StationModelTests`, including `SequentialGuidGenerator_ReturnsDistinctNonEmptyIds`, passed 3/3 with 0 skipped.
+
+**Next step (exact):** Add the C-5 model assertion, observe it fail, then explicitly ignore `DomainEvents` in the EF configuration.
+
+**Blockers / open questions:** none.
+
+**State of the branch:** committed at `b3d7ce0`; review status for C-4 now names the fixing SHA.
