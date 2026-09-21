@@ -5,7 +5,7 @@ namespace YCR.Domain.Tests.Common;
 public sealed class AggregateRootTests
 {
     [Fact]
-    public void Raise_CollectsDomainEventWithoutDispatchingIt()
+    public void Raise_WithDomainEvent_CollectsWithoutDispatching()
     {
         var aggregate = new TestAggregate();
         var domainEvent = new TestEvent();

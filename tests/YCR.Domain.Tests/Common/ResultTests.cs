@@ -36,7 +36,7 @@ public sealed class ResultTests
     }
 
     [Fact]
-    public void GenericFailure_ThrowsWhenValueIsRead()
+    public void ReadValue_WhenResultIsFailure_ThrowsInvalidOperationException()
     {
         var result = Result<int>.Failure(Error.Validation("Network.Invalid", "The value is invalid."));
 

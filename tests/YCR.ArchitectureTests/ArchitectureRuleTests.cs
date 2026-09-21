@@ -42,7 +42,7 @@ public sealed class ArchitectureRuleTests
         .Build();
 
     [Fact]
-    public void ApplicationModuleAllowlist_DetectsForeignContextAndDomainFixtures()
+    public void ApplicationModuleAllowlist_WithForeignFixtures_DetectsViolations()
     {
         AssertRuleProtectsFixture(
             ArchitectureRules.ApplicationModuleMayDependOnlyOnAllowedTypes("Network"),
@@ -53,7 +53,7 @@ public sealed class ArchitectureRuleTests
     }
 
     [Fact]
-    public void ApplicationAndDomainRules_AreDefinedForEveryBoundedContextModule()
+    public void ApplicationAndDomainRules_ForEveryBoundedContext_HaveNoSourceViolations()
     {
         foreach (var module in ArchitectureRules.Modules)
         {
@@ -67,7 +67,7 @@ public sealed class ArchitectureRuleTests
     }
 
     [Fact]
-    public void DomainModuleBoundary_DetectsForeignDomainFixture()
+    public void DomainModuleBoundary_WithForeignDomainFixture_DetectsViolation()
     {
         AssertRuleProtectsFixture(
             ArchitectureRules.DomainModuleMustNotDependOnOtherDomains("Network"),
@@ -83,7 +83,7 @@ public sealed class ArchitectureRuleTests
     }
 
     [Fact]
-    public void Reporting_AllowsOnlyReportingReadContext()
+    public void ReportingRule_WithNetworkContext_DetectsViolation()
     {
         AssertRuleProtectsFixture(
             ArchitectureRules.ReportingMustUseOnlyReadContext,
@@ -91,7 +91,7 @@ public sealed class ArchitectureRuleTests
     }
 
     [Fact]
-    public void DomainLayerRules_DetectApplicationAndEfDependencies()
+    public void DomainLayerRules_WithForbiddenDependencies_DetectViolations()
     {
         AssertRuleProtectsFixture(
             ArchitectureRules.DomainMustNotDependOnApplicationInfrastructureApi,
@@ -102,7 +102,7 @@ public sealed class ArchitectureRuleTests
     }
 
     [Fact]
-    public void ApplicationLayerRule_DetectsInfrastructureDependency()
+    public void ApplicationLayerRule_WithInfrastructureDependency_DetectsViolation()
     {
         AssertRuleProtectsFixture(
             ArchitectureRules.ApplicationMustNotDependOnInfrastructureOrApi,
@@ -110,7 +110,7 @@ public sealed class ArchitectureRuleTests
     }
 
     [Fact]
-    public void Application_DependentOnSqlServerProvider_IsDetected()
+    public void ApplicationRule_WithSqlServerProvider_DetectsViolation()
     {
         AssertRuleProtectsFixture(
             ArchitectureRules.ApplicationMustNotDependOnSqlServerProvider,
@@ -118,7 +118,7 @@ public sealed class ArchitectureRuleTests
     }
 
     [Fact]
-    public void Api_DependentOnModuleDomainOrNonAllowlistedCommonType_IsDetected()
+    public void ApiRules_WithForbiddenTypes_DetectViolations()
     {
         AssertRuleProtectsFixture(
             ArchitectureRules.ApiMustNotDependOnModuleDomain,
@@ -129,7 +129,7 @@ public sealed class ArchitectureRuleTests
     }
 
     [Fact]
-    public void Application_ReferencesNoSqlServerAssemblies()
+    public void ApplicationReferences_WithSqlServerAssemblies_HaveNoReferences()
     {
         var references = typeof(YCR.Application.Network.INetworkDbContext).Assembly
             .GetReferencedAssemblies()
@@ -142,7 +142,7 @@ public sealed class ArchitectureRuleTests
     }
 
     [Fact]
-    public void Src_ContainingAuthenticationHandler_IsDetectedAtAnyInheritanceDepth()
+    public void SourceTypes_WithAuthenticationHandler_HaveNoViolations()
     {
         var sourceAssemblies = new[]
         {
@@ -173,7 +173,7 @@ public sealed class ArchitectureRuleTests
     /// which ArchUnit's fluent API does not express.
     /// </remarks>
     [Fact]
-    public void AuditSnapshots_AreRecordsInAnApplicationModuleNamespace()
+    public void AuditSnapshots_WithSourceAssemblies_AreValid()
     {
         var sourceViolations = AuditSnapshotViolationsIn(SourceAssemblies);
         Assert.Empty(sourceViolations);
@@ -187,7 +187,7 @@ public sealed class ArchitectureRuleTests
     }
 
     [Fact]
-    public void AuditSnapshots_ExistAtAllSoTheRuleIsNotVacuous()
+    public void AuditSnapshots_WithSourceAssemblies_AreNonEmpty()
     {
         var snapshots = SourceAssemblies
             .SelectMany(assembly => assembly.GetTypes())

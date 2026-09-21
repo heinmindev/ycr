@@ -13,7 +13,7 @@ namespace YCR.Infrastructure.Tests.Persistence;
 public sealed class StationModelTests
 {
     [Fact]
-    public void Model_MapsStationTableAndCodeIndex()
+    public void Model_WithStationEntity_MapsTableAndCodeIndex()
     {
         var options = new DbContextOptionsBuilder<YcrDbContext>()
             .UseSqlServer("Server=(localdb)\\MSSQLLocalDB;Database=YcrModelTest")
@@ -74,7 +74,7 @@ public sealed class StationModelTests
     }
 
     [Fact]
-    public void DownMigration_DropsNetworkSchemaAfterStationsTable()
+    public void DownMigration_WithStationsTable_DropsNetworkSchema()
     {
         var operations = new ExposedNetworkCreateStations().GetDownOperations();
 

@@ -25,7 +25,7 @@ public sealed class ErrorTests
     }
 
     [Fact]
-    public void Error_RequiresCodeAndMessage()
+    public void Create_WithBlankCodeOrMessage_ThrowsArgumentException()
     {
         Assert.Throws<ArgumentException>(() => Error.Validation("", "message"));
         Assert.Throws<ArgumentException>(() => Error.Validation("code", ""));
