@@ -814,3 +814,88 @@ S1, S3, S4, S5, S6, S7, S8, S10, S13, S14, S20, S27, plus boundary cases for pag
 **State of the branch:** build and tests green; implementation committed and pushed; this progress entry is the only uncommitted change.
 
 **Review split so far:** steps 1, 7, 8, 9 and 10 implemented by claude; steps 2–6 and the step-5 review fixes by Codex.
+
+---
+
+## 2026-09-21 01:20 Asia/Yangon — claude — T-004
+
+**Stage:** 4 (IMPLEMENT). Pre-step-11 rulings applied (`00d1341`) and **step 11 of 13 complete** (`a57b491`), both pushed to `origin/feature/F-001`.
+**Implemented by:** claude.
+
+### Hein's rulings of 2026-09-21
+
+**Ruling 1 — confirm ListStations pages in SQL.** It already did: `Skip`, `Take` and `CountAsync` were all on `IQueryable`, so the count was a `SELECT COUNT(*)` and the page was `OFFSET`/`FETCH NEXT`. What was wrong was the **projection** — the handler materialised whole entities. Both query handlers now project through `StationProjection`, taking **whole value-object properties** (`station.Code`, never `station.Code.Value`), which EF can translate because the converter applies to the column; reaching inside it is what fails. `docs/20`'s "queries project" now holds, and the pattern is recorded on `StationProjection` for the stage-8 `docs/20` §4 update.
+
+`NameEn`/`NameMy` are projected as scalars rather than as the owned `BilingualName`, because EF refuses to project an owned entity type into a non-entity result.
+
+**`ListStationsSqlTests` asserts against the generated SQL**, captured with `LogTo`: exactly two round trips, a `COUNT(*)` with no `OFFSET`, and a page query carrying `ORDER BY`, `OFFSET` and `FETCH NEXT`, selecting named columns. This is the only kind of test that can catch the regression — a query that fetched the whole table and paged in memory returns identical rows, so every behavioural test would still pass.
+
+**Ruling 2 — the `{}` guard.** `Handle_WithValidCommand_WritesTheStationStateIntoAfterJsonVerbatim` reads `AfterJson` straight out of `audit.AuditEvents` and asserts the code and the Myanmar name appear verbatim, that the payload is not `{}`, and that no `\u` escape appears. One assertion covers both the runtime-type serialisation and the widened encoder.
+
+**Ruling 3 — CI bundle handoff.** `MigrationBundle` now uses `YCR_MIGRATION_BUNDLE` when set, **failing loudly if the path does not exist** rather than silently building a second bundle, and falls back to the locked local build otherwise. The CI obligation is recorded in `plan.md` §Steps step 13.
+
+### Step 11 — the API
+
+| File | What |
+|---|---|
+| `Program.cs` | Composition root; no migration at startup; OpenAPI in Development only |
+| `Common/ResultExtensions.cs` | The ADR-0004 status mapping, in one place. The only file depending on `YCR.Domain`, and only on P11's four types |
+| `Common/ProblemDetailsSetup.cs` | RFC 9457 with `errorCode` and `traceId`; the 500-with-no-internals handler |
+| `Common/ValidationFilter.cs` | FluentValidation behind an endpoint filter |
+| `Common/Authorization/*` | Permission requirement, handler, policy provider, **and `AuthorizationResultHandler` — see below** |
+| `Common/Authentication/AuthenticationSchemeGuard.cs` | S21b |
+| `Common/HttpContextCurrentUser.cs` | **Plan addition** — see below |
+| `Contracts/Network/*`, `Endpoints/Network/StationEndpoints.cs`, `Endpoints/Health/HealthEndpoints.cs` | The surface |
+| `YCR.Api.http` | Every endpoint, with the 401s explained |
+| `tests/YCR.Api.Tests/**` | 36 tests |
+
+**Exit-code-8 waiver removed** from `YCR.Api.Tests` at its named step. Only `YCR.IntegrationTests` still carries one, intentionally, for all of F-001 (plan C4).
+
+### The defect that only running the API could find
+
+**Symptom:** against the local compose database, every `/api/v1/stations` request returned **`500`**, not `401`.
+
+**Cause:** ADR-0020 ships F-001 with the authorization pipeline and **no authentication handler**. `RequireAuthenticatedUser()` then challenges, and ASP.NET Core throws — *"No authenticationScheme was specified, and there was no DefaultChallengeScheme found."* An ordinary unauthenticated request to a deployed instance would have looked like a server fault.
+
+**Why no test caught it:** every API test registers the test handler through `ConfigureTestServices`, so a challenge scheme always existed and the throw never fired. The suite was structurally blind to the shape that actually ships. I found it only because I ran the API to check the `.http` file's claims were true rather than asserting them.
+
+**Fix:** `AuthorizationResultHandler`, an `IAuthorizationMiddlewareResultHandler` that answers a clean `401 Common.Unauthenticated` **only when there is genuinely no default challenge scheme**. It adds no `AuthenticationHandler` to `src/`, which ADR-0020 item 4 forbids, and it steps aside entirely once the ADR-0016 token feature registers a real scheme. `MissingSchemeTests` hosts the application with authentication left exactly as `src/` configures it — the deployed shape — and covers all four station routes plus both probes.
+
+The exception handler did behave correctly throughout: the 500 leaked no internals. It was the status code that was wrong.
+
+### Other things a reviewer should look at
+
+- **`HttpContextCurrentUser` is a plan addition.** The plan's `src/YCR.Api` inventory lists no `ICurrentUser` implementation, but `AuditWriter` requires one and only the composition root has an `HttpContext`. Every field is derived server-side; `AuthorizedByPermission` comes from the matched endpoint's own policy name, which works because `PermissionPolicyProvider` names each policy after the permission it enforces.
+- **`ClientIp` is the connection's peer address, never `X-Forwarded-For`.** A forwarded header is client-supplied and therefore forgeable, which ADR-0017 item 2 rules out for an audit field. Behind a proxy the correct fix is `ForwardedHeadersOptions` with an explicit trusted-proxy list — a deployment decision, not something to assume. `Post_WhenRequestTriesToSupplyActorFields_RecordsTheAuthenticatedActor` sends a forged header and asserts it is ignored.
+- **`PermissionPolicyProvider` only treats a policy name as a permission when it matches `docs/20` §2's `<resource>.<action>` shape.** Anything else falls through to the default provider, so a genuinely unknown policy name still fails loudly instead of silently getting a policy no claim can satisfy.
+- **`ResultExtensions` throws on an unmapped `ErrorType`** rather than defaulting. A new error type must be mapped deliberately; saying so loudly beats returning 500, or worse 200.
+- **No role-to-permission mapping is seeded anywhere** (OQ28). The permission handler reads permission claims; tests mint them directly on the test principal.
+- **My own test expectation was wrong once and I fixed the test, not the code.** `Post_WithBlankMyanmarName_Returns400FromTheDomainRule` expected `Network.InvalidStationName`, but FluentValidation's `NotEmpty()` already treats a whitespace-only string as empty, so the filter answers first with `Common.ValidationFailed`. The whitespace case moved into the filter theory where it belongs, and the domain-rule test now uses an overlong name, which genuinely reaches `BilingualName`.
+
+### OpenAPI
+
+**Document URL: `http://localhost:5080/openapi/v1.json`** (path `/openapi/v1.json`; the port is whatever the host binds).
+
+**Development environment only.** The document maps every route and the permission each one requires, which is a map of the system a deployed instance has no reason to hand out. Verified: `200` under `ASPNETCORE_ENVIRONMENT=Development`.
+
+Served as **OpenAPI 3.1.1**, `YCR.Api | v1`, with all four station operations. The first run described every operation as returning `200`, including the `POST` that returns `201` — a document that is wrong is worse than none, so the endpoints now carry `.Produces`/`.ProducesProblem` metadata and the document reports 200, 201, 204, 400, 401, 403, 404, 409 and 422 on the operations that produce them.
+
+The health probes are absent from the document: `MapHealthChecks` emits no OpenAPI metadata. They are documented in `YCR.Api.http` instead.
+
+### `YCR.Api.http`, and no dev-auth
+
+Covers all four station endpoints plus both probes and the OpenAPI document, including invalid-code, missing-field and over-cap variants. Its header explains why most requests return `401` and states plainly that **no dev-auth mechanism is provided, deliberately** — a "just for local development" bypass is exactly the kind of thing that survives into a deployment.
+
+### Evidence
+
+- `dotnet build YCR.sln` — **0 warnings, 0 errors**.
+- `dotnet test YCR.sln --no-build` — **total 146, failed 0, succeeded 146, skipped 0**. Up from 106.
+- **Verified against a really running API**, not just tests: `docker compose up -d` → migration bundle applied as `ycr_migrator` → init re-run to join the role → API run under the `ycr_app` credential. Results: `/health/live` 200, `/health/ready` 200, `/openapi/v1.json` 200, and all four station routes **401** with `Common.Unauthenticated` and a `traceId`. Before the fix those four were `500`. Stack torn down with `down -v`.
+
+**Next step (exact):** plan step 12 — trunk-only categories: the ADR-0006 sequential-GUID fragmentation control (spec S23, E5) and the SQL Server 2019 guard test (spec S19), the latter against a second digest-pinned image.
+
+**Blockers / open questions:** none technical. OQ26, OQ27 and OQ28 remain open with Myanma Railways; T-014 is the release gate.
+
+**State of the branch:** build and tests green; committed and pushed; this progress entry is the only uncommitted change.
+
+**Review split so far:** steps 1, 7, 8, 9, 10 and 11 implemented by claude; steps 2–6 and the step-5 review fixes by Codex.
