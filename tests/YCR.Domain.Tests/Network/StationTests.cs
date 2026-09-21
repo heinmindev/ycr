@@ -25,6 +25,17 @@ public sealed class StationTests
     }
 
     [Fact]
+    public void Create_WithNonUtcOffset_ThrowsArgumentException()
+    {
+        var id = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var code = StationCode.Create("YGN").Value;
+        var name = BilingualName.Create("Yangon", "Yangon Myanmar").Value;
+        var nonUtc = new DateTimeOffset(2026, 9, 20, 6, 30, 0, TimeSpan.FromHours(6.5));
+
+        Assert.Throws<ArgumentException>(() => Station.Create(id, code, name, nonUtc));
+    }
+
+    [Fact]
     public void Deactivate_WhenActive_SetsInactiveAndRaisesEvent()
     {
         var station = CreateStation();

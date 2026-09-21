@@ -31,6 +31,12 @@ namespace YCR.Infrastructure.Persistence.Migrations
                     table.PrimaryKey("PK_Stations", x => x.Id);
                 });
 
+            migrationBuilder.AddCheckConstraint(
+                name: "CK_Stations_CreatedAtUtc_Utc",
+                schema: "network",
+                table: "Stations",
+                sql: "DATEPART(TZOFFSET, [CreatedAtUtc]) = 0");
+
             migrationBuilder.CreateIndex(
                 name: "UX_Stations_Code",
                 schema: "network",

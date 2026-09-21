@@ -20,6 +20,10 @@ public sealed class Station : AggregateRoot
     {
         ArgumentNullException.ThrowIfNull(code);
         ArgumentNullException.ThrowIfNull(name);
+        if (nowUtc.Offset != TimeSpan.Zero)
+        {
+            throw new ArgumentException("CreatedAtUtc must use the UTC offset.", nameof(nowUtc));
+        }
 
         return new Station
         {

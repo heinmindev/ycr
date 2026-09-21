@@ -115,6 +115,30 @@ public sealed class MigrationBundleTests(SqlServerFixture fixture) : IAsyncLifet
         Assert.True(persisted.IsActive);
     }
 
+    [Fact]
+    public async Task Stations_WithNonUtcCreatedAtUtc_AreRejectedByDatabase()
+    {
+        await using var connection = new SqlConnection(database.MigratorConnectionString);
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        await using var command = new SqlCommand(
+            """
+            INSERT INTO [network].[Stations]
+                ([Id], [Code], [NameEn], [NameMy], [IsActive], [CreatedAtUtc])
+            VALUES
+                (@id, N'KYN', N'Kyimyindaing', N'ကြည့်မြင်တိုင်', 1, @createdAtUtc);
+            """,
+            connection);
+        command.Parameters.AddWithValue("@id", Guid.CreateVersion7());
+        command.Parameters.AddWithValue(
+            "@createdAtUtc",
+            new DateTimeOffset(2026, 9, 20, 6, 30, 0, TimeSpan.FromHours(6.5)));
+
+        var failure = await Assert.ThrowsAsync<SqlException>(() =>
+            command.ExecuteNonQueryAsync(TestContext.Current.CancellationToken));
+
+        Assert.Equal(547, failure.Number);
+    }
+
     private YcrDbContext NewContext() =>
         new(new DbContextOptionsBuilder<YcrDbContext>()
             .UseSqlServer(database.MigratorConnectionString)

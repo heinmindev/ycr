@@ -35,6 +35,11 @@ Modules: `Identity, Network, Timetable, Fare, Ticketing, Payments, Operations, R
 | UTC column | `<Name>Utc` | `IssuedAtUtc` |
 | Test method | `Method_State_ExpectedResult` | `Create_WithDuplicateCode_ReturnsConflict` |
 
+`*Utc` fields are required to contain UTC values (`DateTimeOffset.Offset == TimeSpan.Zero`).
+Domain factories reject non-UTC offsets, and SQL Server persistence adds a matching check
+constraint where the column is created. Test methods may use `Method_ExpectedResult` when there is
+no meaningful setup state; use `Method_State_ExpectedResult` when a meaningful state exists.
+
 Use the vocabulary in `docs/glossary.md` (to be created). Don't introduce synonyms.
 
 ## 3. Reference slice — `CreateStation`

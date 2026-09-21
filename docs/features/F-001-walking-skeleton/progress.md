@@ -1207,3 +1207,25 @@ Reviewed the threat categories in `docs/18-threat-model.md` and `docs/prompts/se
 claude's step 1 and steps 7-13 only. The security section of `review-codex.md` records the High
 credential-separation finding F-006A-1/S-007A-1 and a Medium CI/test process-argument secret-handling
 finding S-007A-2. No code was changed; the verdict is Not ready pending T-008 remediation and reruns.
+
+
+---
+
+## 2026-09-21 19:40 Asia/Yangon — codex — T-008b
+
+**Stage:** 8b (DOCUMENT / REMEDIATION). **Baseline checkpoint before fixes.**
+**Commit:** `0f66e06` (feature/F-001 starting SHA).
+
+**Done this session:**
+- Pulled `main`, claimed T-008b at ledger commit `fb76ff8`, and pushed the claim to `origin/main`.
+- Verified the linked worktree `D:\\MR\\ycr-F-001` is clean on `feature/F-001`.
+- Read the approved feature plan, review findings, and hein's T-008b rulings.
+- Confirmed Docker is unavailable locally; container-backed verification is deferred to CI.
+
+**Evidence:** `dotnet build YCR.sln --no-restore` passed with 0 warnings and 0 errors; `dotnet test tests/YCR.Domain.Tests/YCR.Domain.Tests.csproj --no-build` passed 30/30 with 0 skipped; `dotnet test tests/YCR.ArchitectureTests/YCR.ArchitectureTests.csproj --no-build` passed 12/12 with 0 skipped.
+
+**Next step (exact):** Add the C-1 failing domain test and implement the ruled UTC rejection plus database constraint.
+
+**Blockers / open questions:** Docker-backed integration tests are deferred to CI; OQ29 will be added for C-11 exactly as instructed.
+
+**State of the branch:** build and unit/architecture tests green; progress entry is uncommitted.
