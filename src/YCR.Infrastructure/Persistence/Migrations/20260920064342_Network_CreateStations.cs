@@ -51,6 +51,9 @@ namespace YCR.Infrastructure.Persistence.Migrations
             migrationBuilder.DropTable(
                 name: "Stations",
                 schema: "network");
+
+            migrationBuilder.DropSchema(
+                name: "network");
         }
     }
 }

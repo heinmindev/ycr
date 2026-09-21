@@ -1,8 +1,11 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations.Operations;
 using YCR.Application.Network;
 using YCR.Domain.Network;
 using YCR.Infrastructure.Identifiers;
 using YCR.Infrastructure.Persistence;
+using YCR.Infrastructure.Persistence.Migrations;
 
 namespace YCR.Infrastructure.Tests.Persistence;
 
@@ -48,5 +51,25 @@ public sealed class StationModelTests
         Assert.NotEqual(Guid.Empty, first);
         Assert.NotEqual(Guid.Empty, second);
         Assert.NotEqual(first, second);
+    }
+
+    [Fact]
+    public void DownMigration_DropsNetworkSchemaAfterStationsTable()
+    {
+        var operations = new ExposedNetworkCreateStations().GetDownOperations();
+
+        Assert.Contains(
+            operations,
+            operation => operation is DropSchemaOperation { Name: "network" });
+    }
+
+    private sealed class ExposedNetworkCreateStations : Network_CreateStations
+    {
+        public IReadOnlyList<MigrationOperation> GetDownOperations()
+        {
+            var builder = new MigrationBuilder("Microsoft.EntityFrameworkCore.SqlServer");
+            Down(builder);
+            return builder.Operations;
+        }
     }
 }
