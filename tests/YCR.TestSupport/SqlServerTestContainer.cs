@@ -38,13 +38,23 @@ public sealed class SqlServerTestContainer : IAsyncDisposable
     private int _databaseCount;
 
     public SqlServerTestContainer()
+        : this(SqlServerImage.Reference)
+    {
+    }
+
+    /// <param name="image">
+    /// The pinned image to run. The S19 guard test passes
+    /// <see cref="SqlServerImage.Unsupported"/> to prove the audit ledger migration refuses an
+    /// unsupported server version; everything else uses the default.
+    /// </param>
+    public SqlServerTestContainer(string image)
     {
         _saPassword = GeneratePassword();
         _applicationPassword = GeneratePassword();
 
         // The image is a constructor argument in Testcontainers 4.15: there is no default to
         // fall back to, which is exactly the property E4 wants.
-        _container = new MsSqlBuilder(SqlServerImage.Reference)
+        _container = new MsSqlBuilder(image)
             .WithPassword(_saPassword)
             // Developer edition carries the full feature set, which is what the audit ledger
             // (ADR-0017 item 1) is verified against. Stated explicitly rather than inherited,

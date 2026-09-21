@@ -17,6 +17,21 @@
     <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
   </PropertyGroup>
 
+  <!--
+    Trunk-only tests are EXCLUDED here, not skipped (spec E5, plan review item 7).
+
+    They pull a second multi-gigabyte SQL Server image or write 10,000 rows, which the plan
+    judged too expensive for every branch build. Skipping them would report "skipped: N" and
+    break S15's "no skipped tests"; excluding them by trait keeps the branch run at zero
+    skipped while leaving the tests real and runnable.
+
+    The trunk job runs exactly the complement, passing the filter-trait option with
+    Category=TrunkOnly. Set YCR_RUN_TRUNK_ONLY_TESTS=1 to run them locally.
+  -->
+  <PropertyGroup Condition="'$(MSBuildProjectName)' != 'YCR.TestSupport' AND '$(YCR_RUN_TRUNK_ONLY_TESTS)' == ''">
+    <TestingPlatformCommandLineArguments>$(TestingPlatformCommandLineArguments) --filter-not-trait "Category=TrunkOnly"</TestingPlatformCommandLineArguments>
+  </PropertyGroup>
+
   <ItemGroup Condition="'$(MSBuildProjectName)' != 'YCR.TestSupport'">
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="xunit.v3" />

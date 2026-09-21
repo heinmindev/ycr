@@ -44,4 +44,35 @@ public static class SqlServerImage
     /// into a stated dependency, in compose, in the test fixture and in CI alike.
     /// </remarks>
     public const string SessionLanguage = "us_english";
+
+    /// <summary>
+    /// A SQL Server <strong>2019</strong> image, used by one trunk-only test to prove the audit
+    /// ledger migration's version guard fires against a genuinely unsupported server (spec S19,
+    /// ADR-0017 item 5).
+    /// </summary>
+    /// <remarks>
+    /// Pinned by tag and digest for the same reason as <see cref="Reference"/>: the test asserts
+    /// that the guard reports the detected version, so which build it runs against is part of
+    /// what the test means. <c>SqlServerImagePinTests</c> checks this pin too.
+    /// <para>
+    /// Pinned 2026-09-21: newest SQL Server 2019 cumulative update published on
+    /// <c>mcr.microsoft.com</c> at that date. 2019 is major version 15, below the 16 the guard
+    /// requires — that is the whole point of keeping it.
+    /// </para>
+    /// <para>
+    /// Trunk-only: this is a second large image pull, which spec E5 and the plan's review item 7
+    /// judged too expensive for every branch build.
+    /// </para>
+    /// </remarks>
+    public static class Unsupported
+    {
+        public const string Tag = "mcr.microsoft.com/mssql/server:2019-CU32-GDR1-ubuntu-20.04";
+
+        public const string Digest = "sha256:cb917712eb2c8a1a497f71a0287ef9aaccd5ce549515c2ace0ae5e734f293d3e";
+
+        public const string Reference = Tag + "@" + Digest;
+
+        /// <summary>The major version this image reports, which the guard must reject.</summary>
+        public const int ProductMajorVersion = 15;
+    }
 }

@@ -31,6 +31,26 @@ public sealed partial class SqlServerImagePinTests
         Assert.Equal($"{SqlServerImage.Tag}@{SqlServerImage.Digest}", SqlServerImage.Reference);
     }
 
+    /// <summary>
+    /// The 2019 guard image is pinned on the same terms. The S19 test asserts that the migration
+    /// reports the version it detected, so which build it runs against is part of what that test
+    /// means — a floating tag would let the asserted version drift underneath it.
+    /// </summary>
+    [Fact]
+    public void UnsupportedVersionImage_CarriesBothATagAndADigest()
+    {
+        Assert.StartsWith("mcr.microsoft.com/mssql/server:2019-", SqlServerImage.Unsupported.Tag, StringComparison.Ordinal);
+        Assert.StartsWith("sha256:", SqlServerImage.Unsupported.Digest, StringComparison.Ordinal);
+        Assert.Equal(71, SqlServerImage.Unsupported.Digest.Length);
+        Assert.Equal(
+            $"{SqlServerImage.Unsupported.Tag}@{SqlServerImage.Unsupported.Digest}",
+            SqlServerImage.Unsupported.Reference);
+
+        // It must actually be unsupported, or S19 would pass for the wrong reason.
+        Assert.Equal(15, SqlServerImage.Unsupported.ProductMajorVersion);
+        Assert.NotEqual(SqlServerImage.Digest, SqlServerImage.Unsupported.Digest);
+    }
+
     private static string ReadComposeFile()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
