@@ -1075,11 +1075,22 @@ The PR ([#1](https://github.com/heinmindev/ycr/pull/1)) produced **no `pull_requ
 
 **1. A real merge conflict.** `gh pr view` reported `mergeable=UNKNOWN`. `main` carries `9a25d48 docs: sync approved shared docs from feature/F-001`, which copied ADR-0020 onto `main` from an earlier point on this branch; step 12 then added the `AuthorizationResultHandler` follow-up to the branch's copy. `git merge-tree` confirmed an add/add conflict on that file.
 
-Resolved by merging `origin/main` into `feature/F-001` (`6691708`). The resolution is main's ADR-0020 **plus** the one added bullet, verified as **zero removals** against main's version rather than eyeballed. `TASKS.md` took main's content as the live ledger, renormalised to LF by the new `.gitattributes`; a whitespace-insensitive diff confirmed the content is otherwise identical. `mergeable` became `MERGEABLE` immediately afterwards.
+Resolved by merging `origin/main` into `feature/F-001` (`6691708`). `mergeable` became `MERGEABLE` immediately afterwards.
 
-**2. The PR was a draft — and that was the actual blocker.** After the merge, with `mergeable=MERGEABLE`, a push still produced **no `pull_request` run**. The runs appeared the moment the PR was marked ready for review. So the conflict was a genuine problem worth fixing, but it was **not** what stopped the event; I had attributed it to the conflict before testing that, and the sequence disproves it. It is corrected here rather than left standing, because a future agent reading "a conflict blocks `pull_request` runs" would chase the wrong thing.
+**Which side won, checked rather than assumed** (hein's ruling, 2026-09-21 — "keep main's" applies to `TASKS.md` only):
 
-The PR is consequently **no longer a draft**. It remains unmergeable in practice for the right reason: stages 5 to 8 have not run, and **T-009 is the human merge gate**.
+| File | Resolution | Verification |
+|---|---|---|
+| `ADR-0020` | **`feature/F-001`'s version kept**, including the step-12 Follow-up bullet | Byte-identical to `f63c754`'s copy; differs from `main` by **+1 line, 0 removals**, and that one line is the `AuthorizationResultHandler` follow-up |
+| `TASKS.md` | **main's content kept** — it is the live ledger | Whitespace-insensitive diff against `origin/main` is empty; only line endings differ, from the new `.gitattributes` |
+
+The ADR check matters because the naive reading of "keep main's version" would have silently dropped the step-12 follow-up — the branch's copy is the newer one, and `main`'s is an older synced snapshot.
+
+**2. Cause of the earlier missing runs: UNDETERMINED.** After the merge the runs appeared, at the same moment the PR was marked ready for review. Two explanations fit the evidence equally well — the draft state suppressed the event, or GitHub simply does not dispatch a `pull_request` run until it has computed the merge ref, which the conflict had prevented. The run's head SHA is the merge commit under either reading, so the timing does not separate them.
+
+**Deliberately not investigated further** (hein, 2026-09-21): settling it would cost CI runs to answer a question that no longer blocks anything. Recorded as undetermined rather than guessed, because an earlier draft of this entry asserted the draft state *was* the cause, and that was not something the evidence supported.
+
+The PR is left **ready for review** on hein's instruction. It is not merged by an agent under any circumstances: stages 5 to 8 have not run, and **T-009 is the human merge gate**.
 
 **Worth a reviewer's attention:** the shared-doc conflict is a standing hazard, not a one-off. `main` receives synced copies of shared docs while feature branches keep editing them, so any shared doc touched on both sides conflicts the same way — and the symptom is a *missing* CI run rather than a failing one, which is far easier to miss than a red check.
 
@@ -1090,3 +1101,17 @@ The secret-scan job passed on `push` and **failed on `pull_request`** with `403 
 Fixed by granting that **one job** `pull-requests: read`, and nothing else. Deliberately `read`: the action would also post PR comments, which needs `write`, so `GITLEAKS_ENABLE_COMMENTS: 'false'` turns that off instead of widening the token. The job's own failure is the signal that matters, and a leaked secret should not be echoed into a PR comment in any case. The workflow default stays `contents: read`.
 
 This is the kind of thing only a real PR run surfaces — the push run had been green throughout.
+
+### The trunk-only job failed the first time it actually ran, and the fault was mine
+
+Its first real execution reported `error: 4`, `failed: 0`, exit code **8**. No test failed; four test *assemblies* errored.
+
+**Cause.** Most assemblies contain no `TrunkOnly` test, so under `--filter-trait "Category=TrunkOnly"` they legitimately match nothing, and Microsoft.Testing.Platform exits 8 for "no tests ran" — four times over, failing the job. **I had only ever run the filter against `YCR.Infrastructure.Tests`, the one project that has such tests, so the solution-wide behaviour was never exercised locally.** The lesson is the same one this feature keeps relearning: run the command the pipeline runs, not a convenient subset of it.
+
+**The first fix was wrong too, and the local re-run caught it.** Adding `--ignore-exit-code 8` to the command line made `YCR.IntegrationTests` exit **5** instead — that project already carries the same option in its own csproj (plan C4), and Microsoft.Testing.Platform rejects the duplicate rather than merging it. Confirmed directly: the same project passes without the command-line copy and exits 5 with it.
+
+**Final shape.** Both filters now live in `tests/Directory.Build.props`, selected by `YCR_RUN_TRUNK_ONLY_TESTS`, and `YCR.IntegrationTests`' own waiver is skipped in trunk-only mode so it can never double. The CI job sets the variable and passes no filter at all, which makes the collision impossible to reintroduce from the pipeline side.
+
+**The waiver is not a hole.** `--ignore-exit-code 8` also covers "the filter matched nothing *anywhere*", which would let the job pass having run nothing. A following step sums `executed` across the TRX reports and fails when it is zero. Verified against the real reports: it reads **4**.
+
+Both modes were then re-run locally with the exact CI commands — trunk-only: **4 passed, exit 0, no errored assemblies**; default: **147 passed, 0 skipped**.

@@ -25,11 +25,27 @@
     break S15's "no skipped tests"; excluding them by trait keeps the branch run at zero
     skipped while leaving the tests real and runnable.
 
-    The trunk job runs exactly the complement, passing the filter-trait option with
-    Category=TrunkOnly. Set YCR_RUN_TRUNK_ONLY_TESTS=1 to run them locally.
+    Setting YCR_RUN_TRUNK_ONLY_TESTS=1 flips this to the exact complement: only the trunk-only
+    tests run. Between the two modes every test in the solution runs.
+
+    Both filters live here rather than on the command line, and that is deliberate. Passing
+    them per invocation meant also passing the zero-tests waiver, which collided with the copy
+    YCR.IntegrationTests already carries in its own csproj; a duplicated option makes
+    Microsoft.Testing.Platform exit 5 rather than run. Keeping the arguments in one place makes
+    that collision impossible to reintroduce.
   -->
   <PropertyGroup Condition="'$(MSBuildProjectName)' != 'YCR.TestSupport' AND '$(YCR_RUN_TRUNK_ONLY_TESTS)' == ''">
     <TestingPlatformCommandLineArguments>$(TestingPlatformCommandLineArguments) --filter-not-trait "Category=TrunkOnly"</TestingPlatformCommandLineArguments>
+  </PropertyGroup>
+
+  <!--
+    Trunk-only mode. The zero-tests waiver is required here and is not a waiver on any test:
+    most assemblies contain no trunk-only test, so under this filter they legitimately match
+    nothing and would each exit 8. The CI job closes the obvious hole by asserting afterwards
+    that tests actually executed, so "matched nothing anywhere" cannot pass silently.
+  -->
+  <PropertyGroup Condition="'$(MSBuildProjectName)' != 'YCR.TestSupport' AND '$(YCR_RUN_TRUNK_ONLY_TESTS)' != ''">
+    <TestingPlatformCommandLineArguments>$(TestingPlatformCommandLineArguments) --filter-trait "Category=TrunkOnly" --ignore-exit-code 8</TestingPlatformCommandLineArguments>
   </PropertyGroup>
 
   <ItemGroup Condition="'$(MSBuildProjectName)' != 'YCR.TestSupport'">

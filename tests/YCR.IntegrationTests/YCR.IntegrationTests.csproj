@@ -1,12 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <!--
-      Intentionally empty for all of F-001 (plan C4): docs/06 lists the project, but no end-to-end journey exists yet. This waiver stays until a feature adds one.
-      Microsoft.Testing.Platform exits 8 when a run discovers no tests, which is a
-      signal worth keeping. This waiver is per project and must be deleted by the
-      step named above, so an empty suite cannot hide once it should have tests.
-    -->
+  <!--
+    Intentionally empty for all of F-001 (plan C4): docs/06 lists the project, but no end-to-end
+    journey exists yet. This waiver stays until a feature adds one.
+    Microsoft.Testing.Platform exits 8 when a run discovers no tests, which is a signal worth
+    keeping. This waiver is per project so an empty suite cannot hide once it should have tests.
+
+    Skipped in trunk-only mode, where tests/Directory.Build.props already adds the same option
+    for every project. Specifying it twice is not additive — Microsoft.Testing.Platform rejects
+    the duplicate and exits 5 without running anything, which is how this project failed the
+    trunk-only job the first time it ran.
+  -->
+  <PropertyGroup Condition="'$(YCR_RUN_TRUNK_ONLY_TESTS)' == ''">
     <TestingPlatformCommandLineArguments>$(TestingPlatformCommandLineArguments) --ignore-exit-code 8</TestingPlatformCommandLineArguments>
   </PropertyGroup>
 

@@ -15,15 +15,35 @@ name: CI
 on:
   push:
     branches: [main, 'feature/**']
+    # Ledger and progress commits change no code and cannot break a build, so they do not
+    # deserve a full container-backed run. `main` receives a steady stream of them — one per
+    # task claim, status change and checkpoint — and on `main` a run also carries the
+    # trunk-only job, which pulls a second multi-gigabyte image.
+    #
+    # This applies to every pushed branch, not only `main`: GitHub allows one `push` key, and
+    # the same reasoning holds on a feature branch. A commit that touches code as well as these
+    # paths still runs, because `paths-ignore` skips only when *every* changed file matches.
+    paths-ignore:
+      - 'TASKS.md'
+      - 'docs/progress/**'
   pull_request:
     branches: [main]
+    # Deliberately NO paths-ignore here. A skipped workflow does not report a neutral result —
+    # it reports nothing at all. A pull request whose commits touch only the ignored paths would
+    # therefore get no CI result, and once any of these jobs is a required status check that
+    # pull request sits blocked forever on a check that will never arrive. Wasting one cheap run
+    # on a ledger-only pull request is the better trade.
 
 permissions:
   contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Superseding a run is right on a branch, where only the newest commit matters. It is wrong on
+  # `main`: every commit there is a candidate for release, and a cancelled run leaves that commit
+  # with no evidence it ever passed. So `main` runs always finish, even when pushes arrive close
+  # together.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 env:
   DOTNET_NOLOGO: 'true'
@@ -271,15 +291,32 @@ jobs:
       # The exact complement of the default run: YCR_RUN_TRUNK_ONLY_TESTS lifts the exclusion in
       # tests/Directory.Build.props, and the trait filter selects only these. Between the two
       # jobs every test in the solution runs.
+      # YCR_RUN_TRUNK_ONLY_TESTS is the whole switch: tests/Directory.Build.props swaps the
+      # default "exclude TrunkOnly" filter for "only TrunkOnly", and adds the zero-tests waiver
+      # every assembly without such a test needs. The filter is not repeated on this command
+      # line — doing that also meant repeating the waiver, which collided with the copy
+      # YCR.IntegrationTests carries in its own csproj and made that assembly exit 5 without
+      # running. That is how this job failed the first time.
       - name: Run trunk-only tests
         env:
           YCR_RUN_TRUNK_ONLY_TESTS: '1'
         run: >
           dotnet test YCR.sln --no-build
           --
-          --filter-trait "Category=TrunkOnly"
           --report-xunit-trx
           --results-directory "${{ runner.temp }}/test-results"
+
+      - name: Assert trunk-only tests actually ran
+        run: |
+          set -euo pipefail
+          executed=$(grep -ho 'executed="[0-9]*"' "$RUNNER_TEMP"/test-results/*.trx \
+            | grep -o '[0-9]*' | awk '{sum += $1} END {print sum + 0}')
+          echo "Trunk-only tests executed: $executed"
+          if [ "$executed" -eq 0 ]; then
+            echo "No trunk-only test ran. Either the trait was renamed or the filter is wrong;"
+            echo "either way this job was about to pass while proving nothing."
+            exit 1
+          fi
 
       - name: Upload test results
         if: failure()
