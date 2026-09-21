@@ -84,7 +84,6 @@ public static class ArchitectureRules
         .NotDependOnAny(
             Types().That()
                 .HaveFullNameMatching("^YCR\\.Application\\..*\\.I.*DbContext$")
-                .And().DoNotHaveFullName("YCR.Application.Reporting.IReportingReadContext")
                 .Or().HaveFullNameMatching("^YCR\\.Infrastructure\\.Persistence\\.YcrDbContext$"))
         .WithoutRequiringPositiveResults();
 
