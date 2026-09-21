@@ -1069,12 +1069,24 @@ All four were verified locally in Production mode **before** the push, including
 
 CI reporting `skipped: 0` while four trunk-only tests exist is the point of excluding by trait rather than by `Skip` — S15 holds and nothing is quietly not running.
 
-### A merge conflict was blocking the pull_request event
+### Getting the pull_request event to fire — two separate problems
 
-The draft PR ([#1](https://github.com/heinmindev/ycr/pull/1)) produced **no `pull_request` run at all**, and `gh pr view` reported `mergeable=UNKNOWN` for as long as that was true. Closing and reopening the PR did not help.
+The PR ([#1](https://github.com/heinmindev/ycr/pull/1)) produced **no `pull_request` run at all** for some time, so the trunk-only job could not be proved green. Two distinct causes, found in this order:
 
-The cause was a real conflict, not a GitHub delay. `main` carries `9a25d48 docs: sync approved shared docs from feature/F-001`, which copied ADR-0020 onto `main` from an earlier point on this branch; step 12 then added the `AuthorizationResultHandler` follow-up to the branch's copy. `git merge-tree` confirmed an add/add conflict on that file. **GitHub does not dispatch a `pull_request` run while it cannot compute the merge commit**, so the trunk-only job could not have been proved green until the branch was merged up.
+**1. A real merge conflict.** `gh pr view` reported `mergeable=UNKNOWN`. `main` carries `9a25d48 docs: sync approved shared docs from feature/F-001`, which copied ADR-0020 onto `main` from an earlier point on this branch; step 12 then added the `AuthorizationResultHandler` follow-up to the branch's copy. `git merge-tree` confirmed an add/add conflict on that file.
 
 Resolved by merging `origin/main` into `feature/F-001` (`6691708`). The resolution is main's ADR-0020 **plus** the one added bullet, verified as **zero removals** against main's version rather than eyeballed. `TASKS.md` took main's content as the live ledger, renormalised to LF by the new `.gitattributes`; a whitespace-insensitive diff confirmed the content is otherwise identical. `mergeable` became `MERGEABLE` immediately afterwards.
 
-**Worth a reviewer's attention:** this is a standing hazard, not a one-off. `main` receives synced copies of shared docs while feature branches keep editing them, so any shared doc touched on both sides will conflict the same way, and the symptom is a *missing* CI run rather than a failing one — which is far easier to miss.
+**2. The PR was a draft — and that was the actual blocker.** After the merge, with `mergeable=MERGEABLE`, a push still produced **no `pull_request` run**. The runs appeared the moment the PR was marked ready for review. So the conflict was a genuine problem worth fixing, but it was **not** what stopped the event; I had attributed it to the conflict before testing that, and the sequence disproves it. It is corrected here rather than left standing, because a future agent reading "a conflict blocks `pull_request` runs" would chase the wrong thing.
+
+The PR is consequently **no longer a draft**. It remains unmergeable in practice for the right reason: stages 5 to 8 have not run, and **T-009 is the human merge gate**.
+
+**Worth a reviewer's attention:** the shared-doc conflict is a standing hazard, not a one-off. `main` receives synced copies of shared docs while feature branches keep editing them, so any shared doc touched on both sides conflicts the same way — and the symptom is a *missing* CI run rather than a failing one, which is far easier to miss than a red check.
+
+### gitleaks needed one more read scope on pull_request events
+
+The secret-scan job passed on `push` and **failed on `pull_request`** with `403 Resource not accessible by integration`. The log named the call: `GET /repos/heinmindev/ycr/pulls/1/commits` — on a PR event the action enumerates the PR's commits, which `contents: read` does not cover.
+
+Fixed by granting that **one job** `pull-requests: read`, and nothing else. Deliberately `read`: the action would also post PR comments, which needs `write`, so `GITLEAKS_ENABLE_COMMENTS: 'false'` turns that off instead of widening the token. The job's own failure is the signal that matters, and a leaked secret should not be echoed into a PR comment in any case. The workflow default stays `contents: read`.
+
+This is the kind of thing only a real PR run surfaces — the push run had been green throughout.

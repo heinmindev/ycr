@@ -314,6 +314,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
+    # The one job that needs more than the workflow default, and only by one read scope.
+    # On a pull_request event gitleaks-action enumerates the PR's commits via
+    # GET /repos/{owner}/{repo}/pulls/{n}/commits, which `contents: read` does not cover; the
+    # job failed with "Resource not accessible by integration" (403) until this was added.
+    # Deliberately `read`: the action would also post PR comments, which needs write, and
+    # GITLEAKS_ENABLE_COMMENTS below turns that off rather than granting it. A finding fails
+    # the job, which is the signal that matters — a comment is a convenience.
+    permissions:
+      contents: read
+      pull-requests: read
+
     steps:
       - name: Check out
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -325,3 +336,6 @@ jobs:
         uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # No PR comments, so the job never needs write access. The job's own failure is the
+          # signal, and a leaked secret should not be echoed into a comment anyway.
+          GITLEAKS_ENABLE_COMMENTS: 'false'
