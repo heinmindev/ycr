@@ -80,11 +80,23 @@ overrides, no substituted services (`docs/21` §Tests):
 
 ## Security review
 
-Security reviewer: pending T-007a
-Threat IDs reviewed: pending security pass against `docs/prompts/security-agent.md` and `docs/18`
-Evidence: authentication/authorization, actor provenance, least-privilege SQL role, ledger immutability,
-gitleaks CI, and production-composition tests are listed above; the dedicated security review is still pending.
-Open Critical/High findings: F-006A-1 is security-relevant and remains open pending remediation; T-007a may add or refine findings.
+Security reviewer: codex
+Scope: claude-owned step 1 and steps 7-13 at `9106d532ee4a10729748e6040c1290f03dd6ec7c`.
+Threat categories reviewed from `docs/18-threat-model.md` and `docs/prompts/security-agent.md`:
+authentication, authorization, injection, replay/idempotency, sensitive-data exposure, auditability,
+secrets, rate limiting/API abuse, privilege escalation, and insider manipulation.
+
+Controls verified: no authentication handler is shipped in `src/`; production startup rejects unexpected
+schemes; endpoint permissions are explicit and tested; actor/audit fields are server-derived; station and
+ledger privileges are constrained in the SQL migration; ledger writes share the business transaction;
+the API does not expose EF entities; and CI runs gitleaks with read-only workflow permissions.
+
+| # | Severity | Finding | Evidence (file:line, test) | Recommended action | Status |
+|---|---|---|---|---|---|
+| S-007A-1 | High | The container-backed security tests do not exercise the required separate migrator identity: the fixture's alleged migrator connection is the SA connection. This makes the migration/admin credential boundary unverified and can hide excessive rights or accidental use of SA in the deployment path. | `tests/YCR.TestSupport/SqlServerTestContainer.cs:66-83`, `:94-104`, `:126-156`; the S22 tests consume `database.MigratorConnectionString` at `tests/YCR.Infrastructure.Tests/Persistence/DatabasePrivilegeTests.cs:158-186`. This is the same underlying defect as F-006A-1. | Create and use a dedicated `ycr_migrator` login/user in the fixture, reserve SA for provisioning, and assert the migration connection's login identity and intended rights. | Open |
+| S-007A-2 | Medium | CI and test migration bundles receive SQL passwords as process command-line arguments. The workflow generates credentials into `GITHUB_ENV` without explicit masking and invokes `efbundle --connection "...Password=..."`; a failing tool or process inspection can expose them outside the intended connection. | `.github/workflows/ci.yml:141-147`, `:160-167`; `tests/YCR.TestSupport/MigrationBundle.cs:117-126`, `:219-229` (only output redaction is provided, not process-argument protection). | Prefer a secret-safe connection mechanism supported by the migrator; at minimum call `::add-mask::` for each generated password before use, avoid diagnostic process listings, and keep redaction tests for all failure paths. | Open |
+
+Open Critical/High findings: S-007A-1 / F-006A-1. The security verdict is therefore Not ready.
 
 ## T-006a code review: claude scope
 
@@ -99,5 +111,6 @@ commits for steps 7-13 (`0375cce`, `aa0ae50`, `b6bf336`, `6dfb67a`, `63adc65`, `
 
 ## Verdict
 
-Not ready. F-005-1 and the blocking security boundary finding F-006A-1 must be addressed; T-007a must
-append its dedicated security review before the final verdict is revisited.
+Not ready. F-005-1 and the High security boundary finding F-006A-1/S-007A-1 must be addressed.
+S-007A-2 is an additional Medium secret-handling finding. T-008 must remediate and rerun the affected
+scenario/security evidence before human approval.

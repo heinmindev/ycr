@@ -1196,3 +1196,14 @@ pending T-008 remediation and the dedicated T-007a security pass.
 **Blockers / open questions:** none technical. OQ26, OQ27 and OQ28 remain open with Myanma Railways; C-11 proposes one more open question about Zawgyi input handling, for T-008 to raise and T-014 to absorb.
 
 **State of the branch:** builds and tests green; review and this entry committed and pushed; no uncommitted work. PR #1 remains open and unmerged — T-009 is the human gate.
+
+---
+
+## 2026-09-21 17:05 Asia/Rangoon — codex — T-007a
+
+**Stage:** 7a (SECURITY REVIEW, claude scope). **Commit reviewed:** `9106d532ee4a10729748e6040c1290f03dd6ec7c`.
+
+Reviewed the threat categories in `docs/18-threat-model.md` and `docs/prompts/security-agent.md` against
+claude's step 1 and steps 7-13 only. The security section of `review-codex.md` records the High
+credential-separation finding F-006A-1/S-007A-1 and a Medium CI/test process-argument secret-handling
+finding S-007A-2. No code was changed; the verdict is Not ready pending T-008 remediation and reruns.
