@@ -1115,3 +1115,27 @@ Its first real execution reported `error: 4`, `failed: 0`, exit code **8**. No t
 **The waiver is not a hole.** `--ignore-exit-code 8` also covers "the filter matched nothing *anywhere*", which would let the job pass having run nothing. A following step sums `executed` across the TRX reports and fails when it is zero. Verified against the real reports: it reads **4**.
 
 Both modes were then re-run locally with the exact CI commands — trunk-only: **4 passed, exit 0, no errored assemblies**; default: **147 passed, 0 skipped**.
+
+### Run URLs — all jobs green
+
+Final SHA **`8d28f40`**. Both events were proved separately, because they run different job sets.
+
+| Run | Event | SHA | Result |
+|---|---|---|---|
+| [35564512468](https://github.com/heinmindev/ycr/actions/runs/35564512468) | `push` on `feature/F-001` | `8d28f40` | **success** — build-and-test, api-smoke, secret-scan green; trunk-only correctly **skipped** |
+| [35564888120](https://github.com/heinmindev/ycr/actions/runs/35564888120) | `pull_request` → `main` ([PR #1](https://github.com/heinmindev/ycr/pull/1)) | `8d28f40` | **success** — **all four jobs green, trunk-only included** |
+| [35562606107](https://github.com/heinmindev/ycr/actions/runs/35562606107) | `push` on `feature/F-001` | `cfd6cc5` | success — the first green branch run, kept for the record |
+
+**Trunk-only job evidence** (run 35564888120): `total: 4, failed: 0, succeeded: 4, skipped: 0`, and the guard step reported `Trunk-only tests executed: 4`. The S19 ledger guard and the S23 fragmentation control, including its negative case, therefore ran against real containers in CI rather than only on this machine.
+
+**Branch-run evidence** (run 35564512468): `total: 147, failed: 0, succeeded: 147, skipped: 0` — identical to the local run, with the four trunk-only tests excluded by trait rather than skipped, so S15's "no skipped tests" holds.
+
+The two runs are complements: 147 + 4 = every test in the solution, each executed in exactly one of them.
+
+**Note on dispatch timing.** The `pull_request` run for `8d28f40` appeared several minutes after the `push` run, while `gh pr view` reported `mergeStateStatus=UNKNOWN`; it dispatched once that resolved to `CLEAN`. The same lag preceded the earlier "missing" runs, which is consistent with GitHub simply not dispatching a `pull_request` run until it has computed the merge ref — but, per hein's ruling, the earlier case stays recorded as **cause undetermined** rather than being asserted from this later observation.
+
+### Stage 4 is complete
+
+All thirteen plan steps are done, every VERIFY is resolved, and both CI events are green on `8d28f40`. T-004 moves to `review` with that SHA, per `TASKS.md` §Protocol item 10. It becomes `done` only when T-009 — the human approval and merge — is done.
+
+**PR #1 is left open and ready for review, and is not merged by an agent.** Stages 5 to 8 have not run: T-005 scenario tests, T-006 code review and T-007 security review must each be taken by an agent **other than claude** (§Protocol item 11), since claude implemented steps 1 and 7 to 13. Codex implemented steps 2 to 6 and the step-5 review fixes, so neither implementer can review their own work — the reviews need to be split by author, or taken by a third party.
