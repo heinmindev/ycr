@@ -1229,3 +1229,24 @@ finding S-007A-2. No code was changed; the verdict is Not ready pending T-008 re
 **Blockers / open questions:** Docker-backed integration tests are deferred to CI; OQ29 will be added for C-11 exactly as instructed.
 
 **State of the branch:** build and unit/architecture tests green; progress entry is uncommitted.
+
+
+---
+
+## 2026-09-21 19:55 Asia/Yangon — codex — T-008b
+
+**Stage:** 8b (C-1 checkpoint).
+**Commit:** `700500a` — UTC station timestamp enforcement.
+
+**Done this session:**
+- Added the ruled `Station.Create` non-zero-offset guard and a `+06:30` domain regression test.
+- Added `CK_Stations_CreatedAtUtc_Utc` to the unapplied station migration and a CI-only SQL Server insert-rejection test.
+- Documented the UTC invariant in `docs/20`, ADR-0018 Consequences, and `docs/07`.
+
+**Evidence:** `dotnet build YCR.sln --no-restore` passed 0 warnings / 0 errors; Domain tests passed 31/31; `StationModelTests` passed 2/2. The SQL Server constraint test is deferred to CI because Docker is unavailable locally.
+
+**Next step (exact):** Add the shared-kernel architecture rule and violating fixture for C-2.
+
+**Blockers / open questions:** none beyond the deferred Docker-backed C-1 integration assertion.
+
+**State of the branch:** committed at `700500a`; review status for C-1 now names the fixing SHA.
