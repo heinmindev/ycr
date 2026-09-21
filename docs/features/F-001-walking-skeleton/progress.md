@@ -1343,3 +1343,20 @@ finding S-007A-2. No code was changed; the verdict is Not ready pending T-008 re
 **Blockers / open questions:** none.
 
 **State of the branch:** committed at `2ec9708`; review status for C-6 now names the fixing SHA.
+
+---
+
+## 2026-09-21 21:45 Asia/Yangon — codex — T-008b
+
+**Stage:** 8b (C-7 checkpoint).
+**Commit:** `9e9f164` — reporting architecture rule cleanup.
+
+**Done this session:** Removed the impossible `IReportingReadContext` exclusion from `ReportingMustUseOnlyReadContext`; the real `I*DbContext` forbidden-context path remains enforced.
+
+**Evidence:** Architecture build passed with 0 warnings / 0 errors and the complete Architecture suite passed 13/13 with 0 skipped, including the reporting violation fixture.
+
+**Next step (exact):** Make `YcrDbContextFactory` require `YCR_DESIGN_TIME_CONNECTION`, add its unit tests, update all CI bundle-build steps, and complete the plan/database-design inventory (C-8).
+
+**Blockers / open questions:** none.
+
+**State of the branch:** committed at `9e9f164`; review status for C-7 now names the fixing SHA.
