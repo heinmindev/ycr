@@ -1381,3 +1381,20 @@ finding S-007A-2. No code was changed; the verdict is Not ready pending T-008 re
 **Blockers / open questions:** C-11 is documentation-only and will add the explicitly supplied OQ29; Docker-backed checks remain deferred to CI.
 
 **State of the branch:** committed at `0c3d0fd`; review status for C-8 now names the fixing SHA.
+
+---
+
+## 2026-09-21 22:35 Asia/Yangon — codex — T-008b
+
+**Stage:** 8b (C-11 checkpoint).
+**Commit:** `bde5542` — OQ29 documentation-only remediation.
+
+**Done this session:** Added the exact supplied OQ29 immediately after item 28 and before the engineering-decisions heading in `docs/19-open-questions.md`; no detector, normalization, or other C-11 code was added.
+
+**Evidence:** Verified the requested text and four-space continuation indentation, and verified uniform CRLF line endings (40 LF bytes, all 40 preceded by CR). No unit test applies because hein's ruling explicitly forbids implementing a guessed Zawgyi control.
+
+**Next step (exact):** Add the null guard and regression test for C-12, then update its review status.
+
+**Blockers / open questions:** OQ29 is intentionally open and tracked by T-014.
+
+**State of the branch:** committed at `bde5542`; review status for C-11 now names the fixing SHA.
