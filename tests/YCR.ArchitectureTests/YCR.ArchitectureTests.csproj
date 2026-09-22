@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    References every src assembly so the rules can scan them, and so the
+    Violations fixtures can plant deliberate breaches (docs/21 negative cases).
+    Library resolved by V5: NetArchTest.Rules last shipped 2021-05, so ArchUnitNET.
+  -->
+  <ItemGroup>
+    <PackageReference Include="TngTech.ArchUnitNET" />
+    <PackageReference Include="TngTech.ArchUnitNET.xUnitV3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/YCR.Domain/YCR.Domain.csproj" />
+    <ProjectReference Include="../../src/YCR.Application/YCR.Application.csproj" />
+    <ProjectReference Include="../../src/YCR.Infrastructure/YCR.Infrastructure.csproj" />
+    <ProjectReference Include="../../src/YCR.Api/YCR.Api.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+</Project>

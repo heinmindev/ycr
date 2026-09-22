@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Migration, ledger and privilege tests; credential varies per test (plan section Test fixture).
+    The exit-code-8 waiver was removed at plan step 7, its named step: this suite now runs
+    container-backed tests, so an empty run is a real failure again.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="../../src/YCR.Infrastructure/YCR.Infrastructure.csproj" />
+    <ProjectReference Include="../YCR.TestSupport/YCR.TestSupport.csproj" />
+  </ItemGroup>
+
+</Project>

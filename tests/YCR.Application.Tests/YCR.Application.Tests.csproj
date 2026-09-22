@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Runs against real SQL Server under the ycr_app credential (plan section Test fixture).
+    The exit-code-8 waiver was removed at plan step 10, its named step: this suite now has
+    tests, so an empty run is a real failure again.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="../../src/YCR.Application/YCR.Application.csproj" />
+    <ProjectReference Include="../YCR.TestSupport/YCR.TestSupport.csproj" />
+  </ItemGroup>
+
+</Project>
