@@ -23,6 +23,7 @@
 | [0019](ADR-0019-operation-owned-business-dates.md) | Operation-owned business dates | Accepted |
 | [0020](ADR-0020-f001-authentication-scope-and-test-auth-handler.md) | F-001 authentication scope and the test authentication handler | Accepted |
 | [0021](ADR-0021-audit-event-record-shape.md) | Audit event record shape | Accepted |
+| [0022](ADR-0022-migrator-db-owner-role.md) | Migrator `db_owner` role | Accepted |
 
 Rules for agents:
 - **Accepted** ADRs are binding. Do not work against one; propose a new ADR that supersedes it.
