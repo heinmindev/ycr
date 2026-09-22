@@ -1435,3 +1435,18 @@ finding S-007A-2. No code was changed; the verdict is Not ready pending T-008 re
 **Blockers / open questions:** CI is the remaining external verification gate; OQ29 remains open under T-014.
 
 **State of the branch:** committed locally; clean; ready to push.
+
+---
+
+## 2026-09-22 00:10 Asia/Yangon — codex — T-008b
+
+**Stage:** 8b (C-8 CI runtime inheritance fixed; final CI pending).
+**Commit:** `3389351` — inherit `YCR_DESIGN_TIME_CONNECTION` at job scope and add workflow regression coverage.
+
+**Done this session:** Added the design-time connection to every CI job that builds or executes the migration bundle. Added a test that asserts the job-level environment is present for build-and-test, API smoke, and trunk-only jobs. The focused test passes 3/3.
+
+**Evidence:** The prior push failed because the prebuilt bundle process did not inherit the step-level variable. The job-level environment now covers both bundle construction and test execution. Docker CLI is still unavailable in this shell despite Docker Desktop being open, so CI remains the Docker-backed integration gate.
+
+**Next step (exact):** Update this checkpoint's review status, push `feature/F-001`, wait for the green push CI run, then record its URL and final SHA in T-008b's Notes on `main` before setting the task to `review`.
+
+**Blockers / open questions:** OQ29 remains open under T-014; no new ruling needed.
