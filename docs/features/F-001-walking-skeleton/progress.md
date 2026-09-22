@@ -1653,3 +1653,35 @@ finding S-007A-2. No code was changed; the verdict is Not ready pending T-008 re
 **Blockers / open questions:** none.
 
 **State of the branch:** committed; build clean.
+
+---
+
+## 2026-09-22 13:50 Asia/Yangon — claude — T-008a
+
+**Stage:** 8a, finding 7 of 8 — **test renames to the amended `docs/20` §2 rule** complete.
+**Commit:** `132662c` (`test(F-001): rename tests that omitted a meaningful state segment`).
+
+**Done this session:** audited all 90 of claude's test method names against the amended rule (`Method_State_ExpectedResult`, or `Method_ExpectedResult` only where there is no meaningful state) and renamed the six that violated it:
+
+| Before | After |
+|---|---|
+| `List_ReturnsPagedEnvelope` | `List_WithTwoStations_ReturnsPagedEnvelope` |
+| `Get_ReturnsResponseRecordNotEntity` | `Get_WithKnownId_ReturnsResponseRecordNotEntity` |
+| `GetStation_ProjectsAndFiltersInSql` | `GetStation_WithSeededStation_ProjectsAndFiltersInSql` |
+| `Handle_CountsAndPagesInSql` | `Handle_WithFiveStations_CountsAndPagesInSql` |
+| `Handle_SelectsOnlyTheProjectedColumns` | `Handle_WithOneStation_SelectsOnlyTheProjectedColumns` |
+| `Deactivate_WhenActive_Returns204_AndWhenInactive_Returns422` | `Deactivate_WhenActiveThenRepeated_Returns204Then422` |
+
+Each of the first five seeds a state the name never mentioned — `SeedAsync("AAA".."EEE")`, one station, two stations — while their siblings (`Handle_WithThreeStations_ReturnsPagedEnvelope`, `Handle_WithKnownId_ReturnsDtoNotEntity`) already named theirs. The last packed two state/result pairs into one name.
+
+**Deliberately not renamed:** `Post_Anonymous_Returns401`, `Get_Anonymous_Returns401`, `Health_Live_Anonymous_Returns200` and their kind already carry the state in the middle segment — "Anonymous" *is* the state — so they conform as written; adding "When" would be restyling, not fixing. The remaining two-segment names (`AddApplication_RegistersHandlersAsScoped`, `PinnedImage_CarriesBothATagAndADigest`, `ErrorResponses_AreProblemDetailsJson`, …) have no meaningful setup to name, which is exactly the case the amendment permits.
+
+**One thing I had to undo:** the rename initially rewrote a test name inside `review-codex.md`. That file records what codex reviewed **at `9106d53`**, so changing it would have made the record inaccurate about what existed then. Restored; only `plan.md`'s test-plan reference was updated, since that describes the current suite. The Status column of `review-codex.md` is the one part of that file this task does change.
+
+**Evidence:** `YCR.Api.Tests` **39/39**, `YCR.Application.Tests` **37/37**, 0 skipped. Build 0 warnings / 0 errors.
+
+**Next step (exact):** finding 8 — stage-8 documentation per `plan.md` §Steps: `docs/07`, `docs/08`, `docs/20` §3's audit example, the `docs/20` §6 migration-naming correction, and the glossary contribution listed here for T-015 rather than edited into `docs/glossary.md`.
+
+**Blockers / open questions:** none.
+
+**State of the branch:** committed; build clean; both renamed suites green.
