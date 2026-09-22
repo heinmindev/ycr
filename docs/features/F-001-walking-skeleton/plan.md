@@ -307,7 +307,7 @@ Test names follow `docs/20` §2's `Method_State_ExpectedResult`. Every spec scen
 | `Post_WithoutStationsManage_Returns403` (including a caller holding only `stations.read`) | S12 |
 | `Post_WithInvalidBody_Returns400ProblemDetails` — one case per S9 item | S9 |
 | `Deactivate_WhenActive_Returns204` · `_WhenInactive_Returns422` | S2, S7 |
-| `Get_WithUnknownId_Returns404` · `Get_ReturnsResponseRecordNotEntity` | S8, S4 |
+| `Get_WithUnknownId_Returns404` · `Get_WithKnownId_ReturnsResponseRecordNotEntity` | S8, S4 |
 | `List_WithPageSizeAbove200_Returns400` | S10 |
 | `Health_Live_Anonymous_Returns200` · `Health_Ready_ReportsDatabase` | S24 |
 | `UnhandledException_Returns500WithoutInternalDetail` | S25 |

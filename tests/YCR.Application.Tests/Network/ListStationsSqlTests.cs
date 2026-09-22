@@ -27,7 +27,7 @@ public sealed class ListStationsSqlTests(SqlServerFixture fixture) : NetworkHand
     protected override string DatabasePrefix => "list_stations_sql";
 
     [Fact]
-    public async Task Handle_CountsAndPagesInSql()
+    public async Task Handle_WithFiveStations_CountsAndPagesInSql()
     {
         await SeedAsync("AAA", "BBB", "CCC", "DDD", "EEE");
 
@@ -54,7 +54,7 @@ public sealed class ListStationsSqlTests(SqlServerFixture fixture) : NetworkHand
     }
 
     [Fact]
-    public async Task Handle_SelectsOnlyTheProjectedColumns()
+    public async Task Handle_WithOneStation_SelectsOnlyTheProjectedColumns()
     {
         await SeedAsync("AAA");
 
@@ -73,7 +73,7 @@ public sealed class ListStationsSqlTests(SqlServerFixture fixture) : NetworkHand
     }
 
     [Fact]
-    public async Task GetStation_ProjectsAndFiltersInSql()
+    public async Task GetStation_WithSeededStation_ProjectsAndFiltersInSql()
     {
         var stationId = await SeedAsync("YGN");
 

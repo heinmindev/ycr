@@ -30,7 +30,7 @@ public sealed class StationEndpointsTests(SqlServerFixture fixture) : ApiTestBas
     }
 
     [Fact]
-    public async Task Get_ReturnsResponseRecordNotEntity()
+    public async Task Get_WithKnownId_ReturnsResponseRecordNotEntity()
     {
         using var client = Api.CreateManagerClient();
         var id = await CreateAsync(client, "YGN", "Yangon Central", "ရန်ကုန်ဘူတာကြီး");
@@ -54,7 +54,7 @@ public sealed class StationEndpointsTests(SqlServerFixture fixture) : ApiTestBas
     }
 
     [Fact]
-    public async Task Deactivate_WhenActive_Returns204_AndWhenInactive_Returns422()
+    public async Task Deactivate_WhenActiveThenRepeated_Returns204Then422()
     {
         using var client = Api.CreateManagerClient();
         var id = await CreateAsync(client, "BGO", "Bago", "ပဲခူး");
@@ -94,7 +94,7 @@ public sealed class StationEndpointsTests(SqlServerFixture fixture) : ApiTestBas
     }
 
     [Fact]
-    public async Task List_ReturnsPagedEnvelope()
+    public async Task List_WithTwoStations_ReturnsPagedEnvelope()
     {
         using var client = Api.CreateManagerClient();
         await CreateAsync(client, "AAA", "Alpha", "မြန်မာ");
