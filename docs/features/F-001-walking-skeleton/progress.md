@@ -1450,3 +1450,32 @@ finding S-007A-2. No code was changed; the verdict is Not ready pending T-008 re
 **Next step (exact):** Update this checkpoint's review status, push `feature/F-001`, wait for the green push CI run, then record its URL and final SHA in T-008b's Notes on `main` before setting the task to `review`.
 
 **Blockers / open questions:** OQ29 remains open under T-014; no new ruling needed.
+
+---
+
+## 2026-09-22 08:45 Asia/Yangon — claude — T-006b (re-review)
+
+**Stage:** 6b re-run, under `TASKS.md` §Protocol item 10, after T-008b's remediation.
+**Commit:** this entry and the `# Re-review at d98bf12` section appended to `review-claude.md`, on `feature/F-001`.
+
+**Done this session:**
+- Re-reviewed **`d98bf12`** against the `9106d53` baseline, delta scope `git diff 9106d53..d98bf12`, **codex's changes only**. Worked read-only in the F-001 worktree; no source file was changed.
+- Verified each of C-1..C-8, C-11, C-12 against **hein's rulings in T-008b's Notes**, not against my original recommendations where the two differed.
+- Appended the re-review section to `review-claude.md`. **The original review is untouched** — 61 insertions, 0 deletions.
+
+**Ledger note:** T-008b was still `doing` when this ran, with no final SHA or CI URL in its Notes; `d98bf12` was taken as the final SHA on the human's instruction.
+
+**Evidence:** `dotnet build YCR.sln` 0 warnings / 0 errors. Domain **32/32**, Architecture **13/13**, and the four affected Infrastructure classes **13/13 with `YCR_DESIGN_TIME_CONNECTION` set** — all 0 skipped. CI at `d98bf12`, numbers read from the run log: pull_request [35675644784](https://github.com/heinmindev/ycr/actions/runs/35675644784) all four jobs success, Build and test **158/158/0 skipped**, Trunk-only **4/4/0 skipped**. 147 + 11 new tests = 158 reconciles exactly, so nothing was dropped or skipped.
+
+**Verdict: Not ready.** **C-1..C-8, C-11, C-12 all Verified fixed** — careful work, with behavioural tests rather than text matches, and C-5's assertion stronger than I asked for. But one **new High finding, R-1**, blocks:
+
+- **R-1 (High)** — the C-8 fix breaks `dotnet test YCR.sln` on any machine that builds the migration bundle locally. `YCR_DESIGN_TIME_CONNECTION` was made mandatory with no default but supplied only to the CI workflow; the fixture's lazy `dotnet ef migrations bundle` child process inherits nothing, so all four `MigrationBundleTests` fail. Reproduced deterministically both ways: **4 failed without the variable, 13/13 with it.** CI cannot catch this because it prebuilds the bundle and hands the fixture `YCR_MIGRATION_BUNDLE`, taking the other branch. Fix: set the variable on the `ProcessStartInfo` in `MigrationBundle.EnsureBuiltAsync`.
+- **R-2 (Low)** — job-level plus step-level `env:` in `ci.yml` is redundant; the same literal string appears six times.
+- **R-3 (Low)** — `CiWorkflowTests` couples its assertion to per-job timeout values and YAML key order, and sits in `Persistence/` though it tests a workflow file.
+- **R-4 (Low)** — the CHECK constraint is in the migration but not in the EF model, so model diffing cannot detect its removal. Codex followed the ruling as written; needs a tech-lead call.
+
+**Next step (exact):** **T-008b reopens for R-1** (R-2, R-3 travel with it). R-4 needs a hein ruling on whether the constraint belongs in `StationConfiguration`. Then T-006b and T-007b re-run against the next SHA. **T-008a remains blocked** — its row depends on T-008b, which is not done.
+
+**Blockers / open questions:** R-1 is a blocking engineering defect for codex. R-4 needs a tech-lead decision. No business OQ added; OQ29 stays open under T-014.
+
+**State of the branch:** review and this entry committed and pushed; no source file changed by this task.
