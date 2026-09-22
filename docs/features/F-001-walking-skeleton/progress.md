@@ -1531,3 +1531,29 @@ finding S-007A-2. No code was changed; the verdict is Not ready pending T-008 re
 **Blockers / open questions:** none.
 
 **State of the branch:** committed; build and the affected suite green.
+
+---
+
+## 2026-09-22 11:10 Asia/Yangon — claude — T-008a
+
+**Stage:** 8a, finding 2 of 8 — **R-1 (High)** complete.
+**Commit:** `0514584` (`fix(F-001): supply the design-time connection to the bundle child process`).
+
+**Done this session:**
+- `MigrationBundle.CreateStartInfo(workingDirectory, fileName, arguments, inheritedDesignTimeConnection)` builds the child `ProcessStartInfo` and sets `YCR_DESIGN_TIME_CONNECTION` to an inert placeholder **only when the parent has none**. A real value is never overridden.
+- `YcrDbContextFactory.DesignTimeConnectionVariable` is now `public`, so the fixture uses the same constant instead of repeating the literal and letting the two drift.
+- The placeholder is `Server=ycr-design-time-placeholder;Database=YcrDesignTime;Trusted_Connection=True` — parseable so EF can construct a context for model discovery, unroutable, carrying no credential, and deliberately **without** `TrustServerCertificate`, so a string that is never opened does not model a disabled certificate check for anyone who copies it.
+- Added `tests/YCR.Infrastructure.Tests/TestSupport/MigrationBundleStartInfoTests.cs` — 6 tests, no container, no Docker, no `dotnet ef`.
+- `docs/07` now states that `YCR_DESIGN_TIME_CONNECTION` must be set before `dotnet ef migrations add`, that there is no default, and that the fixture supplies its own placeholder so `dotnet test YCR.sln` needs no setup.
+
+**Evidence — proved both ways, which is what the finding asked for:**
+- With the variable set: the four affected classes pass 13/13, unchanged.
+- **With both `YCR_DESIGN_TIME_CONNECTION` and `YCR_MIGRATION_BUNDLE` unset** — the clean-clone path that was broken — the whole `YCR.Infrastructure.Tests` suite passes **50/50, 0 skipped** (1 m 06 s), including every container-backed test.
+
+**Design note:** the inherited value is a parameter rather than an environment read inside the method. That keeps the test CI-independent and, more importantly, stops it mutating a process-global variable — which is a real race when xUnit runs collections in parallel, and was called out in R-1's own recommendation.
+
+**Next step (exact):** finding 3 — **R-4 and the ledger UTC check**: `HasCheckConstraint` for `CK_Stations_CreatedAtUtc_Utc` and `CK_AuditEvents_OccurredAtUtc_Utc`, the ledger constraint added to the unapplied `Audit_CreateAuditEventsLedger` migration, snapshot and Designer files brought in line, model assertions plus a database-rejects test for the ledger, and a `dotnet ef migrations has-pending-model-changes` CI step confirmed to pass locally.
+
+**Blockers / open questions:** none.
+
+**State of the branch:** committed; build clean; the Infrastructure suite green on the previously broken path.
