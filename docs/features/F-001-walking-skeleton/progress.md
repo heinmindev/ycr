@@ -1685,3 +1685,41 @@ Each of the first five seeds a state the name never mentioned — `SeedAsync("AA
 **Blockers / open questions:** none.
 
 **State of the branch:** committed; build clean; both renamed suites green.
+
+---
+
+## 2026-09-22 14:25 Asia/Yangon — claude — T-008a
+
+**Stage:** 8a, finding 8 of 8 — **stage-8 documentation** complete.
+**Commits:** `83e4272` (`docs(F-001): stage-8 documentation`) and this checkpoint.
+
+**Done this session:**
+- **`docs/07`** gains a `## F-001 tables, constraints and indexes` section: the full `network.Stations` column table, and a constraint/index table for both `network.Stations` and `audit.AuditEvents` giving the definition **and the reason each object exists**. This closes the `docs/21` §Data item "constraints and indexes deliberate and documented in `docs/07`", open since step 5.
+- **`docs/08`** gains `## Implemented in F-001 — stations`: the four station endpoints and the two health probes, with request and success shapes, every error code, the permission each requires, and the ADR-0004 status mapping. It states plainly that `PATCH /stations` is deferred by spec §9 and that the field rules behind these contracts are provisional under OQ26–OQ28 until T-014.
+- **`docs/20` §1** gains the `I<Module>DbContext` row (plan P10) and a row for the audit subject constants and snapshot records.
+- **`docs/20` §3**'s audit example corrected to the shape hein ruled: subject and payload separate, and the payload an explicit `StationAuditSnapshot`, never the aggregate.
+- **`docs/20` §6**'s migration naming corrected from `YYYYMMDD_<Module>_<Change>` to `yyyyMMddHHmmss_<Module>_<Change>`, with the reason recorded inline so the edit is traceable rather than unexplained.
+- **Status columns updated.** `review-codex.md`: F-005-1 → `c75bb2f`, F-006A-1 and S-007A-1 → `23ce780`, S-007A-2 → `f802526`, F-006A-2 → `350a21d`. **No finding is left `Open`.** `review-claude.md`'s re-review table had no Status column; one was added, with R-1 → `0514584`, R-2 and R-3 → `350a21d`, R-4 → `c117dd2`.
+
+**Every factual claim in `docs/08` was checked against the code rather than written from the spec:** `/openapi/v1.json` is Development-only (`Program.cs:60-65`), `Common.ValidationFailed` is the filter's code (`ValidationFilter.cs:44`), and the `Location` header shape is `/api/v1/stations/{id}` (`StationEndpoints.cs:37`).
+
+### Glossary contribution for T-015 — terms F-001 introduces
+
+**`docs/glossary.md` is not edited on this branch**: T-015 owns that file on `task/T-015-glossary`, and editing it here would collide with the remediation that task still has to do. The terms F-001 introduces are listed here for T-015 to absorb. My T-017 review already raised the first two as finding **G-3**.
+
+| Canonical English | Meaning | Source |
+|---|---|---|
+| `BilingualName` | The owned value object holding a station's English and Myanmar names. Its two columns are `NameEn` and `NameMy` | `src/YCR.Domain/Network/BilingualName.cs`; `docs/20` §3; spec R4 |
+| `NameEn` / `NameMy` | The English and Myanmar-Unicode name columns of `network.Stations`. `NameMy` is the field OQ29's Zawgyi question applies to | `docs/07`; spec R4; `docs/19` OQ29 |
+| `AuditEvent` | The Infrastructure entity mapped onto the `audit.AuditEvents` ledger table; internal on purpose, so nothing above Infrastructure can construct an audit row outside `IAuditWriter` | ADR-0021; `src/YCR.Infrastructure/Audit/AuditEvent.cs` |
+| `IAuditSnapshot` | Marker interface for audit state payloads. Implementations must be records in `YCR.Application.<Module>`, enforced by an architecture test | ADR-0021; hein's ruling, 2026-09-20 |
+| `StationAuditSnapshot` | The `Station` payload written into `BeforeJson` / `AfterJson` — four fields, never the aggregate | `src/YCR.Application/Network/StationAuditSnapshot.cs` |
+| `PrintCount` | Already in ADR-0013 and `docs/11`, and **distinct from `PrintSequence`**: a counter of prints, not the value signed into the QR. T-017 finding G-2 records that the glossary currently lists "Print count" as a forbidden synonym of `PrintSequence` | ADR-0013:55; `docs/11`:31 |
+| Migration bundle | The self-contained executable `dotnet ef migrations bundle` produces; the deployable that applies schema, chosen over a `DbMigrator` project (plan P1) | plan P1, V6 |
+| `ycr_migrator` / `ycr_app` | The two database logins. The migrator owns schema through `db_owner`; the application login holds only the `ycr_app` role. `ycr_app_user` is the application's **database user**, named apart from the role because SQL Server will not let a role and a user share a name | ADR-0017 item 3; `docker/sqlserver/init-principals.sql` |
+
+**Next step (exact):** run the whole suite locally with Docker, push `feature/F-001`, obtain a green CI run with 0 skipped, then record the final SHA, the CI URLs and the test counts in T-008a's Notes and set the row to `review`.
+
+**Blockers / open questions:** none. OQ29 stays open under T-014.
+
+**State of the branch:** committed; build clean.
