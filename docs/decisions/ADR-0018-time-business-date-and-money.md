@@ -61,6 +61,9 @@ Negative:
 - Reports must distinguish `BusinessDate` from operational timestamps.
 - Operation-owned business-date columns are written atomically with their operation according to ADR-0019.
 
+Implementation consequence (hein, 2026-09-21): factories for `*Utc` fields reject non-zero
+offsets, and SQL Server columns created for those fields carry a matching UTC check constraint.
+
 ## Partial supersession — 2026-09-19
 
 The `Business date` persistence decision in this ADR is superseded by ADR-0019. The time and money sections remain in force.

@@ -1,0 +1,22 @@
+<Project>
+
+  <!--
+    Solution-wide build settings. Plan F-001 decision E2.
+    Every project inherits these; no project overrides TargetFramework.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <!-- E2: a warning that CI tolerates is a warning nobody fixes. -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+
+    <!-- Nothing here is published to a package feed. -->
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+</Project>

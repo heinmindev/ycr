@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Aggregates, value objects and the Result/Error contract (ADR-0004). References nothing. -->
+
+</Project>

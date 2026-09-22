@@ -10,6 +10,8 @@ Binding for humans and agents. It implements ADR-0012 to ADR-0018 and preserves 
 | Module errors | `src/YCR.Domain/<Module>/<Module>Errors.cs` | ″ |
 | Use case (command or query) | `src/YCR.Application/<Module>/<UseCase>/` | `YCR.Application.<Module>.<UseCase>` |
 | Public module API for other modules | `src/YCR.Application/<Module>/Contracts/` | `YCR.Application.<Module>.Contracts` |
+| Module persistence interface (ADR-0012 item 2) | `src/YCR.Application/<Module>/I<Module>DbContext.cs` | `YCR.Application.<Module>` |
+| Audit subject constants and snapshot records (ADR-0021) | `src/YCR.Application/<Module>/` | ″ |
 | EF configuration | `src/YCR.Infrastructure/Persistence/Configurations/<Module>/` | |
 | Endpoints | `src/YCR.Api/Endpoints/<Module>/<Resource>Endpoints.cs` | `YCR.Api.Endpoints.<Module>` |
 | Permissions | `src/YCR.Application/Common/Authorization/Permissions.cs` | |
@@ -34,6 +36,11 @@ Modules: `Identity, Network, Timetable, Fare, Ticketing, Payments, Operations, R
 | DB table | plural PascalCase | `network.Stations` |
 | UTC column | `<Name>Utc` | `IssuedAtUtc` |
 | Test method | `Method_State_ExpectedResult` | `Create_WithDuplicateCode_ReturnsConflict` |
+
+`*Utc` fields are required to contain UTC values (`DateTimeOffset.Offset == TimeSpan.Zero`).
+Domain factories reject non-UTC offsets, and SQL Server persistence adds a matching check
+constraint where the column is created. Test methods may use `Method_ExpectedResult` when there is
+no meaningful setup state; use `Method_State_ExpectedResult` when a meaningful state exists.
 
 Use the vocabulary in `docs/glossary.md` (to be created). Don't introduce synonyms.
 
@@ -101,7 +108,15 @@ public sealed class CreateStationHandler(
 
         var station = Station.Create(ids.New(), code.Value, name.Value, clock.GetUtcNow());
         db.Stations.Add(station);
-        audit.Record("Network.StationCreated", station, before: null, after: station);
+        // Subject and payload are separate, and the payload is an explicit snapshot record, never
+        // the aggregate: an audit row cannot be corrected, so it must not carry a shape that will
+        // grow fields nobody reviewed (ADR-0021; hein's ruling, 2026-09-20).
+        audit.Record(
+            "Network.StationCreated",
+            NetworkAuditSubjects.Station,
+            station.Id,
+            before: null,
+            after: StationAuditSnapshot.From(station));
 
         await db.SaveChangesAsync(ct);   // unique index still guards the race → mapped to Conflict
         return station.Id;
@@ -186,7 +201,7 @@ public sealed class StationConfiguration : IEntityTypeConfiguration<Station>
 
 ## 6. Data and persistence
 
-- Migrations: one per change, named `YYYYMMDD_<Module>_<Change>`, reviewed per `workflows/04-database-change.md`. Never edit a migration that has already been applied.
+- Migrations: one per change, named `yyyyMMddHHmmss_<Module>_<Change>`, reviewed per `workflows/04-database-change.md`. Never edit a migration that has already been applied. (Corrected from `YYYYMMDD_<Module>_<Change>` at F-001 stage 8: EF Core generates the full timestamp, a date-only prefix collides whenever two migrations land on one day, and EF's ordering depends on the time part. The `_<Module>_<Change>` half is what we choose and what the rule is really about.)
 - Money: `decimal(18,2)` + `char(3)` currency (ADR-0018). Dates: `date`. Instants: `datetimeoffset(3)` with UTC values for `*Utc` fields.
 - Text: `nvarchar` for anything a person may type or read, including Myanmar Unicode. Never store Zawgyi.
 - Concurrency: aggregates that can be changed at the same time (Ticket, CashierSession, Refund) have a `rowversion` concurrency token.

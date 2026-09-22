@@ -1,0 +1,87 @@
+### YCR API — every endpoint in F-001.
+###
+### READ THIS FIRST — why most of these return 401.
+###
+### ADR-0020 ships the authorization pipeline in F-001 but **no authentication handler**. The
+### only handler in the repository lives in tests/YCR.Api.Tests and is registered exclusively
+### through WebApplicationFactory.ConfigureTestServices; spec S21a asserts no
+### AuthenticationHandler<> subtype exists anywhere in src/, and S21b has startup refuse an
+### unexpected scheme outside the Testing environment.
+###
+### So, against a locally running API:
+###   - /health/live and /health/ready answer 200. They are the only anonymous endpoints
+###     (docs/20 §4 requires an explicit .AllowAnonymous() with a reason).
+###   - every /api/v1/stations request answers **401**. There is no credential to send and
+###     **no dev-auth mechanism is provided**, deliberately: a "just for local development"
+###     bypass is exactly the kind of thing that survives into a deployment.
+###
+### The 2xx/4xx behaviours below are proven by tests/YCR.Api.Tests, which host the same
+### Program with the test handler attached. This file documents the surface and lets you
+### confirm the 401s are real; it is not a way to work around them. Real credentials arrive
+### with the ADR-0016 token feature that ADR-0020 defers.
+###
+### OpenAPI document (Development environment only): {{host}}/openapi/v1.json
+
+@host = http://localhost:5080
+@stationId = 00000000-0000-0000-0000-000000000000
+
+### Liveness probe — expect 200. Anonymous.
+GET {{host}}/health/live
+
+### Readiness probe — expect 200, or 503 when the database is unreachable. Anonymous.
+GET {{host}}/health/ready
+
+### OpenAPI document — expect 200 in Development, 404 otherwise.
+### Not served outside Development: the document maps every route and the permission each one
+### requires, which a deployed instance has no reason to hand out.
+GET {{host}}/openapi/v1.json
+
+### Create a station — expect 401 (no authentication handler; requires stations.manage).
+### With a credential: 201 + Location, or 400 / 409 Network.StationCodeAlreadyExists.
+POST {{host}}/api/v1/stations
+Content-Type: application/json
+
+{
+  "code": "INS",
+  "nameEn": "Insein",
+  "nameMy": "အင်းစိန်"
+}
+
+### Create a station with an invalid code — expect 401 here; 400 Network.InvalidStationCode
+### with a credential. The code rule (R3) lives only in StationCode and is provisional until
+### OQ26 is answered.
+POST {{host}}/api/v1/stations
+Content-Type: application/json
+
+{
+  "code": "in-s",
+  "nameEn": "Insein",
+  "nameMy": "အင်းစိန်"
+}
+
+### Create a station with a missing field — expect 401 here; 400 Common.ValidationFailed with
+### a credential. Rejected by the endpoint filter before the handler runs.
+POST {{host}}/api/v1/stations
+Content-Type: application/json
+
+{
+  "code": "INS",
+  "nameEn": "Insein"
+}
+
+### List stations — expect 401 (requires stations.read). With a credential: 200 with
+### { items, page, pageSize, totalCount }, ordered by code.
+GET {{host}}/api/v1/stations?page=1&pageSize=50
+
+### List stations above the page-size cap — expect 401 here; 400 Network.InvalidPageRequest
+### with a credential. docs/20 §4 caps pageSize at 200.
+GET {{host}}/api/v1/stations?page=1&pageSize=201
+
+### Read one station — expect 401 (requires stations.read). With a credential: 200, or
+### 404 Network.StationNotFound.
+GET {{host}}/api/v1/stations/{{stationId}}
+
+### Deactivate a station — expect 401 (requires stations.manage). With a credential: 204,
+### 404 Network.StationNotFound, or 422 Network.StationAlreadyInactive.
+### The row is retained, so the code is never reused (R3).
+POST {{host}}/api/v1/stations/{{stationId}}/deactivate

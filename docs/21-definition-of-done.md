@@ -17,6 +17,7 @@ A feature is done only when **every** item is true. Reviewers and review agents 
 - [ ] Domain tests for every invariant and state transition touched.
 - [ ] Handler integration tests against SQL Server for the happy path and each error code.
 - [ ] API tests for 401, 403 (wrong permission) and 400 validation.
+- [ ] **At least one test runs the unmodified production composition** — no `ConfigureTestServices` overrides, no substituted services. A suite where every test replaces part of the wiring is blind to whatever the replacement hides. F-001's `MissingSchemeTests` is the reference: every other API test registers the test authentication handler, and that is exactly why none of them could see that an unauthenticated request returned `500` instead of `401` in the shape that actually ships.
 - [ ] Financial or retryable commands have idempotency and concurrency tests (duplicate request, parallel request).
 - [ ] `dotnet test` is fully green, with no skipped tests added.
 
