@@ -1585,3 +1585,27 @@ finding S-007A-2. No code was changed; the verdict is Not ready pending T-008 re
 **Blockers / open questions:** none.
 
 **State of the branch:** committed; build clean; Infrastructure suite green.
+
+---
+
+## 2026-09-22 12:30 Asia/Yangon — claude — T-008a
+
+**Stage:** 8a, finding 4 of 8 — **S-007A-2 (Medium)** complete, **both halves**.
+**Commit:** `f802526` (`fix(F-001): keep migrator passwords out of process command lines`).
+
+**Done this session:**
+- **Masking.** The `Generate credentials` step now assigns each password to a shell variable, emits `::add-mask::` for all three, and only then writes them to `$GITHUB_ENV`. Masking in the generating step is what matters: a mask applies to everything the runner logs from that point on, so masking after first use would be too late.
+- **The `--connection` question — answered empirically, and adopted.** `efbundle --help` states the connection "[d]efaults to the one specified in AddDbContext or OnConfiguring". I probed it directly: ran a built bundle with **no** `--connection` and `YCR_DESIGN_TIME_CONNECTION=Server=ycr-probe-host-12345;…`, and it attempted to connect to exactly that host. So the bundle resolves its target through `YcrDbContextFactory` at run time, and the environment route works.
+- Adopted in **both** places the finding named:
+  - **CI:** the apply step sets a step-scoped `YCR_DESIGN_TIME_CONNECTION` carrying the migrator credential and invokes `"$RUNNER_TEMP/efbundle"` with no arguments. The job-level value stays the inert placeholder that the bundle *build* uses.
+  - **`MigrationBundle.ApplyAsync`:** passes the target as `designTimeConnectionOverride` and no longer passes `["--connection", connectionString]`.
+- `CreateStartInfo` gained the override parameter. Precedence is explicit: an override always wins, otherwise a placeholder is supplied only when nothing is inherited, otherwise the parent's value is left alone. Applying to a particular database is an argument of the operation, not an ambient default, so it is right for it to win.
+- `Redact` is kept. The bundle still prints the connection it used on some failure paths regardless of how it was supplied, so removing the redaction would trade one exposure for another.
+
+**Evidence:** `YCR.Infrastructure.Tests` **55/55 passed, 0 skipped** with both `YCR_DESIGN_TIME_CONNECTION` and `YCR_MIGRATION_BUNDLE` unset — which exercises the new environment route through every container-backed test, since they all provision through `ApplyAsync`. New test `CreateStartInfo_WithAnOverride_UsesItWhateverTheParentHas` asserts the override wins over both an absent and an inherited value **and** that the argument list is empty, so the password cannot be in it. Build 0 warnings / 0 errors. The CI half is confirmed by the CI run recorded at the end of this task.
+
+**Next step (exact):** finding 5 — **F-005-1**: the missing S9 cases at API and handler level (blank `""`, an exact 11-character code, an embedded space), each asserting `400` with `errorCode` and `traceId`.
+
+**Blockers / open questions:** none.
+
+**State of the branch:** committed; build clean; Infrastructure suite green.
