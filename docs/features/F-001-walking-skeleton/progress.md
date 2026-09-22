@@ -1508,3 +1508,26 @@ finding S-007A-2. No code was changed; the verdict is Not ready pending T-008 re
 **Blockers / open questions:** none from security. R-1 (correctness) and R-4 (tech-lead ruling on whether the CHECK constraint belongs in the EF model) are recorded in the code re-review.
 
 **State of the branch:** review and this entry committed and pushed; no source file changed by this task.
+
+---
+
+## 2026-09-22 10:45 Asia/Yangon — claude — T-008a
+
+**Stage:** 8a, finding 1 of 8 — **F-006A-1 / S-007A-1 (High)** complete.
+**Commit:** `23ce780` (`fix(F-001): give the test fixture a real ycr_migrator credential`).
+
+**Done this session:**
+- `SqlServerTestContainer` now generates a third password and creates the `ycr_migrator` **login** in `StartAsync` beside `ycr_app`.
+- `CreateEmptyDatabaseAsync` provisions in the order `init-principals.sql` uses: SA creates the database and the migrator's per-database user with `db_owner`; **everything after that runs as `ycr_migrator`**, including creating `ycr_app_user`. SA is now reserved for `CREATE DATABASE` and login provisioning only.
+- The public `ConnectionStringFor(string)` became the private `SaConnectionStringFor(string)`; nothing outside the class used it. `MigratorConnectionString` is built from the `ycr_migrator` login, and `Redact` strips the third password too.
+- Added `DatabasePrivilegeTests.MigratorCredential_ConnectedToATestDatabase_IsYcrMigratorAndNotSysadmin`.
+
+**Evidence:** `dotnet build YCR.sln` 0 warnings / 0 errors. `DatabasePrivilegeTests` **12/12 passed, 0 skipped** against the pinned SQL Server 2022 container (46 s). The new test asserts `SUSER_NAME() = 'ycr_migrator'`, `IS_SRVROLEMEMBER('sysadmin') = 0`, `IS_ROLEMEMBER('db_owner') = 1`, and that the application connection is a different principal.
+
+**Why the extra assertions:** the ledger Notes required the first two. `db_owner` is the positive half — a migrator that lost it would fail loudly, but one that quietly gained `sysadmin` would pass everything and prove nothing — and the application-principal check is what the other eleven tests in the class silently depend on.
+
+**Next step (exact):** finding 2 — **R-1**: set a placeholder on the child `ProcessStartInfo.Environment` in `MigrationBundle.EnsureBuiltAsync` only when the parent lacks `YCR_DESIGN_TIME_CONNECTION`, never overriding; a CI-independent test of the start-info construction; one line in `docs/07`. Prove `dotnet test YCR.sln` passes with the variable unset.
+
+**Blockers / open questions:** none.
+
+**State of the branch:** committed; build and the affected suite green.
