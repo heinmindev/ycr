@@ -35,6 +35,18 @@
 29. How must the system treat Zawgyi-encoded Myanmar text on input? Zawgyi text occupies the same Unicode code points as standard Myanmar, so storing names as `nvarchar` satisfies `docs/20` §6's "never store Zawgyi" only if Zawgyi never arrives. Options: (a) reject at the API boundary with a detector; (b) detect and convert to Unicode; (c) no server control — only first-party clients producing Unicode may submit text. Also: are Zawgyi-font devices still in use at YCR counters, and what should a clerk see if input is rejected? (F-001 spec R4; `review-claude.md` C-11. Applies to every Myanmar-text field, not only station names.)
     **Open.** F-001 validates presence and length only and has no Zawgyi control. No detector is to be implemented against a guessed rule. Tracked by T-014.
 
+30. What is the maximum cashier-session length, and may one operator hold more than one open session at a time? **BLOCKS:** `docs/20-coding-conventions.md` §5, which defines idempotency-key retention as "the maximum cashier-session length plus an operational margin" - the retention rule cannot be implemented without a value. (ADR-0018 line 50; ADR-0019 line 40.)
+    **Classification pending (hein).** Recorded here by T-012's remediation of review finding **T12-2** so that it is not lost in an ADR. Whether this is a business question for Myanma Railways or a tech-lead call has not been decided, so it is deliberately **not** asked in `docs/business/mr-questions-pack.md` yet.
+
+31. What is the exact business-date source for refund operations that have no cashier session, and does Finance confirm it? ADR-0019 makes each operation own its `BusinessDate`, but the no-session refund case is left open in both ADRs. (ADR-0018 line 51; ADR-0019 line 41.)
+    **Classification pending (hein).** Recorded here by T-012's remediation of review finding **T12-2** so that it is not lost in an ADR. Whether this is a business question for Myanma Railways or a tech-lead call has not been decided, so it is deliberately **not** asked in `docs/business/mr-questions-pack.md` yet.
+
+32. Who owns ledger-digest custody - the storage provider, the generation schedule, alert routing, and disaster-recovery ownership? OQ14 covers retention and OQ25 covers key-compromise ownership; neither covers the digest. (ADR-0017 line 38.)
+    **Classification pending (hein).** Recorded here by T-012's remediation of review finding **T12-2** so that it is not lost in an ADR. Whether this is a business question for Myanma Railways or a tech-lead call has not been decided, so it is deliberately **not** asked in `docs/business/mr-questions-pack.md` yet.
+
+33. Is station connectivity sufficient for online counter operations? ADR-0015 records this as an **ASSUMPTION** that "must be validated by a survey", so a survey is an outstanding action rather than a decision already taken. Related to OQ18 (paper fallback) and OQ15 (availability targets). (ADR-0015 line 44.)
+    **Classification pending (hein).** Recorded here by T-012's remediation of review finding **T12-2** so that it is not lost in an ADR. Whether this is a business question for Myanma Railways or a tech-lead call has not been decided, so it is deliberately **not** asked in `docs/business/mr-questions-pack.md` yet.
+
 ## Engineering decisions resolved on 2026-09-19
 
 Module layout, application pattern, frontend split, identifiers, ticket QR, counter online mode, authentication, audit, time and money. See ADR-0012 to ADR-0018 and their superseded ADRs.
