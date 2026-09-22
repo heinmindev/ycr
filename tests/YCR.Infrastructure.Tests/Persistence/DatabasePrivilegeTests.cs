@@ -195,6 +195,57 @@ public sealed class DatabasePrivilegeTests(SqlServerFixture fixture) : IAsyncLif
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// F-006A-1 / S-007A-1: the migrator connection must be the deployment's <c>ycr_migrator</c>
+    /// login, not the container's <c>sa</c>.
+    /// </summary>
+    /// <remarks>
+    /// Every other test in this class compares the application credential against the migrator
+    /// one. While the migrator was really <c>sa</c>, those comparisons proved only that
+    /// <c>ycr_app</c> is not a sysadmin — which was never in doubt — and the boundary E7 and
+    /// ADR-0017 item 3 actually require went unverified. This test is what makes the rest of the
+    /// file mean what it claims: it pins the identity on both sides of the comparison.
+    /// <para>
+    /// <c>db_owner</c> is asserted too, because the boundary is "owns this database, owns nothing
+    /// else". A migrator that had lost <c>db_owner</c> would fail the migration tests loudly; one
+    /// that had quietly gained <c>sysadmin</c> would pass everything and prove nothing.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task MigratorCredential_ConnectedToATestDatabase_IsYcrMigratorAndNotSysadmin()
+    {
+        Assert.Equal(
+            SqlServerTestContainer.MigratorLogin,
+            await ScalarAsMigratorAsync<string>("SELECT SUSER_NAME();"));
+
+        Assert.Equal(0, await ScalarAsMigratorAsync("SELECT IS_SRVROLEMEMBER('sysadmin');"));
+
+        // Positive half: it is genuinely the schema owner, so the migration tests around it are
+        // exercising a real privilege set rather than a coincidence.
+        Assert.Equal(1, await ScalarAsMigratorAsync("SELECT IS_ROLEMEMBER('db_owner');"));
+
+        // And the application credential is a different principal on the same database, which is
+        // the comparison every other test in this class depends on.
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var connection = new SqlConnection(database.ApplicationConnectionString);
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new SqlCommand("SELECT SUSER_NAME();", connection);
+
+        Assert.Equal(
+            SqlServerTestContainer.ApplicationLogin,
+            (string)(await command.ExecuteScalarAsync(cancellationToken))!);
+    }
+
+    private async Task<T> ScalarAsMigratorAsync<T>(string sql)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var connection = new SqlConnection(database.MigratorConnectionString);
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new SqlCommand(sql, connection);
+
+        return (T)(await command.ExecuteScalarAsync(cancellationToken))!;
+    }
+
     private async Task<int> ScalarAsMigratorAsync(string sql)
     {
         var cancellationToken = TestContext.Current.CancellationToken;

@@ -32,9 +32,24 @@ public sealed class SqlServerTestContainer : IAsyncDisposable
     /// <summary>The role the migration creates and grants on (spec E7, ADR-0017 item 3).</summary>
     public const string ApplicationRole = "ycr_app";
 
+    /// <summary>
+    /// The login that owns schema and runs the migration bundle. Its database user carries the
+    /// same name, exactly as <c>docker/sqlserver/init-principals.sql</c> creates it.
+    /// </summary>
+    /// <remarks>
+    /// Before F-006A-1 / S-007A-1 this fixture handed out the Testcontainers <c>sa</c> connection
+    /// as its "migrator", so every S22 privilege test compared the application credential against
+    /// a sysadmin rather than against the credential the deployment actually uses. SA is now
+    /// reserved for what only SA can do — <c>CREATE DATABASE</c> and login provisioning — and the
+    /// migrator boundary is asserted by
+    /// <c>MigratorCredential_ConnectedToATestDatabase_IsYcrMigratorAndNotSysadmin</c>.
+    /// </remarks>
+    public const string MigratorLogin = "ycr_migrator";
+
     private readonly MsSqlContainer _container;
     private readonly string _saPassword;
     private readonly string _applicationPassword;
+    private readonly string _migratorPassword;
     private int _databaseCount;
 
     public SqlServerTestContainer()
@@ -51,6 +66,7 @@ public sealed class SqlServerTestContainer : IAsyncDisposable
     {
         _saPassword = GeneratePassword();
         _applicationPassword = GeneratePassword();
+        _migratorPassword = GeneratePassword();
 
         // The image is a constructor argument in Testcontainers 4.15: there is no default to
         // fall back to, which is exactly the property E4 wants.
@@ -78,6 +94,8 @@ public sealed class SqlServerTestContainer : IAsyncDisposable
             $"""
              IF SUSER_ID(N'{ApplicationLogin}') IS NULL
                  CREATE LOGIN [{ApplicationLogin}] WITH PASSWORD = '{_applicationPassword}', CHECK_POLICY = OFF;
+             IF SUSER_ID(N'{MigratorLogin}') IS NULL
+                 CREATE LOGIN [{MigratorLogin}] WITH PASSWORD = '{_migratorPassword}', CHECK_POLICY = OFF;
              """,
             cancellationToken).ConfigureAwait(false);
     }
@@ -123,7 +141,23 @@ public sealed class SqlServerTestContainer : IAsyncDisposable
 
         await ExecuteOnMasterAsync($"CREATE DATABASE [{quoted}];", cancellationToken).ConfigureAwait(false);
 
-        var migratorConnectionString = ConnectionStringFor(database);
+        // SA does only what none of the other principals can: create the database, then give the
+        // migrator its per-database user and db_owner. That mirrors init-principals.sql, where
+        // this is the provisioning step rather than anything the platform does at runtime.
+        await ExecuteAsync(
+            SaConnectionStringFor(database),
+            $"""
+             IF USER_ID(N'{MigratorLogin}') IS NULL
+             BEGIN
+                 CREATE USER [{MigratorLogin}] FOR LOGIN [{MigratorLogin}];
+                 ALTER ROLE [db_owner] ADD MEMBER [{MigratorLogin}];
+             END
+             """,
+            cancellationToken).ConfigureAwait(false);
+
+        // From here on the migrator credential does the work, so a right it turns out not to have
+        // fails here rather than passing under sysadmin and surfacing in a deployment.
+        var migratorConnectionString = ConnectionStringFor(database, MigratorLogin, _migratorPassword);
         await ExecuteAsync(
             migratorConnectionString,
             $"""
@@ -138,7 +172,10 @@ public sealed class SqlServerTestContainer : IAsyncDisposable
             ConnectionStringFor(database, ApplicationLogin, _applicationPassword));
     }
 
-    /// <summary>Connection string for <paramref name="database"/> under the migrator credential.</summary>
+    /// <summary>
+    /// Connection string for <paramref name="database"/> under the container's <c>sa</c> account.
+    /// Provisioning only — tests receive the migrator and application credentials instead.
+    /// </summary>
     /// <remarks>
     /// <c>Current Language</c> is pinned on every connection (hein's ruling, 2026-09-20). SQL
     /// Server localises error messages by session language, and
@@ -147,7 +184,7 @@ public sealed class SqlServerTestContainer : IAsyncDisposable
     /// producing translations. Pinning it here, in compose and in CI keeps that dependency true
     /// rather than accidental.
     /// </remarks>
-    public string ConnectionStringFor(string database) =>
+    private string SaConnectionStringFor(string database) =>
         new SqlConnectionStringBuilder(_container.GetConnectionString())
         {
             InitialCatalog = database,
@@ -158,12 +195,13 @@ public sealed class SqlServerTestContainer : IAsyncDisposable
     /// <summary>Removes the generated passwords from text before it reaches a message or a log.</summary>
     public string Redact(string text) => text
         .Replace(_saPassword, "***", StringComparison.Ordinal)
-        .Replace(_applicationPassword, "***", StringComparison.Ordinal);
+        .Replace(_applicationPassword, "***", StringComparison.Ordinal)
+        .Replace(_migratorPassword, "***", StringComparison.Ordinal);
 
     public async ValueTask DisposeAsync() => await _container.DisposeAsync().ConfigureAwait(false);
 
     private string ConnectionStringFor(string database, string user, string password) =>
-        new SqlConnectionStringBuilder(ConnectionStringFor(database))
+        new SqlConnectionStringBuilder(SaConnectionStringFor(database))
         {
             UserID = user,
             Password = password
@@ -192,8 +230,8 @@ public sealed class SqlServerTestContainer : IAsyncDisposable
 /// <summary>A database on the shared container, with both credentials that reach it.</summary>
 /// <param name="Name">Database name.</param>
 /// <param name="MigratorConnectionString">
-/// The credential that owns schema. Only migration and infrastructure characterisation tests
-/// use it.
+/// The <c>ycr_migrator</c> credential, which owns schema through <c>db_owner</c> and is not a
+/// sysadmin. Only migration and infrastructure characterisation tests use it.
 /// </param>
 /// <param name="ApplicationConnectionString">
 /// The least-privilege credential the platform actually runs under. Application and API tests
