@@ -1723,3 +1723,26 @@ Each of the first five seeds a state the name never mentioned — `SeedAsync("AA
 **Blockers / open questions:** none. OQ29 stays open under T-014.
 
 **State of the branch:** committed; build clean.
+
+---
+
+## 2026-09-22 15:10 Asia/Yangon — claude — T-008a
+
+**Stage:** 8a — CI red at `37cb4b1`, fixed at `3d87e6a`.
+**Commit:** `3d87e6a` (`test(F-001): assert the non-override contract without depending on ambient env`).
+
+**What failed:** both CI runs at `37cb4b1` failed on exactly one test — `MigrationBundleStartInfoTests.CreateStartInfo_WithAnInheritedConnection_DoesNotOverrideIt`. Everything else was green: 173 of 174 passed, 0 skipped, and the API smoke job passed, which is what confirms the S-007A-2 migration route works in CI.
+
+**Why.** The test asserted the variable was **absent** from `ProcessStartInfo.Environment`. That assumed the dictionary starts empty and holds only explicit overrides. It does not — it starts as a **copy of the current process's environment**. Every CI job declares `YCR_DESIGN_TIME_CONNECTION` at job level, so the key was present regardless of what the method did, and the assertion failed for a reason unrelated to the behaviour under test. It passed locally only because my shell had the variable unset — the test was environment-dependent in exactly the way the finding it covers was.
+
+**Fix.** The contract is "the method does not change the entry", so that is what it asserts now: the child's value equals this process's value — whether that is a real string or null — and is never the placeholder. That holds on a machine with the variable and on one without.
+
+**Worth noting for anyone reading the fixture later:** because `Environment` is pre-populated, *not writing* is what makes the child inherit. The placeholder and override branches both assign explicitly, so they were unaffected and passed in CI; only the do-nothing branch needed an assertion that could express "unchanged".
+
+**Evidence — verified both ways this time, which is what I should have done first:** the class passes **8/8, 0 skipped** with `YCR_DESIGN_TIME_CONNECTION` set, and **8/8, 0 skipped** with it unset. Build 0 warnings / 0 errors.
+
+**Next step (exact):** confirm the CI runs at `3d87e6a` are green with 0 skipped, then record the final SHA, both run URLs and the test counts in T-008a's Notes and set the row to `review`.
+
+**Blockers / open questions:** none.
+
+**State of the branch:** committed and pushed.
