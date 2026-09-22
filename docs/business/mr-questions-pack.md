@@ -333,9 +333,10 @@ The generation-schedule and alert/disaster-recovery-ownership parts of this item
 The following dependencies should be considered when scheduling decisions:
 
 - **Ticket product first:** OQ3, OQ4, OQ5, OQ19, and OQ23 jointly define what is sold and what validation accepts.
-- **Fare and payment:** OQ1, OQ2, OQ9, OQ11, OQ17, OQ21, and OQ24 jointly determine a reproducible sale and reconciliation result.
-- **Outage and validation:** OQ8 and OQ18 must align with the fraud, reconciliation, and operational controls in ADR-0014 and ADR-0015.
+- **Fare and payment:** OQ1, OQ2, OQ9, OQ11, OQ17, OQ21, OQ24, and OQ31 jointly determine a reproducible sale and reconciliation result.
+- **Outage and validation:** OQ8, OQ18, and OQ33 must align with the fraud, reconciliation, and operational controls in ADR-0014 and ADR-0015.
 - **Station master data and access:** OQ1, OQ2, OQ12, OQ26, OQ27, OQ28, and OQ29 determine authoritative station data, naming, text encoding, identifiers, and access ownership.
 - **Governance:** OQ13, OQ14, OQ15, OQ16, OQ25, and the role decision in OQ28 determine ownership, evidence, and operating readiness.
+- **Session length and idempotency:** OQ30 directly blocks `docs/20-coding-conventions.md` §5's idempotency-key retention rule. The pack's provisional 12-hour value is a placeholder that keeps engineering moving; it is not a decision already made, and should not be read as one.
 
 No dependency listed here is a proposed sequencing decision; it is a prompt for the MR workshop agenda.
