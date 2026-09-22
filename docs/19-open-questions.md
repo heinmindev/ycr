@@ -36,16 +36,16 @@
     **Open.** F-001 validates presence and length only and has no Zawgyi control. No detector is to be implemented against a guessed rule. Tracked by T-014.
 
 30. What is the maximum cashier-session length, and may one operator hold more than one open session at a time? **BLOCKS:** `docs/20-coding-conventions.md` §5, which defines idempotency-key retention as "the maximum cashier-session length plus an operational margin" - the retention rule cannot be implemented without a value. (ADR-0018 line 50; ADR-0019 line 40.)
-    **Classification pending (hein).** Recorded here by T-012's remediation of review finding **T12-2** so that it is not lost in an ADR. Whether this is a business question for Myanma Railways or a tech-lead call has not been decided, so it is deliberately **not** asked in `docs/business/mr-questions-pack.md` yet.
+    **Still open with Myanma Railways.** Unblocked for engineering only by a provisional tech-lead **ASSUMPTION** (hein, 2026-09-22): 12-hour maximum session length; one open session per operator, enforced by the system (a second session attempt is rejected, not silently allowed). That value is **not** a Myanma Railways decision and must not be presented as one. This unblocks `docs/20-coding-conventions.md` §5's idempotency-key retention rule.
 
 31. What is the exact business-date source for refund operations that have no cashier session, and does Finance confirm it? ADR-0019 makes each operation own its `BusinessDate`, but the no-session refund case is left open in both ADRs. (ADR-0018 line 51; ADR-0019 line 41.)
-    **Classification pending (hein).** Recorded here by T-012's remediation of review finding **T12-2** so that it is not lost in an ADR. Whether this is a business question for Myanma Railways or a tech-lead call has not been decided, so it is deliberately **not** asked in `docs/business/mr-questions-pack.md` yet.
+    **Open with Myanma Railways / Finance.** No provisional value is assumed, and nothing currently blocks on this question.
 
-32. Who owns ledger-digest custody - the storage provider, the generation schedule, alert routing, and disaster-recovery ownership? OQ14 covers retention and OQ25 covers key-compromise ownership; neither covers the digest. (ADR-0017 line 38.)
-    **Classification pending (hein).** Recorded here by T-012's remediation of review finding **T12-2** so that it is not lost in an ADR. Whether this is a business question for Myanma Railways or a tech-lead call has not been decided, so it is deliberately **not** asked in `docs/business/mr-questions-pack.md` yet.
+32. Who is the storage provider for ledger-digest custody? OQ14 covers retention and OQ25 covers key-compromise ownership; neither covers the digest. (ADR-0017 line 38.)
+    **Digest generation schedule and alert/disaster-recovery ownership are resolved.** ADR-0017 Decision item 4 sets the generation schedule as daily and assigns alert routing and disaster-recovery ownership to the implementing engineering team, internally; neither is a Myanma Railways question. **The storage-provider clause remains open**, blocked on an undecided hosting/infrastructure choice, not on a ruling; see ADR-0017 §Blocked behaviour.
 
 33. Is station connectivity sufficient for online counter operations? ADR-0015 records this as an **ASSUMPTION** that "must be validated by a survey", so a survey is an outstanding action rather than a decision already taken. Related to OQ18 (paper fallback) and OQ15 (availability targets). (ADR-0015 line 44.)
-    **Classification pending (hein).** Recorded here by T-012's remediation of review finding **T12-2** so that it is not lost in an ADR. Whether this is a business question for Myanma Railways or a tech-lead call has not been decided, so it is deliberately **not** asked in `docs/business/mr-questions-pack.md` yet.
+    **Open with Myanma Railways.** No provisional value is assumed, and nothing currently blocks on this question. ADR-0015's connectivity ASSUMPTION stands unchanged until Myanma Railways answers.
 
 ## Engineering decisions resolved on 2026-09-19
 

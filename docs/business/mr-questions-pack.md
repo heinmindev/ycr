@@ -2,7 +2,7 @@
 
 **Purpose:** provide a decision-ready list of the unresolved business questions in [`docs/19-open-questions.md`](../19-open-questions.md). This pack explains why each answer matters, what work it blocks or constrains, and presents neutral options for discussion with Myanma Railways.
 
-**Status:** all questions below are **OPEN QUESTION** items. OQ20 is resolved and OQ22 is an **ENGINEERING DECISION**; both are listed in §Items not requiring a Myanma Railways answer so that no gap in the numbering is unexplained. The options are discussion prompts only; none is a recommendation or a recorded business decision. Existing **ENGINEERING DECISION** references describe implementation constraints already accepted by the project and do not answer the business questions.
+**Status:** all questions below are **OPEN QUESTION** items. OQ20 is resolved, OQ22 is an **ENGINEERING DECISION**, and OQ32 is an **ENGINEERING DECISION** for its schedule and ownership clauses with a remaining OPEN QUESTION that is not a Myanma Railways question either; all three are listed in §Items not requiring a Myanma Railways answer so that no gap in the numbering is unexplained. The options are discussion prompts only; none is a recommendation or a recorded business decision. Existing **ENGINEERING DECISION** references describe implementation constraints already accepted by the project and do not answer the business questions.
 
 **Suggested response owner:** Myanma Railways should nominate the accountable role for each answer (for example, Network Operations, Commercial/Fares, Finance, Customer Service, Security, or IT). The role labels below are proposed routing labels, not assumed authorities.
 
@@ -45,7 +45,10 @@ The sections below are ordered thematically, for a workshop agenda. This table i
 | OQ27 | Network and operating model | Asked — F-001 runs on a provisional value; see its Status line |
 | OQ28 | Network and operating model | Asked — F-001 runs on a provisional value; see its Status line |
 | OQ29 | Network and operating model | Asked — F-001 implements no control; see its Status line |
-| OQ30–OQ33 | — | **Not asked in this pack.** Recorded in `docs/19-open-questions.md` awaiting a tech-lead classification of which are Myanma Railways questions; see §Items awaiting classification |
+| OQ30 | Payments, refunds, and sales | Asked — a provisional tech-lead **ASSUMPTION** unblocks engineering; see its Status line |
+| OQ31 | Payments, refunds, and sales | Asked |
+| OQ32 | Items not requiring a Myanma Railways answer | **Excluded** — schedule and alert/DR ownership are **ENGINEERING DECISION**s (ADR-0017); the remaining storage-provider clause is blocked on an undecided hosting choice, not a Myanma Railways question |
+| OQ33 | Network and operating model | Asked |
 
 
 ## Network and operating model
@@ -125,6 +128,15 @@ The sections below are ordered thematically, for a workshop agenda. This table i
 - **Suggested options (non-binding):** (a) define targets by station and operating period; (b) define a system-wide availability and latency target plus peak transactions per minute; (c) run a demand study first and set targets from measured volumes.
 - **Suggested decision owner:** MR IT/Operations leadership (role to be nominated).
 - **Sources:** `docs/19-open-questions.md` OQ15; ADR-0015; `docs/17-observability.md`.
+
+### OQ33 — Is station connectivity sufficient for online counter operations?
+
+- **Status:** **OPEN QUESTION** for Myanma Railways. No provisional value is assumed. ADR-0015 records connectivity sufficiency as an **ASSUMPTION** that "must be validated by a survey"; that survey is an outstanding action, not a decision already taken, and the ASSUMPTION stands unchanged until Myanma Railways answers.
+- **Why it matters:** The current architecture assumes online-only counter operation. If connectivity is not reliably sufficient at all selling stations, that assumption and the outage/fallback policy in OQ18 need to be revisited together.
+- **Blocks or constrains:** Validation of the online-only operating model in ADR-0015; the paper-fallback decision in OQ18; the availability and peak-load targets in OQ15; station rollout sequencing.
+- **Suggested options (non-binding):** (a) confirm connectivity is currently sufficient at all selling stations; (b) commission a station-by-station connectivity survey before rollout; (c) treat a defined subset of stations as connectivity-constrained and scope a fallback for them under OQ18.
+- **Suggested decision owner:** MR IT / Network Operations (roles to be nominated).
+- **Sources:** `docs/19-open-questions.md` OQ33; ADR-0015 line 44; related to OQ15 and OQ18.
 
 ### OQ16 — What existing Laravel system must be migrated, if applicable?
 
@@ -263,6 +275,24 @@ The sections below are ordered thematically, for a workshop agenda. This table i
 - **Suggested decision owner:** Commercial / Finance (roles to be nominated).
 - **Sources:** `docs/19-open-questions.md` OQ24; ADR-0013; `docs/08-api-specification.md`.
 
+### OQ30 — What is the maximum cashier-session length, and may one operator hold more than one open session at a time?
+
+- **Status:** **OPEN QUESTION** for Myanma Railways. Engineering currently runs on a provisional tech-lead **ASSUMPTION** (hein, 2026-09-22): 12-hour maximum session length; one open session per operator, enforced by the system (a second session attempt is rejected, not silently allowed). This is a placeholder to unblock an idempotency-retention rule, **not a Myanma Railways answer**.
+- **Why it matters:** Session length and concurrency bound how long a cashier's in-progress work is valid, affect shift handover, and set the retention window the system must keep idempotency keys for.
+- **Blocks or constrains:** `docs/20-coding-conventions.md` §5's idempotency-key retention rule, defined as "the maximum cashier-session length plus an operational margin"; cashier-session lifecycle and timeout design; shift/handover procedure.
+- **Suggested options (non-binding):** (a) approve a fixed maximum session length, for example 12 hours — this restates the project's current provisional position; (b) define session length by shift pattern; (c) allow configurable session length per station or role, with a stated maximum.
+- **Suggested decision owner:** Operations / Finance (roles to be nominated).
+- **Sources:** `docs/19-open-questions.md` OQ30; ADR-0018 line 50; ADR-0019 line 40; `docs/20-coding-conventions.md` §5.
+
+### OQ31 — What is the exact business-date source for refund operations that have no cashier session, and does Finance confirm it?
+
+- **Status:** **OPEN QUESTION** for Myanma Railways / Finance. No provisional value is assumed, and nothing currently blocks on this question.
+- **Why it matters:** ADR-0019 makes each operation own its `BusinessDate`, but a refund processed with no active cashier session has no session to derive that date from, and Finance has not confirmed the substitute rule.
+- **Blocks or constrains:** Business-date assignment for no-session refunds; refund reconciliation and financial reporting for that case.
+- **Suggested options (non-binding):** (a) use the calendar date at processing time; (b) use the business date of the original sale; (c) require Finance sign-off case by case until a rule is set.
+- **Suggested decision owner:** Finance (role to be nominated).
+- **Sources:** `docs/19-open-questions.md` OQ31; ADR-0018 line 51; ADR-0019 line 41.
+
 ## Records, governance, and key operations
 
 ### OQ14 — What retention period applies to audit and financial records?
@@ -284,7 +314,7 @@ The sections below are ordered thematically, for a workshop agenda. This table i
 
 ## Items not requiring a Myanma Railways answer
 
-Both are listed so that every gap in the OQ numbering is explained rather than silent.
+All three are listed so that every gap in the OQ numbering is explained rather than silent.
 
 ### OQ20 — Production SQL Server version
 
@@ -294,16 +324,9 @@ This item is **RESOLVED** as SQL Server 2022 by ADR-0017. It is included here on
 
 This item is an **ENGINEERING DECISION** for the tech lead under ADR-0005, not a Myanma Railways question. It is included here only to make clear why the pack skips its numbering; no Myanma Railways decision is requested in this pack.
 
-## Items awaiting classification
+### OQ32 — Ledger-digest custody
 
-**OQ30 to OQ33 are not asked in this pack.** They are four unresolved items that lived only in ADR-0015, ADR-0017, ADR-0018 and ADR-0019 and had never been numbered into `docs/19-open-questions.md`, so they could not reach Myanma Railways through this pack at all. T-012's remediation of review finding **T12-2** numbered them into `docs/19` so they stop being invisible, but deliberately did **not** decide which of them are business questions for Myanma Railways and which are tech-lead calls. That classification is a tech-lead ruling, and the four move into this pack only once it is made.
-
-| OQ | Item | Source | Note |
-|---|---|---|---|
-| OQ30 | Maximum cashier-session length; may one operator hold more than one open session | ADR-0018 line 50, ADR-0019 line 40 | Has a concrete downstream block: `docs/20-coding-conventions.md` §5 defines idempotency-key retention as "the maximum cashier-session length plus an operational margin" |
-| OQ31 | Business-date source for refund operations with no cashier session | ADR-0018 line 51, ADR-0019 line 41 | ADR-0018 names Finance as the confirming party |
-| OQ32 | Ledger-digest custody: storage provider, schedule, alert routing, disaster-recovery ownership | ADR-0017 line 38 | OQ14 covers retention and OQ25 covers key-compromise ownership; neither covers the digest |
-| OQ33 | Is station connectivity sufficient for online counter operations | ADR-0015 line 44 | Recorded in the ADR as an **ASSUMPTION** that "must be validated by a survey"; the survey is an outstanding action |
+The generation-schedule and alert/disaster-recovery-ownership parts of this item are an **ENGINEERING DECISION** for the tech lead under ADR-0017 (schedule: daily; alert routing and DR ownership: the implementing engineering team, internally) — an internal engineering call, not something Myanma Railways needs to answer. The remaining storage-provider clause is genuinely open but blocked on an undecided hosting/infrastructure choice, not on a ruling; it stays in `docs/19-open-questions.md` OQ32 rather than in this pack. It is included here only to make clear why the pack skips its numbering; no Myanma Railways decision is requested in this pack.
 
 ## Cross-question dependencies
 
