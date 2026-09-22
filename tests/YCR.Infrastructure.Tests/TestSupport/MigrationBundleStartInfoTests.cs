@@ -51,6 +51,31 @@ public sealed class MigrationBundleStartInfoTests
             startInfo.Environment.Keys);
     }
 
+    /// <summary>
+    /// S-007A-2: applying the bundle passes the target — and therefore the migrator password — in
+    /// the environment rather than on the command line.
+    /// </summary>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("Server=inherited;Database=Other;Trusted_Connection=True")]
+    public void CreateStartInfo_WithAnOverride_UsesItWhateverTheParentHas(string? inherited)
+    {
+        const string target =
+            "Server=localhost,1433;Database=YCR;User Id=ycr_migrator;Password=s3cr3t;TrustServerCertificate=True";
+
+        var startInfo = MigrationBundle.CreateStartInfo(".", "efbundle", [], inherited, target);
+
+        // The override wins over both the placeholder and an inherited value: which database to
+        // migrate is an argument of the operation, not an ambient default.
+        Assert.Equal(
+            target,
+            startInfo.Environment[YcrDbContextFactory.DesignTimeConnectionVariable]);
+
+        // And the secret is nowhere in the process arguments, which is the whole point.
+        Assert.Empty(startInfo.ArgumentList);
+        Assert.DoesNotContain("s3cr3t", startInfo.Arguments, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void CreateStartInfo_WithArgumentsAndWorkingDirectory_PassesThemThrough()
     {

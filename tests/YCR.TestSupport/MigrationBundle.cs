@@ -116,6 +116,19 @@ public static partial class MigrationBundle
     }
 
     /// <summary>Applies every migration to <paramref name="connectionString"/> using the bundle.</summary>
+    /// <remarks>
+    /// S-007A-2: the target is passed in the child's environment, not as
+    /// <c>--connection &lt;string&gt;</c>. `efbundle --help` documents that the connection
+    /// "[d]efaults to the one specified in AddDbContext or OnConfiguring", and the bundle resolves
+    /// that through <see cref="YcrDbContextFactory"/> at run time — verified by running a bundle
+    /// with no argument and watching it dial the host named only in the variable. A command line
+    /// is visible to anything that can list processes and is echoed back by tools on failure; an
+    /// environment variable is neither.
+    /// <para>
+    /// <see cref="Redact"/> still runs over the output, because the bundle prints the connection
+    /// it used in some failure paths regardless of how it was given.
+    /// </para>
+    /// </remarks>
     public static async Task ApplyAsync(string connectionString, CancellationToken cancellationToken = default)
     {
         var bundlePath = await EnsureBuiltAsync(cancellationToken).ConfigureAwait(false);
@@ -123,8 +136,9 @@ public static partial class MigrationBundle
         await RunAsync(
             Path.GetDirectoryName(bundlePath)!,
             bundlePath,
-            ["--connection", connectionString],
-            cancellationToken).ConfigureAwait(false);
+            [],
+            cancellationToken,
+            designTimeConnectionOverride: connectionString).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -215,8 +229,15 @@ public static partial class MigrationBundle
     /// </summary>
     /// <param name="inheritedDesignTimeConnection">
     /// What the parent process has, or null/whitespace when it has nothing. A real value is
-    /// **never** overridden: a developer or a CI job that points EF somewhere deliberately keeps
-    /// that target.
+    /// **never** overridden by the placeholder: a developer or a CI job that points EF somewhere
+    /// deliberately keeps that target.
+    /// </param>
+    /// <param name="designTimeConnectionOverride">
+    /// An explicit target that always wins, used when applying the bundle (S-007A-2). Applying to
+    /// a specific database is an argument of the operation, not an ambient default, so it
+    /// overrides both the placeholder and anything inherited. Passing it in the environment
+    /// instead of on the command line keeps the password out of the process arguments, where any
+    /// tool that echoes its own invocation would leak it.
     /// </param>
     /// <remarks>
     /// R-1. The factory requires this variable and has no default, but the fixture builds the
@@ -235,7 +256,8 @@ public static partial class MigrationBundle
         string workingDirectory,
         string fileName,
         IReadOnlyList<string> arguments,
-        string? inheritedDesignTimeConnection)
+        string? inheritedDesignTimeConnection,
+        string? designTimeConnectionOverride = null)
     {
         var startInfo = new ProcessStartInfo(fileName)
         {
@@ -250,7 +272,12 @@ public static partial class MigrationBundle
             startInfo.ArgumentList.Add(argument);
         }
 
-        if (string.IsNullOrWhiteSpace(inheritedDesignTimeConnection))
+        if (!string.IsNullOrWhiteSpace(designTimeConnectionOverride))
+        {
+            startInfo.Environment[YcrDbContextFactory.DesignTimeConnectionVariable] =
+                designTimeConnectionOverride;
+        }
+        else if (string.IsNullOrWhiteSpace(inheritedDesignTimeConnection))
         {
             startInfo.Environment[YcrDbContextFactory.DesignTimeConnectionVariable] =
                 DesignTimeConnectionPlaceholder;
@@ -263,13 +290,15 @@ public static partial class MigrationBundle
         string workingDirectory,
         string fileName,
         string[] arguments,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? designTimeConnectionOverride = null)
     {
         var startInfo = CreateStartInfo(
             workingDirectory,
             fileName,
             arguments,
-            Environment.GetEnvironmentVariable(YcrDbContextFactory.DesignTimeConnectionVariable));
+            Environment.GetEnvironmentVariable(YcrDbContextFactory.DesignTimeConnectionVariable),
+            designTimeConnectionOverride);
 
         using var process = Process.Start(startInfo)
             ?? throw new InvalidOperationException($"Could not start '{fileName}'.");

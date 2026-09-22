@@ -154,12 +154,25 @@ jobs:
           global-json-file: global.json
 
       # Generated per run, never stored. These exist only inside this job's environment.
+      #
+      # S-007A-2: each value is registered with ::add-mask:: in the same step that generates it,
+      # before it can reach any later command's output. A mask applies to everything the runner
+      # logs from that point on, so a tool that echoes its connection string — which is how these
+      # would otherwise escape — prints *** instead. Masking after first use would be too late.
       - name: Generate credentials
         run: |
+          sa_password="Sa1!$(openssl rand -hex 16)"
+          app_password="Ap1!$(openssl rand -hex 16)"
+          migrator_password="Mg1!$(openssl rand -hex 16)"
+
+          echo "::add-mask::$sa_password"
+          echo "::add-mask::$app_password"
+          echo "::add-mask::$migrator_password"
+
           {
-            echo "MSSQL_SA_PASSWORD=Sa1!$(openssl rand -hex 16)"
-            echo "YCR_APP_PASSWORD=Ap1!$(openssl rand -hex 16)"
-            echo "YCR_MIGRATOR_PASSWORD=Mg1!$(openssl rand -hex 16)"
+            echo "MSSQL_SA_PASSWORD=$sa_password"
+            echo "YCR_APP_PASSWORD=$app_password"
+            echo "YCR_MIGRATOR_PASSWORD=$migrator_password"
           } >> "$GITHUB_ENV"
 
       - name: Start the database
@@ -181,8 +194,13 @@ jobs:
             --project src/YCR.Infrastructure \
             --startup-project src/YCR.Infrastructure \
             --output "$RUNNER_TEMP/efbundle"
-          "$RUNNER_TEMP/efbundle" --connection \
-            "Server=localhost,1433;Database=YCR;User Id=ycr_migrator;Password=${YCR_MIGRATOR_PASSWORD};TrustServerCertificate=True;Current Language=us_english"
+          # S-007A-2: the migrator password goes to the bundle in the environment, not on its
+          # command line. The bundle takes its connection from the design-time factory when
+          # --connection is absent, so a step-scoped override targets the real database without
+          # the password ever appearing in a process argument list. The job-level value stays the
+          # inert placeholder that the bundle *build* above uses.
+          YCR_DESIGN_TIME_CONNECTION="Server=localhost,1433;Database=YCR;User Id=ycr_migrator;Password=${YCR_MIGRATOR_PASSWORD};TrustServerCertificate=True;Current Language=us_english" \
+            "$RUNNER_TEMP/efbundle"
           docker compose up -d sqlserver-init
           sleep 10
           docker logs ycr-sqlserver-init
