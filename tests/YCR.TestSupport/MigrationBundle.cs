@@ -286,7 +286,13 @@ public static partial class MigrationBundle
         return startInfo;
     }
 
-    private static async Task RunAsync(
+    /// <summary>
+    /// Internal rather than private so <c>YCR.Infrastructure.Tests</c> can exercise the real
+    /// <see cref="Process.Start(ProcessStartInfo)"/> call directly (N-2): the
+    /// <see cref="CreateStartInfo"/>-level tests prove what environment a
+    /// <see cref="ProcessStartInfo"/> is built with, not what a spawned child actually receives.
+    /// </summary>
+    internal static async Task RunAsync(
         string workingDirectory,
         string fileName,
         string[] arguments,

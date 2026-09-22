@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using YCR.Infrastructure.Persistence;
 using YCR.TestSupport;
 
@@ -36,6 +37,16 @@ public sealed class MigrationBundleStartInfoTests
             startInfo.Environment[YcrDbContextFactory.DesignTimeConnectionVariable]);
     }
 
+    /// <summary>
+    /// N-2: this only proves <see cref="MigrationBundle.CreateStartInfo"/> does not add the
+    /// placeholder key itself. It cannot prove the caller-supplied inherited value survives into a
+    /// real child's environment, because <c>ProcessStartInfo.Environment</c> starts as a **copy of
+    /// this process's environment** regardless of what <paramref name="inherited"/> was — asserting
+    /// equality against that ambient value degenerates to comparing null to null on a machine that
+    /// does not have the variable set, which proves nothing either way.
+    /// <see cref="MigrationBundleRunAsyncTests.RunAsync_WithNoOverride_PassesTheInheritedConnectionToTheChildUnchanged"/>
+    /// covers the real contract, at the real <see cref="Process.Start(ProcessStartInfo)"/> call.
+    /// </summary>
     [Fact]
     public void CreateStartInfo_WithAnInheritedConnection_DoesNotOverrideIt()
     {
@@ -43,16 +54,10 @@ public sealed class MigrationBundleStartInfoTests
 
         var startInfo = MigrationBundle.CreateStartInfo(".", "dotnet", Arguments, inherited);
 
-        // `ProcessStartInfo.Environment` starts as a **copy of this process's environment**, not as
-        // an empty set of overrides, so "the method left it alone" cannot be asserted by the key
-        // being absent — on a machine that has the variable set, it is present either way. What
-        // must hold is that the entry still says exactly what this process says, which is true
-        // whether the ambient value exists or not. Writing the placeholder here would silently
-        // redirect a developer or a CI job that had pointed EF somewhere on purpose.
-        var ambient = Environment.GetEnvironmentVariable(YcrDbContextFactory.DesignTimeConnectionVariable);
+        // Writing the placeholder here would silently redirect a developer or a CI job that had
+        // pointed EF somewhere on purpose.
         startInfo.Environment.TryGetValue(YcrDbContextFactory.DesignTimeConnectionVariable, out var actual);
 
-        Assert.Equal(ambient, actual);
         Assert.NotEqual(MigrationBundle.DesignTimeConnectionPlaceholder, actual);
     }
 
