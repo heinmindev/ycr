@@ -1631,3 +1631,25 @@ finding S-007A-2. No code was changed; the verdict is Not ready pending T-008 re
 **Blockers / open questions:** none.
 
 **State of the branch:** committed; build clean; Application and Api suites green.
+
+---
+
+## 2026-09-22 13:20 Asia/Yangon — claude — T-008a
+
+**Stage:** 8a, finding 6 of 8 — **F-006A-2, R-2 and R-3** complete.
+**Commit:** `350a21d` (`ci(F-001): fix the progress paths-ignore and simplify the workflow test`).
+
+**Done this session:**
+- **F-006A-2.** `paths-ignore` gains `docs/features/**/progress.md`. The existing `docs/progress/**` covers standalone tasks only; a feature's progress file lives beside its spec and plan, so the pattern never matched the file that generates the most checkpoint commits. The `pull_request` trigger keeps **no** `paths-ignore`, for the reason already documented there — a skipped workflow reports nothing at all, which would block a PR on a required check that never arrives.
+- **R-2.** The three redundant step-level `env:` blocks are gone. `jobs.<id>.env` already applies to every step, so they duplicated the job-level value; the literal now appears once per job instead of twice.
+- **R-3.** `CiWorkflowTests` moved to `tests/YCR.Infrastructure.Tests/Ci/` — out of `Persistence/`, which `docs/20` §1 reserves for tests mirroring a source path — and cut to one assertion: **every job that builds the migration bundle defines the variable**. Jobs are found by looking for `dotnet ef migrations bundle` rather than by name, so a new bundle-building job is covered automatically, and `Assert.NotEmpty` stops the rule passing vacuously if the search ever matches nothing.
+
+**Why the old assertion had to go, not just shrink:** it matched the exact substring `"    timeout-minutes: {N}\n    env:\n      YCR_DESIGN_TIME_CONNECTION:"`, which tied a test about design-time connections to each job's timeout value, to `env` being the immediately following key, and to four-space indentation. Changing a timeout from 45 to 50 would have failed it. Nothing in the new version depends on indentation, key order, or any value but the variable's name.
+
+**Evidence:** `CiWorkflowTests` and `MigrationBundleStartInfoTests` **9/9 passed, 0 skipped**. Build 0 warnings / 0 errors.
+
+**Next step (exact):** finding 7 — rename claude's tests to the amended `docs/20` §2 rule (`Method_State_ExpectedResult`, or `Method_ExpectedResult` where there is no meaningful state). Codex's tests were already renamed under T-008b.
+
+**Blockers / open questions:** none.
+
+**State of the branch:** committed; build clean.
