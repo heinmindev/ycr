@@ -14,7 +14,6 @@ namespace YCR.TestSupport;
 /// reference xUnit. Each consuming test project wraps this in its own collection fixture.
 /// <para>
 /// Both passwords are generated per container and never written to source or to a log.
-/// <see cref="Redact"/> strips them from anything this class reports.
 /// </para>
 /// </remarks>
 public sealed class SqlServerTestContainer : IAsyncDisposable
@@ -191,12 +190,6 @@ public sealed class SqlServerTestContainer : IAsyncDisposable
             TrustServerCertificate = true,
             CurrentLanguage = SqlServerImage.SessionLanguage
         }.ConnectionString;
-
-    /// <summary>Removes the generated passwords from text before it reaches a message or a log.</summary>
-    public string Redact(string text) => text
-        .Replace(_saPassword, "***", StringComparison.Ordinal)
-        .Replace(_applicationPassword, "***", StringComparison.Ordinal)
-        .Replace(_migratorPassword, "***", StringComparison.Ordinal);
 
     public async ValueTask DisposeAsync() => await _container.DisposeAsync().ConfigureAwait(false);
 
