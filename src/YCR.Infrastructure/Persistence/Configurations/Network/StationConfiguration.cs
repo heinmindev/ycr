@@ -8,7 +8,16 @@ public sealed class StationConfiguration : IEntityTypeConfiguration<Station>
 {
     public void Configure(EntityTypeBuilder<Station> builder)
     {
-        builder.ToTable("Stations", "network");
+        // R-4 (hein's ruling, 2026-09-22): check constraints live in the EF model, not only in a
+        // migration. A constraint EF does not know about cannot be diffed — drop it in the
+        // database and `dotnet ef migrations has-pending-model-changes` stays silent. Declaring it
+        // here puts it in the snapshot, so the CI step that runs that command is what notices.
+        builder.ToTable(
+            "Stations",
+            "network",
+            table => table.HasCheckConstraint(
+                "CK_Stations_CreatedAtUtc_Utc",
+                "DATEPART(TZOFFSET, [CreatedAtUtc]) = 0"));
         builder.HasKey(station => station.Id);
         builder.Property(station => station.Id).ValueGeneratedNever();
         builder.Ignore(station => station.DomainEvents);

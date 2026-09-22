@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Migrations.Operations;
 using YCR.Application.Network;
@@ -39,6 +41,53 @@ public sealed class StationModelTests
         var isActive = entity.FindProperty(nameof(Station.IsActive));
         Assert.NotNull(isActive);
         Assert.True(isActive.IsConcurrencyToken);
+    }
+
+    /// <summary>
+    /// R-4 (hein's ruling, 2026-09-22): both UTC check constraints are declared in the EF model,
+    /// not only in a migration, so `dotnet ef migrations has-pending-model-changes` can detect
+    /// drift. The CI step that runs that command is the other half of this control.
+    /// </summary>
+    /// <remarks>
+    /// `CK_AuditEvents_OccurredAtUtc_Utc` is in the model even though `AuditEvent` is mapped with
+    /// `ExcludeFromMigrations()` — that switch stops EF *generating* DDL for the ledger table
+    /// (ADR-0017 item 6), it does not stop EF knowing the shape. The raw SQL in
+    /// `Audit_CreateAuditEventsLedger` is what creates it; this assertion is what notices if the
+    /// two ever disagree.
+    /// </remarks>
+    [Theory]
+    [InlineData(
+        "YCR.Domain.Network.Station",
+        "CK_Stations_CreatedAtUtc_Utc",
+        "DATEPART(TZOFFSET, [CreatedAtUtc]) = 0")]
+    // Named rather than typed: AuditEvent is internal to YCR.Infrastructure on purpose, so that
+    // nothing above Infrastructure can construct an audit row outside IAuditWriter. Reaching it
+    // through the model keeps that closed.
+    [InlineData(
+        "YCR.Infrastructure.Audit.AuditEvent",
+        "CK_AuditEvents_OccurredAtUtc_Utc",
+        "DATEPART(TZOFFSET, [OccurredAtUtc]) = 0")]
+    public void Model_WithUtcColumn_DeclaresItsCheckConstraint(
+        string entityTypeName,
+        string constraintName,
+        string sql)
+    {
+        var options = new DbContextOptionsBuilder<YcrDbContext>()
+            .UseSqlServer("Server=(localdb)\\MSSQLLocalDB;Database=YcrModelTest")
+            .Options;
+
+        using var context = new YcrDbContext(options);
+
+        // The design-time model, not context.Model: EF strips check constraints out of the
+        // read-optimized runtime model, because nothing at runtime consults them. The design-time
+        // model is the one `has-pending-model-changes` diffs, so it is the one worth asserting.
+        var entity = context.GetService<IDesignTimeModel>().Model.FindEntityType(entityTypeName);
+
+        Assert.NotNull(entity);
+        var constraint = Assert.Single(
+            entity.GetCheckConstraints(),
+            candidate => candidate.Name == constraintName);
+        Assert.Equal(sql, constraint.Sql);
     }
 
     [Fact]

@@ -58,7 +58,7 @@ public sealed class LedgerMigrationTests(SqlServerFixture fixture) : IAsyncLifet
             """);
 
         Assert.Equal(
-            ["CK_AuditEvents_ActorRole", "CK_AuditEvents_AfterJson", "CK_AuditEvents_BeforeJson"],
+            ["CK_AuditEvents_ActorRole", "CK_AuditEvents_AfterJson", "CK_AuditEvents_BeforeJson", "CK_AuditEvents_OccurredAtUtc_Utc"],
             constraints);
 
         var indexes = await QueryStringsAsync(
@@ -276,12 +276,42 @@ public sealed class LedgerMigrationTests(SqlServerFixture fixture) : IAsyncLifet
                 """
                 INSERT INTO [audit].[AuditEvents]
                     ([Id], [OccurredAtUtc], [Action], [SubjectType], [CorrelationId], [PayloadVersion], [AfterJson])
-                VALUES (NEWID(), SYSDATETIMEOFFSET(), N'Network.Bad', N'Station', N'corr-bad', 1, N'not json');
+                VALUES (NEWID(), SYSUTCDATETIME() AT TIME ZONE 'UTC', N'Network.Bad', N'Station', N'corr-bad', 1, N'not json');
                 """));
 
         // The constraint is the only chance to reject a malformed payload: the row can never be
         // repaired once it is in an append-only table.
         Assert.Contains("CK_AuditEvents_AfterJson", failure.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// ADR-0018: <c>*Utc</c> columns hold UTC values, and on an append-only table the database is
+    /// the only place that rule can be enforced in time.
+    /// </summary>
+    /// <remarks>
+    /// The counterpart of <c>CK_Stations_CreatedAtUtc_Utc</c>. It matters more here than on
+    /// <c>Stations</c>: a station row can be corrected, an audit row cannot, and
+    /// <c>OccurredAtUtc</c> is what orders tamper-evident history. The insert is raw SQL so the
+    /// constraint, not an EF mapping, is what rejects it.
+    /// </remarks>
+    [Fact]
+    public async Task LedgerTable_WithNonUtcOccurredAtUtc_IsRejectedByTheCheckConstraint()
+    {
+        var failure = await Assert.ThrowsAsync<SqlException>(() =>
+            ExecuteAsync(
+                """
+                INSERT INTO [audit].[AuditEvents]
+                    ([Id], [OccurredAtUtc], [Action], [SubjectType], [CorrelationId], [PayloadVersion])
+                VALUES (NEWID(), TODATETIMEOFFSET(SYSUTCDATETIME(), '+06:30'), N'Network.Bad', N'Station', N'corr-offset', 1);
+                """));
+
+        Assert.Equal(547, failure.Number);
+        Assert.Contains("CK_AuditEvents_OccurredAtUtc_Utc", failure.Message, StringComparison.Ordinal);
+
+        // Nothing landed: the append-only table is unchanged, which is the property that cannot be
+        // restored afterwards if the constraint were missing.
+        Assert.Equal(0, await ScalarAsync<int>(
+            "SELECT COUNT(*) FROM [audit].[AuditEvents] WHERE [CorrelationId] = N'corr-offset';"));
     }
 
     /// <summary>Plan P7: reverting this migration must refuse, not drop the ledger.</summary>
@@ -315,7 +345,7 @@ public sealed class LedgerMigrationTests(SqlServerFixture fixture) : IAsyncLifet
             $"""
              INSERT INTO [audit].[AuditEvents]
                  ([Id], [OccurredAtUtc], [Action], [SubjectType], [CorrelationId], [PayloadVersion])
-             VALUES (NEWID(), SYSDATETIMEOFFSET(), N'Network.StationCreated', N'Station', N'{correlationId}', 1);
+             VALUES (NEWID(), SYSUTCDATETIME() AT TIME ZONE 'UTC', N'Network.StationCreated', N'Station', N'{correlationId}', 1);
              """);
 
     private async Task ExecuteAsync(string sql)

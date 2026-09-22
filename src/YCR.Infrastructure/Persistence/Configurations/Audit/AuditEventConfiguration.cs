@@ -23,7 +23,17 @@ internal sealed class AuditEventConfiguration : IEntityTypeConfiguration<AuditEv
 {
     public void Configure(EntityTypeBuilder<AuditEvent> builder)
     {
-        builder.ToTable("AuditEvents", "audit", table => table.ExcludeFromMigrations());
+        // The check constraint is declared in the model (R-4) even though EF emits no DDL for this
+        // table: `ExcludeFromMigrations` stops EF generating the constraint, not knowing about it,
+        // and knowing about it is what lets `has-pending-model-changes` detect drift. The raw SQL
+        // in Audit_CreateAuditEventsLedger is what actually creates it.
+        builder.ToTable("AuditEvents", "audit", table =>
+        {
+            table.ExcludeFromMigrations();
+            table.HasCheckConstraint(
+                "CK_AuditEvents_OccurredAtUtc_Utc",
+                "DATEPART(TZOFFSET, [OccurredAtUtc]) = 0");
+        });
 
         builder.HasKey(auditEvent => auditEvent.Id);
         builder.Property(auditEvent => auditEvent.Id).ValueGeneratedNever();

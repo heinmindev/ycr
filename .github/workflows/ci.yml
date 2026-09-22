@@ -75,6 +75,16 @@ jobs:
       - name: Build
         run: dotnet build YCR.sln --no-restore --configuration Debug
 
+      # R-4. Check constraints and every other mapped detail live in the EF model, so the model
+      # and the migrations must agree. This fails the build when someone changes a configuration
+      # without adding a migration — including dropping a UTC check constraint, which nothing
+      # else would notice.
+      - name: Verify the model matches the migrations
+        run: >
+          dotnet ef migrations has-pending-model-changes
+          --project src/YCR.Infrastructure
+          --startup-project src/YCR.Infrastructure
+
       # Built once, then handed to every test process through YCR_MIGRATION_BUNDLE. Each process
       # would otherwise build its own, and `dotnet ef migrations bundle` publishes through the
       # Infrastructure project's obj/ directory, so parallel builds collide.

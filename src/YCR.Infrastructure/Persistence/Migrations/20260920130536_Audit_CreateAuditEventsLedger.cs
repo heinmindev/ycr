@@ -93,7 +93,13 @@ namespace YCR.Infrastructure.Persistence.Migrations
                     [PayloadVersion]         int               NOT NULL,
                     CONSTRAINT [CK_AuditEvents_BeforeJson] CHECK ([BeforeJson] IS NULL OR ISJSON([BeforeJson]) = 1),
                     CONSTRAINT [CK_AuditEvents_AfterJson]  CHECK ([AfterJson]  IS NULL OR ISJSON([AfterJson])  = 1),
-                    CONSTRAINT [CK_AuditEvents_ActorRole]  CHECK ([ActorRole]  IS NULL OR ISJSON([ActorRole])  = 1)
+                    CONSTRAINT [CK_AuditEvents_ActorRole]  CHECK ([ActorRole]  IS NULL OR ISJSON([ActorRole])  = 1),
+                    -- ADR-0018: *Utc columns hold UTC values. The domain stamps OccurredAtUtc from
+                    -- TimeProvider.GetUtcNow(), but this table is append-only and cannot be
+                    -- corrected, so the rule is enforced where no caller can route around it.
+                    -- Created with the table for the same reason as the three above (ADR-0021
+                    -- item 5): retro-fitting a check onto a populated ledger is materially harder.
+                    CONSTRAINT [CK_AuditEvents_OccurredAtUtc_Utc] CHECK (DATEPART(TZOFFSET, [OccurredAtUtc]) = 0)
                 )
                 WITH (LEDGER = ON (APPEND_ONLY = ON));
                 """);

@@ -62,7 +62,7 @@ public sealed class DatabasePrivilegeTests(SqlServerFixture fixture) : IAsyncLif
         await ExecuteAsApplicationAsync(
             """
             INSERT INTO [network].[Stations] ([Id], [Code], [NameEn], [NameMy], [IsActive], [CreatedAtUtc])
-            VALUES (NEWID(), N'PZD', N'Pazundaung', N'ပုဇွန်တောင်', 1, SYSDATETIMEOFFSET());
+            VALUES (NEWID(), N'PZD', N'Pazundaung', N'ပုဇွန်တောင်', 1, SYSUTCDATETIME() AT TIME ZONE 'UTC');
             """);
 
         // DeactivateStation, which is the only update F-001 performs.
@@ -135,7 +135,7 @@ public sealed class DatabasePrivilegeTests(SqlServerFixture fixture) : IAsyncLif
             """
             INSERT INTO [audit].[AuditEvents]
                 ([Id], [OccurredAtUtc], [Action], [SubjectType], [CorrelationId], [PayloadVersion])
-            VALUES (NEWID(), SYSDATETIMEOFFSET(), N'Network.StationCreated', N'Station', N'corr-priv', 1);
+            VALUES (NEWID(), SYSUTCDATETIME() AT TIME ZONE 'UTC', N'Network.StationCreated', N'Station', N'corr-priv', 1);
             """);
 
         var failure = await Assert.ThrowsAsync<SqlException>(() =>

@@ -48,7 +48,10 @@ namespace YCR.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasDatabaseName("UX_Stations_Code");
 
-                    b.ToTable("Stations", "network");
+                    b.ToTable("Stations", "network", t =>
+                        {
+                            t.HasCheckConstraint("CK_Stations_CreatedAtUtc_Utc", "DATEPART(TZOFFSET, [CreatedAtUtc]) = 0");
+                        });
                 });
 
             modelBuilder.Entity("YCR.Infrastructure.Audit.AuditEvent", b =>
@@ -110,6 +113,8 @@ namespace YCR.Infrastructure.Persistence.Migrations
                     b.ToTable("AuditEvents", "audit", t =>
                         {
                             t.ExcludeFromMigrations();
+
+                            t.HasCheckConstraint("CK_AuditEvents_OccurredAtUtc_Utc", "DATEPART(TZOFFSET, [OccurredAtUtc]) = 0");
                         });
                 });
 
