@@ -1609,3 +1609,25 @@ finding S-007A-2. No code was changed; the verdict is Not ready pending T-008 re
 **Blockers / open questions:** none.
 
 **State of the branch:** committed; build clean; Infrastructure suite green.
+
+---
+
+## 2026-09-22 12:55 Asia/Yangon — claude — T-008a
+
+**Stage:** 8a, finding 5 of 8 — **F-005-1 (Medium)** complete.
+**Commit:** `c75bb2f` (`test(F-001): complete the S9 validation matrix`).
+
+**Done this session:**
+- **Exact 11 characters.** `ABCDEFGHIJK` added at both levels. The existing `TOOLONGCODE1` is 12 characters, so the suite proved the rule rejects something clearly too long without ever testing the boundary S9 actually names.
+- **Embedded space.** `IN S` added at both levels. Distinct from the whitespace-only case beside it: `StationCode.Create` trims, so leading and trailing whitespace never reach the pattern, and an interior space is the only form that does.
+- **Blank code.** `Post_WithBlankCode_Returns400ProblemDetails` is its own endpoint test rather than one row among the null cases, and `""` added to the handler theory.
+
+**A behaviour difference worth stating, because the two levels genuinely answer differently:** at the endpoint an empty string is caught by the validation filter and returns `Common.ValidationFailed`; at the handler, where no filter sits in front, `""` reaches the domain rule and returns `Network.InvalidStationCode`. Both are 400, so a caller cannot tell which layer answered — which is the intended design (`docs/20` §4) — but the tests now record which one does.
+
+**Evidence:** `YCR.Application.Tests` **37/37**, `YCR.Api.Tests` **39/39**, 0 skipped, both with the environment variables unset. Every endpoint case asserts 400 plus `errorCode`, and `ErrorCodeOf` asserts `traceId` is present on each, so all three requirements of the finding hold for every case.
+
+**Next step (exact):** finding 6 — **F-006A-2, R-2 and R-3**: `paths-ignore` for `docs/features/**/progress.md`; the design-time variable at job level only; `CiWorkflowTests` cut to one assertion and moved out of `Persistence/`.
+
+**Blockers / open questions:** none.
+
+**State of the branch:** committed; build clean; Application and Api suites green.
