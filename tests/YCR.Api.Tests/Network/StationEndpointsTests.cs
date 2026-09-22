@@ -122,11 +122,25 @@ public sealed class StationEndpointsTests(SqlServerFixture fixture) : ApiTestBas
         Assert.Equal("Network.InvalidPageRequest", await ErrorCodeOf(response));
     }
 
+    /// <summary>
+    /// Spec S9's code cases at the endpoint. <c>ErrorCodeOf</c> asserts <c>traceId</c> is present
+    /// on every one of them, so each case covers all three of 400, <c>errorCode</c> and
+    /// <c>traceId</c>.
+    /// </summary>
+    /// <remarks>
+    /// F-005-1: <c>ABCDEFGHIJK</c> is <strong>exactly 11</strong> characters — one past the limit,
+    /// which is the boundary S9 names. <c>TOOLONGCODE1</c> is 12, so it proved the rule rejects
+    /// something long without ever testing the edge. <c>IN S</c> covers an embedded space, which
+    /// is distinct from the leading/trailing whitespace the handler theory covers: trimming
+    /// removes those, and cannot remove this one.
+    /// </remarks>
     [Theory]
     [InlineData("i", "Insein", "အင်းစိန်")]
+    [InlineData("ABCDEFGHIJK", "Insein", "အင်းစိန်")]
     [InlineData("TOOLONGCODE1", "Insein", "အင်းစိန်")]
     [InlineData("ins", "Insein", "အင်းစိန်")]
     [InlineData("IN-S", "Insein", "အင်းစိန်")]
+    [InlineData("IN S", "Insein", "အင်းစိန်")]
     public async Task Post_WithInvalidCode_Returns400ProblemDetails(string code, string nameEn, string nameMy)
     {
         using var client = Api.CreateManagerClient();
@@ -138,6 +152,31 @@ public sealed class StationEndpointsTests(SqlServerFixture fixture) : ApiTestBas
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal("Network.InvalidStationCode", await ErrorCodeOf(response));
+    }
+
+    /// <summary>
+    /// F-005-1: the blank code asserted on its own, rather than only as one row of the
+    /// missing-field theory.
+    /// </summary>
+    /// <remarks>
+    /// Spec S9 lists "blank code" as its own case, and it is worth its own test because the
+    /// answer is not the one the neighbouring code cases give: an empty string is caught by the
+    /// validation filter, so the code is <c>Common.ValidationFailed</c>, not
+    /// <c>Network.InvalidStationCode</c>. That distinction is behaviour a caller can see, and a
+    /// theory row buried among the null cases did not state it.
+    /// </remarks>
+    [Fact]
+    public async Task Post_WithBlankCode_Returns400ProblemDetails()
+    {
+        using var client = Api.CreateManagerClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/api/v1/stations",
+            new CreateStationRequest("", "Insein", "အင်းစိန်"),
+            CancellationToken);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("Common.ValidationFailed", await ErrorCodeOf(response));
     }
 
     [Theory]

@@ -233,11 +233,23 @@ public sealed class CreateStationHandlerTests(SqlServerFixture fixture) : Networ
         Assert.Equal(["Code", "NameEn", "NameMy"], properties);
     }
 
+    /// <summary>Spec S9's code cases at the handler, below the endpoint's validation filter.</summary>
+    /// <remarks>
+    /// F-005-1 added the three the matrix was missing. <c>ABCDEFGHIJK</c> is exactly 11
+    /// characters — the boundary itself, where <c>TOOLONGCODE1</c> at 12 only ever proved that
+    /// something clearly too long is refused. <c>IN S</c> is an embedded space, which trimming
+    /// cannot remove, unlike the whitespace-only case beside it. <c>""</c> is the empty string:
+    /// the handler is reached directly here, so unlike at the endpoint there is no filter in
+    /// front of it and this asserts the domain rule itself answers.
+    /// </remarks>
     [Theory]
     [InlineData("i", "Too Short")]
+    [InlineData("ABCDEFGHIJK", "Exactly One Over")]
     [InlineData("TOOLONGCODE1", "Too Long")]
     [InlineData("ins", "Lower Case")]
     [InlineData("IN-S", "Punctuation")]
+    [InlineData("IN S", "Embedded Space")]
+    [InlineData("", "Empty")]
     [InlineData("  ", "Blank")]
     public async Task Handle_WithInvalidCode_ReturnsValidationError(string code, string nameEn)
     {
