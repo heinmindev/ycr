@@ -15,10 +15,16 @@ The **Forbidden synonyms** column applies when referring to the exact canonical 
 - **03** - `docs/03-use-cases.md`
 - **04** - `docs/04-domain-model.md`
 - **05** - `docs/05-bounded-contexts.md`
+- **06** - `docs/06-system-architecture.md`
+- **07** - `docs/07-database-design.md`
 - **10** - `docs/10-authorization-matrix.md`
 - **11** - `docs/11-ticket-lifecycle.md`
+- **19** - `docs/19-open-questions.md`
 - **20** - `docs/20-coding-conventions.md`
 - **ADR-0001 through ADR-0021** - `docs/decisions/`
+- **F-001** - the walking-skeleton code, merged to `main` at `ac9bbf3`. Source files are cited by full path.
+
+Documents outside this key (`docs/12-fare-engine.md`, `docs/18-threat-model.md`) are cited by full path in the rows that use them.
 
 ## Architecture and domain language
 
@@ -42,7 +48,9 @@ The **Forbidden synonyms** column applies when referring to the exact canonical 
 
 ## Canonical module names
 
-Use these names for namespaces, schemas, ownership boundaries, and module references. The historical context names from **05** are not module names.
+Use these names for namespaces, schemas, ownership boundaries, and module references.
+
+**Carve-out for 05.** The original context names "Station & Network", "Service & Timetable" and "Payment & Refund" are retained in **05** - in its numbered proposal and in the context-to-module map, whose whole purpose is to show which old name maps to which module. Their presence there is **not** a violation of the forbidden-synonym column and **no edit to 05 is scheduled**. They remain forbidden everywhere else: in namespaces, schemas, code, tests, API documentation, database documentation and new prose.
 
 | Canonical English | Myanmar term | Meaning and source | Forbidden synonyms |
 |---|---|---|---|
@@ -58,7 +66,9 @@ Use these names for namespaces, schemas, ownership boundaries, and module refere
 
 ## Actor and role labels
 
-These are canonical labels for the proposed actors named in **03**. Their inclusion does not approve the role model or any role-to-permission grant; those remain **OPEN QUESTION** under OQ12 and OQ28. The shorter labels in the proposal table in **10** are not canonical outside compact table headings.
+These are canonical labels for the proposed actors named in **03**. Their inclusion does not approve the role model or any role-to-permission grant; those remain **OPEN QUESTION** under OQ12 and OQ28.
+
+**Carve-out for compact labels.** A shortened actor label is permitted inside a compact table heading or an architecture-diagram label, where the full name does not fit and the surrounding document leaves the actor unambiguous. This covers the proposal table in **10** (line 3) and the SPA line in **06** (line 8, "Counter / Inspector / Admin SPA"); **no edit to either file is scheduled**. Outside those two uses the canonical label is required - in prose, code, identifiers, API documentation, permission names and audit actions.
 
 | Canonical English | Myanmar term | Meaning and source | Forbidden synonyms |
 |---|---|---|---|
@@ -66,7 +76,7 @@ These are canonical labels for the proposed actors named in **03**. Their inclus
 | Railway Administrator | OPEN QUESTION - authoritative term not supplied | Proposed actor responsible for railway administration. **03**, **10** proposal only. | Railway Admin, Admin |
 | Station Manager | OPEN QUESTION - authoritative term not supplied | Proposed station-management actor. **03**, **10** proposal only. | Station Admin, Manager |
 | Ticket Operator | OPEN QUESTION - authoritative term not supplied | Proposed ticket-selling/operator actor. **03**, **10** proposal only. | Operator, Cashier |
-| Ticket Inspector | OPEN QUESTION - authoritative term not supplied | Proposed ticket-validation/inspection actor. **03**, **10** proposal only. | Inspector, Validator |
+| Ticket Inspector | OPEN QUESTION - authoritative term not supplied | Proposed ticket-validation/inspection actor. **03**, **10** proposal only. Accepted ADR-0013 (line 44) and **11** (line 30) word this actor "validator user" inside the `TicketValidation` definition; quoting those sentences verbatim is permitted, but new text uses Ticket Inspector. | Inspector, Validator |
 | Finance Officer | OPEN QUESTION - authoritative term not supplied | Proposed finance actor. **03**, **10** proposal only. | Finance, Accountant |
 | Auditor | OPEN QUESTION - authoritative term not supplied | Proposed audit-review actor. **03**, **10** proposal only. | Audit user, Reviewer |
 | Reporting User | OPEN QUESTION - authoritative term not supplied | Proposed reporting actor. **03**. | Report user, Analyst |
@@ -77,15 +87,20 @@ These are canonical labels for the proposed actors named in **03**. Their inclus
 |---|---|---|---|
 | Station | OPEN QUESTION - authoritative term not supplied | A railway station aggregate in the `Network` module. **03**, **04**, **05**. | Stop, location (when a railway station is meant) |
 | StationCode | OPEN QUESTION - authoritative term not supplied | The human-facing station identifier value object. Its format remains an open business question (OQ26). ADR-0006, F-001 provisional rule. | Station ID, station number, short name |
+| BilingualName | OPEN QUESTION - authoritative term not supplied | **Provisional - owned by T-014.** The owned value object holding a station's English and Myanmar names, as the two columns `NameEn` and `NameMy`. Whether a Myanmar-script name is mandatory, the maximum lengths, and whether either name is unique all remain an open business question (OQ27); F-001 runs on a provisional tech-lead assumption, not a Myanma Railways decision. **07**, **20** section 3, **19** OQ27, `src/YCR.Domain/Network/BilingualName.cs`. | StationName (as a type or column), LocalizedName, display name, translation pair. Describing the pair as "a station name" in prose is fine; naming the type anything but `BilingualName` is not |
+| NameEn | OPEN QUESTION - authoritative term not supplied | **Provisional - owned by T-014.** The English name column of `network.Stations`, held by `BilingualName`. Its length, requiredness and uniqueness rules are OQ27. **07** (line 55), **20** section 3, **19** OQ27. | English label, station title, English station name |
+| NameMy | OPEN QUESTION - authoritative term not supplied | **Provisional - owned by T-014.** The Myanmar-Unicode name column of `network.Stations`, held by `BilingualName`. This is the one field the walking skeleton uses to store Myanmar script. It must never store Zawgyi (**20** section 6); how Zawgyi input is to be handled is OQ29 and F-001 implements no Zawgyi control. Its naming rules are OQ27. **07** (line 56), **19** OQ27/OQ29. | Burmese name, local name, Myanmar label, Zawgyi name |
 | Station index | OPEN QUESTION - authoritative term not supplied | A stable short numeric index used in the signed QR mapping; it is distinct from `StationCode`. ADR-0014. | Station code, database ID |
 | Route | OPEN QUESTION - authoritative term not supplied | An ordered station sequence used for network and fare resolution. **04**, **05**. | Service, line (unless an approved railway term is intended) |
-| Route segment | OPEN QUESTION - authoritative term not supplied | A resolved portion of a route used by fare calculation. **04**, `docs/12-fare-engine.md`. | Leg, trip segment (unless the product definition says so) |
+| RouteSegment | OPEN QUESTION - authoritative term not supplied | A resolved portion of a route used by fare calculation; **04** line 22 gives the identifier form. **04**, `docs/12-fare-engine.md`. | Route segment (as an identifier), Leg, trip segment (unless the product definition says so) |
 | Service | OPEN QUESTION - authoritative term not supplied | A timetable/service aggregate distinct from a physical train. **04**, **05**. | Train, route |
 | ScheduleVersion | OPEN QUESTION - authoritative term not supplied | A versioned timetable aggregate that can be published and then treated as immutable. **04**, ADR-0002 pattern. | Schedule (when a version is meant), service |
 | FareRuleSet | OPEN QUESTION - authoritative term not supplied | A versioned set of fare policy data with an effective period. ADR-0002, `docs/12-fare-engine.md`. | Fare, price list, tariff (unless MR formally adopts that term) |
 | Fare quote | OPEN QUESTION - authoritative term not supplied | A calculated fare result for specified journey/product inputs before a sale. `docs/12-fare-engine.md`. | Fare rule, ticket price (when the calculation result is meant) |
 | FareCalculator | OPEN QUESTION - authoritative term not supplied | Domain service that calculates a fare after route resolution and rule selection. **04**, `docs/12-fare-engine.md`. | Pricing service, fare table |
 | RouteSegmentResolver | OPEN QUESTION - authoritative term not supplied | Domain service that resolves route segments before fare calculation. **04**, `docs/12-fare-engine.md`. | Route calculator, path finder |
+| TicketNumberGenerator | OPEN QUESTION - authoritative term not supplied | Domain service that issues a `TicketNumber`; the number's format and issuing rules are not settled by any current source, so none is stated here. **04** (line 31), ADR-0006. | Ticket ID generator, sequence generator, numbering service |
+| RefundCalculator | OPEN QUESTION - authoritative term not supplied | Domain service that calculates a refund amount. Refund eligibility and amount are an open business question (OQ10), so no calculation rule is defined here and none may be assumed. **04** (line 32), **11**, ADR-0013. | Refund policy engine, FareCalculator, refund rule |
 | PassengerCategory | OPEN QUESTION - authoritative term not supplied | A fare input representing the passenger category; the category catalogue remains an open business question (OQ9). **04**, `docs/12-fare-engine.md`. | Customer type, user role |
 
 ## Tickets and validation
@@ -95,19 +110,21 @@ These are canonical labels for the proposed actors named in **03**. Their inclus
 | Ticket | OPEN QUESTION - authoritative term not supplied | The ticketing aggregate representing the passenger entitlement; its product, validity, and repeat-use rules remain business questions. **03**, **04**, **11**, ADR-0013. | Sale, receipt, booking, journey |
 | TicketNumber | OPEN QUESTION - authoritative term not supplied | A human-facing ticket identifier, separate from the GUID resource ID. ADR-0006. | Ticket ID, QR ID |
 | Ticket validation | OPEN QUESTION - authoritative term not supplied | The act of checking a ticket credential and applying the approved validation policy. **03**, **11**, ADR-0013/0014. | Ticket status change, ticket use |
-| TicketValidationRecord | OPEN QUESTION - authoritative term not supplied | Append-only evidence containing ticket, validator, station, time, and result; it is not a Ticket state. **04**, **11**, ADR-0013. | Used flag, ticket status, validation log |
+| TicketValidation | OPEN QUESTION - authoritative term not supplied | Append-only evidence recording the ticket, the Ticket Inspector user who validated it, the station, the time, and the result; it is not a Ticket state, and only a `Valid` result writes one. **Naming conflict, resolved (hein, 2026-09-21):** ADR-0013 (line 44), ADR-0014 (line 64) and **11** (line 30) say `TicketValidation`, while **04** said `TicketValidationRecord`. The Accepted ADRs win; **04** was corrected on this branch and records the correction inline. No superseding ADR was needed, because the ADRs already agreed with each other. **11**, ADR-0013/0014, **04**. | TicketValidationRecord, Used flag, ticket status, validation log |
 | TicketValidator | OPEN QUESTION - authoritative term not supplied | Domain service responsible for ticket validation behavior. **04**. | Inspector service, scanner |
 | ReprintEvent | OPEN QUESTION - authoritative term not supplied | An append-only record of a ticket reprint; reprinting does not change Ticket status. **04**, **11**, ADR-0013. | Replacement ticket, ticket renewal |
-| PrintSequence | OPEN QUESTION - authoritative term not supplied | The signed sequence value associated with a printed ticket; whether an earlier sequence is invalidated remains OQ23. ADR-0014. | Print count, ticket version |
-| Valid | OPEN QUESTION - authoritative term not supplied | A validation result that writes a successful `TicketValidationRecord`. ADR-0014. | Accepted (unless the UI label is explicitly defined), authentic |
+| PrintSequence / `printSequence` | OPEN QUESTION - authoritative term not supplied | The sequence value associated with a printed ticket and signed into the QR payload. **Both spellings are canonical, on different surfaces:** `PrintSequence` is the domain property name; `printSequence` is the wire-format field, as ADR-0014's payload table (line 40) and ADR-0013 (line 56) spell it. On the wire the casing is part of the format and is not cosmetic. Distinct from `PrintCount`. Whether an earlier sequence is invalidated remains OQ23. ADR-0014, ADR-0013. | PrintCount, print sequence number, ticket version |
+| PrintCount | OPEN QUESTION - authoritative term not supplied | The count of how many times a ticket has been printed. Reprinting creates a `ReprintEvent`, increments `PrintCount`, and emits an audit action, without changing Ticket status. It is a counter, not the value signed into the QR - that is `PrintSequence`. ADR-0013 (line 55), **11** (line 31). | PrintSequence, print sequence, reprint flag |
+| Valid | OPEN QUESTION - authoritative term not supplied | A validation result that writes a successful `TicketValidation`. ADR-0014. | Accepted (unless the UI label is explicitly defined), authentic |
 | Invalid | OPEN QUESTION - authoritative term not supplied | A validation result with a reason that does not write a successful validation record. ADR-0014. | Rejected ticket (unless explaining the result to a passenger) |
-| AuthenticUnverified | OPEN QUESTION - authoritative term not supplied | A signature-authentic result whose usage state cannot be verified; admission during network loss is blocked by OQ8. ADR-0014. | Valid, accepted, used |
+| AuthenticUnverified | OPEN QUESTION - authoritative term not supplied | A signature-authentic result whose usage state cannot be verified; admission during network loss is blocked by OQ8. ADR-0014. | Valid, accepted, Used (the result establishes no usage state, so it is not the derived `Used` condition either) |
 | Signed ticket QR | OPEN QUESTION - authoritative term not supplied | The fixed-binary, ECDSA P-256 ticket credential encoded with `YCR1:` and Base45. ADR-0014. | QR token, barcode payload, online ticket token |
 | `kid` (key ID) | OPEN QUESTION - authoritative term not supplied | The signing-key identifier carried in the signed QR header. ADR-0014. | Ticket ID, key name |
 | Trust list | OPEN QUESTION - authoritative term not supplied | The authenticated public-key list cached by inspector devices for offline signature checks. ADR-0014. | Allowlist (unless a security design explicitly means an allowlist) |
 | Base45 | OPEN QUESTION - authoritative term not supplied | The RFC 9285 text encoding used after the `YCR1:` prefix. ADR-0014. | Base64, QR format |
 | Validity window | OPEN QUESTION - authoritative term not supplied | The business-defined period in which a ticket may be used; its policy is OQ19. ADR-0013/0014. | Expiry date (unless referring to a concrete field), service time |
 | Expired | OPEN QUESTION - authoritative term not supplied | A derived condition (`now > ValidUntil`), not a stored Ticket lifecycle state. ADR-0013. | Ticket status, expiry state |
+| Used | OPEN QUESTION - authoritative term not supplied | A derived condition meaning a ticket's permitted use is exhausted, computed from its `TicketValidation` records plus the repeat-use policy. **11** words it "Used up". Like `Expired` it is **not** a stored Ticket lifecycle state and there is no `Used` flag. The repeat-use policy that would make it computable is BLOCKED by OQ3 and OQ19, so the condition must not be implemented until those are answered. **11** (line 30), ADR-0013. | Used flag, ticket status, consumed, validated (when the derived condition is meant) |
 
 ## Sales, payments, refunds, and operations
 
@@ -118,7 +135,7 @@ These are canonical labels for the proposed actors named in **03**. Their inclus
 | Payment reversal | OPEN QUESTION - authoritative term not supplied | The lifecycle operation that moves a recorded Payment to Reversed. **11**, ADR-0013. | Refund, cancellation, chargeback |
 | Refund | OPEN QUESTION - authoritative term not supplied | A financial record against a Sale/Payment, with request, approval, disbursement, or rejection states. **04**, **11**, ADR-0013. | Ticket cancellation, reversal, reimbursement (unless MR approves it) |
 | Refund disbursement | OPEN QUESTION - authoritative term not supplied | The operation that pays an approved Refund. **11**, ADR-0013. | Refund approval, payment reversal |
-| CashierSession | OPEN QUESTION - authoritative term not supplied | An Operations aggregate representing an operator's open/closed cashier session and its session-bound operations. **03**, **04**, ADR-0015. | Shift, till session, workday |
+| CashierSession | OPEN QUESTION - authoritative term not supplied | An Operations aggregate representing a Ticket Operator's open/closed cashier session and its session-bound operations. **03**, **04**, ADR-0015. | Shift, till session, workday |
 | BusinessDate | OPEN QUESTION - authoritative term not supplied | The operation-owned calendar date used for reporting/reconciliation; it is distinct from the UTC operational instant. ADR-0018/0019. | Transaction date, issue timestamp, local time |
 | Cancellation | OPEN QUESTION - authoritative term not supplied | The Ticket lifecycle operation that moves an eligible Ticket to Cancelled; eligibility remains OQ10. **11**, ADR-0013. | Refund, void, deletion |
 | Void | OPEN QUESTION - authoritative term not supplied | The Sale lifecycle operation that moves a Completed Sale to Voided; void policy remains open. **11**, ADR-0013. | Cancel ticket, delete sale, refund |
@@ -147,12 +164,14 @@ These are canonical labels for the proposed actors named in **03**. Their inclus
 
 | Canonical English | Myanmar term | Meaning and source | Forbidden synonyms |
 |---|---|---|---|
-| Audit event | OPEN QUESTION - authoritative term not supplied | An append-only, business-significant record written through the audit boundary. ADR-0017/0021. | Log entry, metric, domain event (unless the domain event is separately meant) |
+| `AuditEvent` (audit event) | OPEN QUESTION - authoritative term not supplied | An append-only, business-significant record written through the audit boundary. In code `AuditEvent` is the Infrastructure entity mapped onto the audit ledger table; it is deliberately internal, so nothing above Infrastructure can construct an audit row outside `IAuditWriter`. ADR-0017/0021, `src/YCR.Infrastructure/Audit/AuditEvent.cs`. | Log entry, metric, domain event (unless the domain event is separately meant) |
 | Audit action | OPEN QUESTION - authoritative term not supplied | The `<Module>.<Event>` name describing an audit event, such as `Network.StationCreated`. **20**, ADR-0021. | Permission, endpoint name |
 | Actor | OPEN QUESTION - authoritative term not supplied | The server-derived authenticated user and roles responsible for an audit event. ADR-0017/0021. | Request user, client-supplied user |
 | Subject | OPEN QUESTION - authoritative term not supplied | The aggregate/entity/concept an audit event concerns; `SubjectId` may be null for subject-less events. ADR-0021. | Actor, resource ID |
 | Correlation ID | OPEN QUESTION - authoritative term not supplied | The request correlation value from `traceparent`. **20**, ADR-0021. | Audit ID, idempotency key, trace ID (unless the exact tracing field is meant) |
 | BeforeJson / AfterJson | OPEN QUESTION - authoritative term not supplied | Versioned prior/result state payloads in an audit event; they must not contain secrets, tokens, full QR payloads, or private keys. ADR-0021. | Snapshot, log message, request body |
+| IAuditSnapshot | OPEN QUESTION - authoritative term not supplied | The marker interface for audit state payloads. `IAuditWriter.Record` accepts only an `IAuditSnapshot`, so passing an aggregate is a compile error. Every implementation must be a `record` and must live in `YCR.Application.<Module>`, never in `YCR.Domain`; `tests/YCR.ArchitectureTests/ArchitectureRuleTests.cs` enforces both. ADR-0021 rules 3 and 4, hein's ruling 2026-09-20, `src/YCR.Application/Common/Abstractions/IAuditSnapshot.cs`. | DTO, entity snapshot, audit model |
+| StationAuditSnapshot | OPEN QUESTION - authoritative term not supplied | The `Station` payload written into `BeforeJson`/`AfterJson`: an explicit four-field record (`Code`, `NameEn`, `NameMy`, `IsActive`), never the aggregate. ADR-0021, **20** section 3, `src/YCR.Application/Network/StationAuditSnapshot.cs`. | Station DTO, station entity, aggregate snapshot |
 | PayloadVersion | OPEN QUESTION - authoritative term not supplied | The schema version for audit state payloads, incremented rather than rewriting old ledger rows. ADR-0021. | API version, database migration version |
 | Audit ledger | OPEN QUESTION - authoritative term not supplied | The SQL Server 2022 append-only ledger table `audit.AuditEvents`. ADR-0017/0021. | Audit log, ordinary audit table |
 | Ledger digest | OPEN QUESTION - authoritative term not supplied | An externally protected digest used to detect alteration of committed ledger history. ADR-0017. | Backup, audit event, encryption key |
@@ -171,11 +190,23 @@ These are canonical labels for the proposed actors named in **03**. Their inclus
 | Rounding policy | OPEN QUESTION - authoritative term not supplied | Policy data that determines money rounding; MMK whole-kyat behavior is OQ21. ADR-0018. | Format, truncation, hard-coded arithmetic |
 | TimeProvider | OPEN QUESTION - authoritative term not supplied | The injected clock abstraction used to read time. **20**, ADR-0018. | `DateTime.Now`, system clock (as an application dependency) |
 
+## Database and deployment
+
+| Canonical English | Myanmar term | Meaning and source | Forbidden synonyms |
+|---|---|---|---|
+| Migration bundle | OPEN QUESTION - authoritative term not supplied | The self-contained executable produced by `dotnet ef migrations bundle`. It is the deployable that applies schema, chosen over a `DbMigrator` project. **07** (line 45), F-001 plan P1/V6. | Migrator project, migration script, seed job |
+| `ycr_migrator` | OPEN QUESTION - authoritative term not supplied | The database login that owns schema and runs the migration bundle; its database user is a member of `db_owner`. The application login has no DDL rights. **07** (line 46), ADR-0017 item 3, `docker/sqlserver/init-principals.sql`. | Application login, sa, admin user |
+| `ycr_app` | OPEN QUESTION - authoritative term not supplied | Both the application's database **login** and the database **role** that carries its grants. The role is created by the `Security_AppDatabaseRole` migration rather than by the provisioning script, so privilege changes go through migration review; it holds SELECT and INSERT on `network.Stations`, UPDATE on that table's `IsActive` column, and INSERT and SELECT on `audit.AuditEvents`. ADR-0017 item 3, `src/YCR.Infrastructure/Persistence/Migrations/20260920135245_Security_AppDatabaseRole.cs`, `docker/sqlserver/init-principals.sql`. | ycr_app_user, migrator login, db_owner (the migrator is the db_owner member, not the application) |
+| `ycr_app_user` | OPEN QUESTION - authoritative term not supplied | The application's database **user**, created for the `ycr_app` login and added to the `ycr_app` role. It is named apart from the role because a role and a user are both database principals and SQL Server will not let them share a name. `docker/sqlserver/init-principals.sql` (lines 45-47, 68-71). | ycr_app, application role, application login |
+
 ## Maintenance rules
 
 1. Use the canonical English term in code, API documentation, database documentation, and tests.
 2. Do not introduce a new synonym to avoid an unresolved business question. Add an OPEN QUESTION to `docs/19-open-questions.md` instead.
 3. Do not use a role name as a permission, or a permission as a role. OQ12 and OQ28 govern role grants.
-4. Keep `Ticket`, `Sale`, `Payment`, `Refund`, and `TicketValidationRecord` as independent concepts. ADR-0013 prohibits collapsing their lifecycles.
-5. Treat `Expired` and `Used` as derived conditions where the ADRs say so; do not add them as stored Ticket states without a superseding ADR.
+4. Keep `Ticket`, `Sale`, `Payment`, `Refund`, and `TicketValidation` as independent concepts. ADR-0013 prohibits collapsing their lifecycles.
+5. Treat `Expired` and `Used` as derived conditions where the ADRs say so; do not add them as stored Ticket states without a superseding ADR. Both have rows above.
 6. When an authoritative Myanmar term is approved, update the Myanmar term column and cite the approving source; do not silently replace `OPEN QUESTION` entries.
+7. Keep coverage of **04** complete: every candidate aggregate, value object and domain service listed in **04** has a row here. When **04** gains or renames one, change this file in the same commit.
+8. A row marked **Provisional - owned by T-014** carries a value unblocked only by a provisional tech-lead assumption, not by a Myanma Railways decision. Do not present it as settled, and do not remove the marker outside T-014.
+9. When a source document and an Accepted ADR disagree on a name, the ADR wins, and the row records that the conflict existed and how it was resolved. Changing the ADR instead requires a superseding ADR (AGENTS.md, Binding decisions).

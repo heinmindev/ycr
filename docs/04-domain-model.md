@@ -21,7 +21,7 @@
 - TravelDate
 - RouteSegment
 - PassengerCategory
-- TicketValidationRecord
+- TicketValidation
 - ReprintEvent
 
 ## Candidate domain services
@@ -32,7 +32,9 @@
 - RefundCalculator
 - RouteSegmentResolver
 
-`TicketValidationRecord` is append-only evidence, not a Ticket state machine. Expiry is derived from `ValidUntil`; it is not a stored lifecycle state.
+`TicketValidation` is append-only evidence, not a Ticket state machine. Expiry is derived from `ValidUntil`; it is not a stored lifecycle state.
+
+**Naming correction (hein, 2026-09-21).** This document previously called it `TicketValidationRecord`. The canonical name is `TicketValidation`: that is what Accepted ADR-0013 (line 44), ADR-0014 (line 64) and `docs/11-ticket-lifecycle.md` (line 30) use, and only this file disagreed. No superseding ADR was required, because the ADRs already agreed with each other. See `docs/glossary.md`.
 
 ## Candidate domain events
 
@@ -56,4 +58,4 @@ These are proposals. Confirm aggregate boundaries through discovery.
 
 **ENGINEERING DECISION (tech lead, cite ADR-0012):** `Sale` belongs to the Payments boundary, while `Ticket` belongs to Ticketing. Cross-module operations use application Contracts and identifiers, not navigation properties.
 
-**ENGINEERING DECISION (tech lead, cite ADR-0013):** `TicketValidationRecord` is append-only evidence and is not a Ticket state. `ScheduleVersion` remains a Timetable aggregate; Ticketing does not take a direct navigation dependency on it.
+**ENGINEERING DECISION (tech lead, cite ADR-0013):** `TicketValidation` is append-only evidence and is not a Ticket state. `ScheduleVersion` remains a Timetable aggregate; Ticketing does not take a direct navigation dependency on it.
