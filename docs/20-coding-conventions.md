@@ -46,7 +46,7 @@ Use the vocabulary in `docs/glossary.md` (to be created). Don't introduce synony
 
 ## 3. Reference slice — `CreateStation`
 
-Every new slice is modelled on this one. It is illustrative until the walking skeleton exists. Station field rules (code format, required names) are OPEN QUESTIONS until the authoritative station list arrives.
+Every new slice is modelled on this one. It is illustrative until the walking skeleton exists. Station field rules (code format, required names) are settled by a final tech-lead ruling, not a Myanma Railways answer (OQ26/OQ27, resolved by T-014, hein 2026-09-22; see `docs/19-open-questions.md`).
 
 ### Domain — `YCR.Domain/Network/Station.cs`
 

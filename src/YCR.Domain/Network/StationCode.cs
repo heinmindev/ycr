@@ -7,8 +7,10 @@ namespace YCR.Domain.Network;
 /// A station's human-facing code.
 /// </summary>
 /// <remarks>
-/// ASSUMPTION (provisional, approved by hein 2026-09-20; replace when OQ26/OQ27/OQ28 answered):
-/// a station code is 2-10 characters and contains only A-Z and 0-9.
+/// DECISION (tech lead, hein, 2026-09-22; T-014) - final; not a Myanma Railways answer:
+/// a station code is 2-10 characters and contains only A-Z and 0-9. If Myanma Railways
+/// later gives an official, different answer to OQ26, that supersedes this ruling and
+/// needs its own follow-up task.
 /// </remarks>
 public sealed record StationCode
 {

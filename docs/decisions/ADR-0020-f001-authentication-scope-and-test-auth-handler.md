@@ -14,7 +14,7 @@ Accepted — 2026-09-20 (hein)
 
 **FACT:** a test-only authentication handler that trusts request-supplied identity is, by construction, a total authentication bypass. If it were ever registered in a deployed environment it would be a Critical vulnerability, so its containment is a security control and not a convenience.
 
-**Related open question:** OQ28 — role grants are unresolved, so no role→permission seed data may exist in F-001 (`docs/10-authorization-matrix.md` §Permission inventory; `docs/features/F-001-walking-skeleton/spec.md` R8).
+**Related open question:** OQ28 — role grants were unresolved, so no role→permission seed data may exist in F-001 (`docs/10-authorization-matrix.md` §Permission inventory; `docs/features/F-001-walking-skeleton/spec.md` R8). **Resolved 2026-09-22 (hein; T-014):** the approved grants are recorded in `docs/10-authorization-matrix.md` §Station permission grants — not a Myanma Railways answer. This does not change decision item 7 below: seed data still cannot exist because no identity/role provisioning system exists in F-001, independent of OQ28's status.
 
 ## Options considered
 
@@ -32,7 +32,7 @@ Option 3.
 4. **REQUIRED CONTROL (primary) — an architecture test asserts that no subtype of `AuthenticationHandler<>` exists anywhere in `src/`.** This is the control that matters: the bypass is absent from the deployable artifact rather than merely disabled within it. The test fails the build, per ADR-0012 §Enforcement.
 5. **REQUIRED CONTROL (defence in depth) — the startup environment guard is retained.** In any environment other than `Testing`, startup validates the registered authentication schemes against an allowlist of expected production handler types and **throws** if an unexpected handler type is registered. It does not log a warning and continue. This guard is secondary: decision 4 already keeps the test handler out of the artifact, and this catches the case where a test assembly is somehow loaded into a running host. Failing closed is deliberate — a bypass that degrades quietly is worse than one that refuses to boot.
 6. **REQUIRED CONTROL — a test proves both halves of the fence:** that registration succeeds under `Testing`, and that startup throws under `Production`. It is not enough for the guard to exist in source.
-7. **No role→permission grants are seeded** (OQ28). Tests mint the permissions they need directly on the test principal. Nothing in F-001 may imply a role mapping.
+7. **No role→permission grants are seeded.** Originally because OQ28 was unresolved; **OQ28 is now resolved (hein, 2026-09-22; T-014)** but the outcome is unchanged, since F-001 has no identity/role provisioning system for a grant to be seeded into — that arrives with the ADR-0016 follow-up feature. Tests mint the permissions they need directly on the test principal. Nothing in F-001 may imply a role mapping.
 8. The deferral is recorded here so a later agent reading `docs/20`'s reference slice cannot mistake the test handler for the approved authentication design.
 
 ## Consequences
@@ -51,5 +51,5 @@ Negative:
 
 Follow-up work:
 - A dedicated feature implementing ADR-0016 (tokens, `identity.AuthSessions`, refresh rotation and grace, revocation latency, Origin checks), which must also confirm whether the decision-4 architecture rule survives unchanged.
-- OQ28 must be answered before any role→permission seed data is added.
+- OQ28 is resolved (hein, 2026-09-22; T-014; see `docs/10-authorization-matrix.md`). Role→permission seed data can only be added once the ADR-0016 follow-up feature builds an identity/role provisioning system.
 - **`YCR.Api.Common.Authorization.AuthorizationResultHandler` must be proved to step aside once a real scheme is registered** (added 2026-09-21 by the F-001 implementation; recorded here rather than in the feature's own notes because it is the ADR-0016 feature that has to act on it). F-001 ships with no authentication handler, so a challenge has no scheme to challenge with and ASP.NET Core throws — an unauthenticated request returned `500` instead of `401` until that handler was added. It intercepts **only** when `GetDefaultChallengeSchemeAsync()` returns null, so registering a scheme should hand every challenge back to the framework's own handler, headers and all. The ADR-0016 feature must assert that directly: with its scheme registered, an unauthenticated request returns the framework's `401` with the expected `WWW-Authenticate` header, and `Common.Unauthenticated` no longer appears. If the interception turns out to be unnecessary by then, delete it rather than leaving a dormant branch in the authorization path.

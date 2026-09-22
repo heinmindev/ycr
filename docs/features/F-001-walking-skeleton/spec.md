@@ -1,6 +1,6 @@
 # F-001: Walking skeleton — solution, infrastructure and the `Station` reference slice
 
-Status: **Approved (hein, 2026-09-20)**, subject to the explicit waiver recorded in §Blocked behaviour. The station field rules and the station permissions are **provisional, skeleton-only ASSUMPTIONs** and must be replaced before production (T-014).
+Status: **Approved (hein, 2026-09-20)**. The station field rules (R3, R4) and station permissions (R8) were provisional, skeleton-only ASSUMPTIONs pending OQ26–OQ28; **T-014 (hein, 2026-09-22) closed that gap with a final tech-lead ruling** — not a Myanma Railways answer, but this project chose not to wait for one. See §Blocked behaviour.
 
 **Amendment 1 — 2026-09-20 (hein), raised by the T-003 plan review.** Scenario **S27** added to §4 (concurrent deactivation), and §7 records that `IsActive` is an EF concurrency token. No business rule changed; both are concurrency mechanics the plan review surfaced.
 
@@ -8,10 +8,10 @@ Module(s): `Network` (reference slice); cross-cutting `Audit`, `Identity` (authe
 Related: FR-001, UC "Manage stations" (`docs/03-use-cases.md` §16), ADR-0004, ADR-0005, ADR-0006, ADR-0012, ADR-0016, ADR-0017, ADR-0018, ADR-0019, ADR-0020, ADR-0021, `docs/20-coding-conventions.md` §3
 
 Decision owner:
-- Business rules (station codes, names, role grants): **Myanma Railways**, routed through `hein` (`docs/19-open-questions.md`). The provisional values in §3 were approved by `hein` as tech lead for skeleton use only; they are **not** Myanma Railways decisions.
+- Business rules (station codes, names, role grants): **Myanma Railways** remains the authoritative decision owner, routed through `hein` (`docs/19-open-questions.md`). Myanma Railways has not answered OQ26–OQ28, so `hein` made a **final tech-lead ruling** (T-014, 2026-09-22) so F-001 is not blocked indefinitely; it is **not** a Myanma Railways decision and a later Myanma Railways answer, if different, supersedes it.
 - Engineering decisions: **tech lead (`hein`)**, recorded as ADRs per `docs/decisions/README.md`.
 
-Authoritative sources: `docs/01-functional-requirements.md` §FR-001; `docs/20-coding-conventions.md` §§1–8; `docs/06-system-architecture.md`; ADR-0004/0005/0006/0012/0016/0017/0018/0019; `docs/21-definition-of-done.md`; `docs/reviews/2026-09-19-starter-kit-review.md` §4 item 9 and §5 row D. **No authoritative source exists for station field rules or role grants** — see §3, §Blocked behaviour and OQ26–OQ28.
+Authoritative sources: `docs/01-functional-requirements.md` §FR-001; `docs/20-coding-conventions.md` §§1–8; `docs/06-system-architecture.md`; ADR-0004/0005/0006/0012/0016/0017/0018/0019; `docs/21-definition-of-done.md`; `docs/reviews/2026-09-19-starter-kit-review.md` §4 item 9 and §5 row D. **No Myanma Railways-authoritative source exists for station field rules or role grants** — T-014's tech-lead ruling (hein, 2026-09-22) stands in instead; see §3, §Blocked behaviour, `docs/19-open-questions.md` OQ26–OQ28 and `docs/10-authorization-matrix.md`.
 
 ---
 
@@ -45,16 +45,16 @@ Stage-1 output (`docs/workflows/02-feature-development.md` stage 1). Every note 
 
 | # | Contradiction | Sources | Resolution | Owner |
 |---|---|---|---|---|
-| C1 | `docs/10-authorization-matrix.md` grants "Manage stations" to Admin and Railway Admin in its table, but the same file's §"Permission inventory requiring explicit approval" lists `stations.manage` and states "[t]heir role grants are **OPEN QUESTION** until the authorization matrix is approved; agents must not infer grants from the names." | `docs/10` §table vs §inventory | **Resolved by hein 2026-09-20:** the inventory governs and the table is labelled a proposal. `docs/10` updated accordingly. No role→permission grant is seeded in F-001; tests mint permissions directly. The underlying role question stays open as OQ28. | Myanma Railways (still open) |
-| C2 | The permission inventory contains `stations.manage` but no `stations.read`, while the matrix gives Auditor a "view" right over station management. | `docs/10` §table ("view") vs §inventory | **Resolved by hein 2026-09-20:** `stations.read` added to the `docs/10` inventory. Which roles hold it remains OQ28. | Myanma Railways (still open) |
+| C1 | `docs/10-authorization-matrix.md` grants "Manage stations" to Admin and Railway Admin in its table, but the same file's §"Permission inventory requiring explicit approval" lists `stations.manage` and states "[t]heir role grants are **OPEN QUESTION** until the authorization matrix is approved; agents must not infer grants from the names." | `docs/10` §table vs §inventory | **Resolved by hein 2026-09-20:** the inventory governs and the table is labelled a proposal. `docs/10` updated accordingly. No role→permission grant is seeded in F-001; tests mint permissions directly. **The underlying role question, OQ28, is resolved by T-014's final tech-lead ruling (hein, 2026-09-22):** `stations.manage` → Admin and Railway Admin. | Myanma Railways (open; tech-lead ruling stands in) |
+| C2 | The permission inventory contains `stations.manage` but no `stations.read`, while the matrix gives Auditor a "view" right over station management. | `docs/10` §table ("view") vs §inventory | **Resolved by hein 2026-09-20:** `stations.read` added to the `docs/10` inventory. **Which roles hold it is resolved by T-014's final tech-lead ruling (hein, 2026-09-22):** any authenticated operator role (Admin, Railway Admin, Station Manager, Operator, Inspector, Finance, Auditor). | Myanma Railways (open; tech-lead ruling stands in) |
 | C3 | AGENTS.md §Commands documents `docker compose up -d` as "SQL Server 2022 for local dev **and integration tests**", while `docs/20` §3 requires handler tests to run "against real SQL Server (Testcontainers `mssql/server:2022`)". | `AGENTS.md` §Commands vs `docs/20` §3 | Not a true conflict: compose serves local development, Testcontainers serves automated tests. Both are in scope; the shared constraint is one pinned 2022 image reference (E4). | tech lead — closed |
 | C4 | `docs/06` lists six test projects (`Domain`, `Application`, `Infrastructure`, `Api`, `Integration`, `Architecture`); `docs/20` §3 names only four as required per slice. | `docs/06` §Projects vs `docs/20` §3 | Create all six per `docs/06`; populate the four named in `docs/20` §3 plus `YCR.Infrastructure.Tests` for the ADR-0006 fragmentation control. `YCR.IntegrationTests` is created empty in F-001. | tech lead — closed |
-| C5 | `docs/20` §3 fixes `HasMaxLength(10)` for `Code` and `HasMaxLength(100)` for names, but the same section says station field rules "are OPEN QUESTIONS until the authoritative station list arrives". | `docs/20` §3 | **Resolved by hein 2026-09-20** as a provisional skeleton-only ASSUMPTION (R3, R4), matching those lengths. The open questions OQ26/OQ27 remain open for Myanma Railways; see §Blocked behaviour for the waiver and T-014 for the replacement task. | Myanma Railways (still open) |
+| C5 | `docs/20` §3 fixes `HasMaxLength(10)` for `Code` and `HasMaxLength(100)` for names, but the same section says station field rules "are OPEN QUESTIONS until the authoritative station list arrives". | `docs/20` §3 | **Resolved by hein 2026-09-20** as a provisional skeleton-only ASSUMPTION (R3, R4), matching those lengths; **made final by T-014 (hein, 2026-09-22)** as a tech-lead ruling, not a Myanma Railways answer. OQ26/OQ27 stay open in `docs/19-open-questions.md`, resolved-by-tech-lead-ruling; a later Myanma Railways answer would supersede it. | Myanma Railways (open; tech-lead ruling stands in) |
 | C6 | `docs/21` §Documentation requires the glossary to be updated; the glossary did not exist and its creation was an undecided human task (T-010). | `docs/21` vs `TASKS.md` T-010 | **Resolved by hein 2026-09-20:** T-010 decided yes, glossary written in parallel. F-001 adds the Network vocabulary it introduces, so the DoD item is satisfiable. | tech lead — closed |
 
 ### 0.4 What discovery did **not** find
 
-No document in `docs/` defines: the station code format; whether the Myanmar-script station name is mandatory; which roles hold `stations.manage`; the column shape of `audit.AuditEvents`; a CI provider; a pinned SQL Server image tag or digest; or the two-credential database model that ADR-0017 §3 requires. The first three are business rules, now covered by provisional assumptions (§3) over still-open OQ26–OQ28. The rest are settled as engineering decisions E3, E4, E7 and E8.
+No document in `docs/` defines: the station code format; whether the Myanmar-script station name is mandatory; which roles hold `stations.manage`; the column shape of `audit.AuditEvents`; a CI provider; a pinned SQL Server image tag or digest; or the two-credential database model that ADR-0017 §3 requires. The first three are business rules; §3 recorded provisional assumptions at discovery time, later made final by T-014's tech-lead ruling (hein, 2026-09-22) over OQ26–OQ28 — see `docs/19-open-questions.md`. The rest are settled as engineering decisions E3, E4, E7 and E8.
 
 ---
 
@@ -72,7 +72,7 @@ Give every later feature an executable pattern to copy: a compiling, tested `YCR
 | Staff user reading stations | `stations.read` | Added to the `docs/10` inventory by hein 2026-09-20 (C2). |
 | Anonymous | none | `GET /health/live` and `GET /health/ready` only, with an explicit `.AllowAnonymous()` and a comment giving the reason (`docs/20` §4). |
 
-**Which roles hold either permission is still OQ28.** F-001 seeds **no** role→permission grants. Tests mint the permission they need directly on the test principal (ADR-0020). Nothing in F-001 may imply a role mapping.
+**Approved role grants (T-014, hein, 2026-09-22 — tech-lead ruling, not a Myanma Railways answer):** `stations.manage` → Admin and Railway Admin only; `stations.read` → any authenticated operator role (Admin, Railway Admin, Station Manager, Operator, Inspector, Finance, Auditor). See `docs/10-authorization-matrix.md`. **F-001 still seeds no role→permission grants in code** — no identity/role provisioning system exists until the ADR-0016 follow-up feature ships (ADR-0020). Tests mint the permission they need directly on the test principal.
 
 ---
 
@@ -82,18 +82,18 @@ Give every later feature an executable pattern to copy: a compiling, tested `YCR
 |---|---|---|---|
 | R1 | Administrators can create, update, activate/deactivate, search and view stations. F-001 implements **create, deactivate, get-by-id and list** only; update/search/reactivate are deferred (§9). | FACT | `docs/01-functional-requirements.md` §FR-001 |
 | R2 | A station has a human-facing station code that is unique across stations. | FACT | ADR-0006 §3 (`StationCode` listed as a human-facing identifier with a unique constraint) |
-| R3 | A station code is 2–10 characters, drawn only from `A`–`Z` and `0`–`9`, unique across **all** stations including inactive ones, and **never reused** once assigned. | **ASSUMPTION (provisional, approved by hein 2026-09-20; replace when OQ26/OQ27/OQ28 answered)** | Not a Myanma Railways decision. Scoped to `StationCode`; see §Blocked behaviour and T-014. Underlying question: OQ26, related OQ1 |
-| R4 | `NameEn` and `NameMy` are both required, each 1–100 characters after trimming, and neither is unique. Both are stored as Unicode `nvarchar`, never Zawgyi. | "Unicode, never Zawgyi" is **FACT** (`docs/20` §6). The required/length/uniqueness rules are **ASSUMPTION (provisional, approved by hein 2026-09-20; replace when OQ26/OQ27/OQ28 answered)** | Not a Myanma Railways decision. Scoped to `BilingualName`; see §Blocked behaviour and T-014. Underlying question: OQ27 |
+| R3 | A station code is 2–10 characters, drawn only from `A`–`Z` and `0`–`9`, unique across **all** stations including inactive ones, and **never reused** once assigned. | **DECISION (tech lead, hein, 2026-09-22) — final; not a Myanma Railways answer** | Not a Myanma Railways decision; a later Myanma Railways answer, if different, supersedes it (own follow-up task). Scoped to `StationCode`. Underlying question: OQ26 (resolved by tech-lead ruling in `docs/19-open-questions.md`), related OQ1 |
+| R4 | `NameEn` and `NameMy` are both required, each 1–100 characters after trimming, and neither is unique. Both are stored as Unicode `nvarchar`, never Zawgyi. | "Unicode, never Zawgyi" is **FACT** (`docs/20` §6). The required/length/uniqueness rules are **DECISION (tech lead, hein, 2026-09-22) — final; not a Myanma Railways answer** | Not a Myanma Railways decision; a later Myanma Railways answer, if different, supersedes it (own follow-up task). Scoped to `BilingualName`. Underlying question: OQ27 (resolved by tech-lead ruling in `docs/19-open-questions.md`) |
 | R5 | A newly created station is active. | ENGINEERING DECISION (tech lead, cite `docs/20` §3 reference slice, where `Station.Create(...)` sets `IsActive = true`) | `docs/20` §3 |
 | R6 | Deactivating an already-inactive station is rejected with `Network.StationAlreadyInactive`. | ENGINEERING DECISION (tech lead, cite `docs/20` §3 reference slice `Station.Deactivate()`) | `docs/20` §3 |
 | R7 | A duplicate station code is rejected with `Network.StationCodeAlreadyExists`, and the database unique index — not only the pre-check — is the authority under concurrency. | ENGINEERING DECISION (tech lead, cite ADR-0004 §Errors: "[a] DB unique-constraint violation on a business key is caught and mapped to `Conflict`") | `docs/20` §3; ADR-0004 |
-| R8 | Managing stations requires `stations.manage`; reading them requires `stations.read`. No role holds either by default; F-001 seeds no grants. | **ASSUMPTION (provisional, approved by hein 2026-09-20; replace when OQ26/OQ27/OQ28 answered)** for the permission constants themselves. The absence of grants is a deliberate consequence of OQ28 remaining open. | `docs/10` §inventory (updated 2026-09-20); C1, C2 |
+| R8 | Managing stations requires `stations.manage`; reading them requires `stations.read`. The approved role grants are `stations.manage` → Admin and Railway Admin only; `stations.read` → any authenticated operator role (Admin, Railway Admin, Station Manager, Operator, Inspector, Finance, Auditor). F-001 still seeds no grants in code — no identity/role provisioning system exists until the ADR-0016 follow-up feature ships. | **DECISION (tech lead, hein, 2026-09-22) — final; not a Myanma Railways answer** for the permission constants and role grants. The code-level absence of seeded grants is now an engineering sequencing fact (ADR-0020, ADR-0016 follow-up), not a business-rule placeholder. | `docs/10` §table and §inventory (updated 2026-09-22); T-014; C1, C2 |
 | R9 | Station identifiers are application-generated GUIDs, SQL-Server-ordered through `IIdGenerator`, mapped `ValueGeneratedNever()`. | ENGINEERING DECISION (tech lead, cite ADR-0006 §4 and its 2026-09-19 amendment) | ADR-0006 |
 | R10 | Creating and deactivating a station are business-significant actions and write audit events `Network.StationCreated` and `Network.StationDeactivated`, with actor fields taken only from the authenticated server-side context. | ENGINEERING DECISION (tech lead, cite ADR-0017 §Decision items 1–2 and ADR-0021); naming from `docs/20` §2 | ADR-0017; ADR-0021; `docs/20` §§2, 7 |
 | R11 | Station management is not a financial or retryable command; no `Idempotency-Key` is required. | ENGINEERING DECISION (tech lead, cite `docs/20` §5, whose required list is sell / cancel / refund / payment / cashier-session and does not include station management) | `docs/20` §5 |
 | R12 | Instants are `DateTimeOffset` in code and `datetimeoffset(3)` in SQL, read only through `TimeProvider`. Stations own no `BusinessDate` — ADR-0019's rule table covers Sale, Payment, cancellation and Refund only. | ENGINEERING DECISION (tech lead, cite ADR-0018 §Time and ADR-0019 §Decision) | ADR-0018; ADR-0019 |
 
-**Blocking open questions:** none remaining for implementation. **OQ26, OQ27 and OQ28 are still open with Myanma Railways**, but R3, R4 and R8 provide approved provisional values so F-001 can proceed. See §Blocked behaviour for the scope and the conditions of that waiver.
+**Blocking open questions:** none. **OQ26, OQ27 and OQ28 are resolved by a final tech-lead ruling (T-014, hein, 2026-09-22)** — not a Myanma Railways answer; Myanma Railways' own answer, if it differs, would supersede this ruling and needs its own follow-up task. R3, R4 and R8 state the ruling directly. See §Blocked behaviour.
 
 ---
 
@@ -167,7 +167,7 @@ Base path `/api/v1`, JSON camelCase, GUID resource ids, RFC 9457 ProblemDetails 
 | GET | `/health/live` | — | `200` | — | `.AllowAnonymous()` — a liveness probe must answer before auth is reachable | n/a |
 | GET | `/health/ready` | — | `200` / `503` | — | `.AllowAnonymous()` — readiness probe used by the reverse proxy | n/a |
 
-The request-field shape follows the provisional R3/R4 rules and changes when T-014 replaces them. `docs/08-api-specification.md` lists `PATCH /stations`; update is deferred (§9).
+The request-field shape follows the R3/R4 rules, now final per T-014 (hein, 2026-09-22). `docs/08-api-specification.md` lists `PATCH /stations`; update is deferred (§9).
 
 ---
 
@@ -240,7 +240,7 @@ Migrations are named `YYYYMMDD_<Module>_<Change>` and reviewed per `docs/workflo
 
 ## 9. Out of scope
 
-Update/rename a station (`PATCH /stations`), reactivation, search and filtering beyond simple pagination, `Routes`/`RouteStations` and the remaining tables in `docs/07` §Core tables, the ADR-0016 token and refresh implementation (deferred by ADR-0020), `IdempotencyRecords`, `YCR.Worker` behaviour (the project is created empty), the SPA and its CSP/dependency-audit controls (ADR-0016 §Browser security — no frontend exists yet), ledger digest operations, and seed/fixture station data (blocked by OQ1, and by R3 being provisional).
+Update/rename a station (`PATCH /stations`), reactivation, search and filtering beyond simple pagination, `Routes`/`RouteStations` and the remaining tables in `docs/07` §Core tables, the ADR-0016 token and refresh implementation (deferred by ADR-0020), `IdempotencyRecords`, `YCR.Worker` behaviour (the project is created empty), the SPA and its CSP/dependency-audit controls (ADR-0016 §Browser security — no frontend exists yet), ledger digest operations, and seed/fixture station data (blocked by OQ1).
 
 Renaming a station raises a data-history question — does a rename rewrite historical station names on already-issued tickets? — that the follow-up feature must resolve before implementing `PATCH`.
 
@@ -250,24 +250,16 @@ Renaming a station raises a data-history question — does a rename rewrite hist
 
 Required by `docs/21` §Specification.
 
-### Explicit waiver — approved by hein, tech lead, 2026-09-20
+### Waiver closed — T-014 (hein, 2026-09-22)
 
-`docs/21` §Specification requires that "[n]o unresolved OPEN QUESTION affects the implemented behaviour", and AGENTS.md §"When a business rule is missing" forbids placeholder rules. **For F-001 only, that rule is explicitly waived by the tech lead**, so the walking skeleton is not blocked behind Myanma Railways' availability.
-
-Terms of the waiver:
-
-1. **Scope.** The provisional rules live **only** in the `StationCode` value object, the `BilingualName` value object, and the permission constants. No other code, migration, seed script or document may encode them, and nothing may branch on them.
-2. **Labelling.** R3, R4 and R8 are labelled `ASSUMPTION (provisional, approved by hein 2026-09-20; replace when OQ26/OQ27/OQ28 answered)` wherever they appear, including in XML doc comments on the two value objects and the permission constants, so the next agent cannot mistake them for settled rules.
-3. **OQ26, OQ27 and OQ28 stay open** in `docs/19-open-questions.md`. The provisional values are a tech-lead convenience for the skeleton; they are **not** Myanma Railways decisions and must not be presented as such anywhere.
-4. **Not for production.** F-001's station rules must not reach production until they are replaced by answers to OQ26–OQ28. **T-014** in `TASKS.md` (status `blocked`, blocker type `business`) tracks the replacement and is a release gate.
-5. **Not a precedent.** This waiver covers F-001's station field rules and permission constants only. Every other missing business rule follows AGENTS.md §"When a business rule is missing" unchanged.
+The explicit waiver approved 2026-09-20 covered only the `StationCode` value object, the `BilingualName` value object, and the permission constants (R3, R4, R8), pending OQ26–OQ28. **T-014 closes it**: OQ26, OQ27 and OQ28 are resolved by a final tech-lead ruling (hein, 2026-09-22) — not a Myanma Railways answer, but this project chose not to wait for one. R3, R4 and R8 are no longer provisional and no longer carry the `ASSUMPTION (provisional...)` label; see `docs/19-open-questions.md` and `docs/10-authorization-matrix.md`. If Myanma Railways later gives an official, different answer to any of these, that supersedes this ruling and needs its own follow-up task. AGENTS.md §"When a business rule is missing" applies unchanged to every other missing business rule; this closure is not a precedent.
 
 ### Still blocked
 
 | Behaviour | Blocking item | Effect on F-001 |
 |---|---|---|
-| Role→permission grants and any permission seed data | **OQ28** | No seeding in F-001. Tests mint permissions directly on the test principal. `docs/10`'s role table stays a proposal. |
-| Real station data (seed/fixture station list) | **OQ1**, and R3 being provisional | No station fixtures ship. Tests construct their own stations. |
+| Role→permission grants and any permission seed data | No identity/role provisioning system exists yet — real authentication is deferred to the ADR-0016 follow-up feature (ADR-0020) | Approved grants are recorded in `docs/10-authorization-matrix.md`; F-001 still seeds nothing in code. Tests mint permissions directly on the test principal. |
+| Real station data (seed/fixture station list) | **OQ1** | No station fixtures ship. Tests construct their own stations. |
 | Ledger digest schedule, storage and verification | ADR-0017 §Blocked behaviour | Out of scope (§9); F-001 proves the DDL only. |
 | Audit retention and archival for ledger rows | **OQ14** (ADR-0017 §Blocked behaviour) | No retention behaviour is implemented. |
 
@@ -298,6 +290,6 @@ Terms of the waiver:
 - **Trunk rename:** the trunk is being renamed `master` → `main` (D4), which makes `TASKS.md` §Protocol correct as written. The `claim/T-002` ref was created from `master` before the rename.
 - **Glossary:** T-010 decided yes and is being written in parallel (D5). F-001 contributes the Network vocabulary it introduces — `Station`, `StationCode`, `BilingualName`, active/inactive — so `docs/21` §Documentation is satisfiable.
 - **T-003 (PLAN)** is unblocked by this approval but must not be started until hein says so.
-- **T-014** tracks replacing the provisional station rules and is a release gate, not an F-001 blocker.
+- **T-014** (hein, 2026-09-22) replaced the provisional station rules with a final tech-lead ruling over OQ26–OQ28; it was a release gate, not an F-001 blocker, and is now closed.
 - **T-015** creates `docs/glossary.md`. F-001's Network vocabulary feeds into it (D5).
 - **ADR-0020 §Consequences carries one caveat the follow-up authentication feature must check:** the "no `AuthenticationHandler<>` in `src/`" rule holds only while YCR writes no authentication handler of its own. ADR-0016 as written uses framework-provided handler types, so it holds today; if that changes, the rule needs a narrower formulation through a superseding ADR rather than an edit to the test.
