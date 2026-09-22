@@ -26,6 +26,10 @@ on:
     paths-ignore:
       - 'TASKS.md'
       - 'docs/progress/**'
+      # F-006A-2: the standalone-task progress files live under docs/progress/**, but a feature's
+      # progress file lives beside its spec and plan, so the pattern above never matched the file
+      # that generates the most checkpoint commits.
+      - 'docs/features/**/progress.md'
   pull_request:
     branches: [main]
     # Deliberately NO paths-ignore here. A skipped workflow does not report a neutral result —
@@ -89,8 +93,6 @@ jobs:
       # would otherwise build its own, and `dotnet ef migrations bundle` publishes through the
       # Infrastructure project's obj/ directory, so parallel builds collide.
       - name: Build the migration bundle once
-        env:
-          YCR_DESIGN_TIME_CONNECTION: Server=localhost;Database=YcrDesignTime;Trusted_Connection=True;TrustServerCertificate=True
         run: |
           mkdir -p "$RUNNER_TEMP/bundle"
           dotnet ef migrations bundle --force \
@@ -187,8 +189,6 @@ jobs:
       # Applied under the migrator credential, then the app user is joined to the role the
       # migration created. The API itself never has DDL rights (spec E7, S22).
       - name: Apply migrations and finish provisioning
-        env:
-          YCR_DESIGN_TIME_CONNECTION: Server=localhost;Database=YcrDesignTime;Trusted_Connection=True;TrustServerCertificate=True
         run: |
           dotnet ef migrations bundle --force \
             --project src/YCR.Infrastructure \
@@ -318,8 +318,6 @@ jobs:
           dotnet build YCR.sln --no-restore --configuration Debug
 
       - name: Build the migration bundle once
-        env:
-          YCR_DESIGN_TIME_CONNECTION: Server=localhost;Database=YcrDesignTime;Trusted_Connection=True;TrustServerCertificate=True
         run: |
           mkdir -p "$RUNNER_TEMP/bundle"
           dotnet ef migrations bundle --force \
