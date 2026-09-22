@@ -1,0 +1,58 @@
+<Project>
+
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <!--
+    Shared test-project settings, so seven csproj files do not repeat them.
+    xUnit v3 test projects are executables (plan P3).
+
+    YCR.TestSupport lives under tests/ but is a fixture library, not a test
+    project: it must not pull in the test runner, or `dotnet test` treats it
+    as a test assembly with nothing to run.
+  -->
+  <PropertyGroup Condition="'$(MSBuildProjectName)' != 'YCR.TestSupport'">
+    <IsTestProject>true</IsTestProject>
+    <OutputType>Exe</OutputType>
+    <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
+    <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
+  </PropertyGroup>
+
+  <!--
+    Trunk-only tests are EXCLUDED here, not skipped (spec E5, plan review item 7).
+
+    They pull a second multi-gigabyte SQL Server image or write 10,000 rows, which the plan
+    judged too expensive for every branch build. Skipping them would report "skipped: N" and
+    break S15's "no skipped tests"; excluding them by trait keeps the branch run at zero
+    skipped while leaving the tests real and runnable.
+
+    Setting YCR_RUN_TRUNK_ONLY_TESTS=1 flips this to the exact complement: only the trunk-only
+    tests run. Between the two modes every test in the solution runs.
+
+    Both filters live here rather than on the command line, and that is deliberate. Passing
+    them per invocation meant also passing the zero-tests waiver, which collided with the copy
+    YCR.IntegrationTests already carries in its own csproj; a duplicated option makes
+    Microsoft.Testing.Platform exit 5 rather than run. Keeping the arguments in one place makes
+    that collision impossible to reintroduce.
+  -->
+  <PropertyGroup Condition="'$(MSBuildProjectName)' != 'YCR.TestSupport' AND '$(YCR_RUN_TRUNK_ONLY_TESTS)' == ''">
+    <TestingPlatformCommandLineArguments>$(TestingPlatformCommandLineArguments) --filter-not-trait "Category=TrunkOnly"</TestingPlatformCommandLineArguments>
+  </PropertyGroup>
+
+  <!--
+    Trunk-only mode. The zero-tests waiver is required here and is not a waiver on any test:
+    most assemblies contain no trunk-only test, so under this filter they legitimately match
+    nothing and would each exit 8. The CI job closes the obvious hole by asserting afterwards
+    that tests actually executed, so "matched nothing anywhere" cannot pass silently.
+  -->
+  <PropertyGroup Condition="'$(MSBuildProjectName)' != 'YCR.TestSupport' AND '$(YCR_RUN_TRUNK_ONLY_TESTS)' != ''">
+    <TestingPlatformCommandLineArguments>$(TestingPlatformCommandLineArguments) --filter-trait "Category=TrunkOnly" --ignore-exit-code 8</TestingPlatformCommandLineArguments>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(MSBuildProjectName)' != 'YCR.TestSupport'">
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>

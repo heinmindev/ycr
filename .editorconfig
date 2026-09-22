@@ -1,0 +1,30 @@
+# EditorConfig for the YCR solution. Plan F-001 decision E2.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{json,yml,yaml,csproj,props,targets,xml}]
+indent_size = 2
+
+[*.md]
+# Two trailing spaces are a hard line break in Markdown.
+trim_trailing_whitespace = false
+
+[*.sql]
+indent_size = 4
+
+[*.cs]
+# UTF-8 matters here beyond tidiness: Myanmar Unicode appears in test fixtures
+# (spec S14), and a mis-encoded source file would fail that test for the wrong reason.
+csharp_new_line_before_open_brace = all
+csharp_indent_case_contents = true
+dotnet_sort_system_directives_first = true
+csharp_style_namespace_declarations = file_scoped:suggestion
+csharp_prefer_braces = true:suggestion
+dotnet_style_require_accessibility_modifiers = for_non_interface_members:suggestion

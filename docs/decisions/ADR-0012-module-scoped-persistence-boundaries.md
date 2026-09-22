@@ -35,6 +35,11 @@ ADR-0003, while retaining its five-project modular-monolith layout.
 
 **REQUIRED CONTROL:** architecture tests must inspect type dependencies and fail the build for the forbidden context/domain references above. Tests are a secondary guard; the narrow interfaces are the primary compile-time boundary.
 
+**Clarification (hein, 2026-09-21):** item 4 allows module code to depend on Common, but Common
+must not depend on any module namespace. A shared kernel that reaches into one module couples every
+module that consumes it. `CommonMustNotDependOnAnyModule` enforces this direction for both
+`YCR.Domain.Common` and `YCR.Application.Common`, with a deliberate violating fixture.
+
 **OPEN QUESTION:** whether a future Roslyn analyzer is needed in addition to architecture tests remains open until the walking skeleton demonstrates the test coverage.
 
 ## Consequences

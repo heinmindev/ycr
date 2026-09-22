@@ -32,6 +32,9 @@
 28. Which operator roles may manage stations, and is there a separate read permission for viewing stations? `docs/10-authorization-matrix.md` granted "Manage stations" to Admin and Railway Admin in its table, yet the same file states that role grants for `stations.manage` are an OPEN QUESTION and must not be inferred. (F-001 spec R8, contradictions C1 and C2. Depends on OQ12.)
     **Partly resolved 2026-09-20 (hein):** `stations.read` was added to the `docs/10` inventory, and that file now states the inventory governs and the role table is a proposal. **The role grants themselves remain open with Myanma Railways.** F-001 seeds no role→permission grants; its tests mint permissions directly. Replacement tracked by T-014.
 
+29. How must the system treat Zawgyi-encoded Myanmar text on input? Zawgyi text occupies the same Unicode code points as standard Myanmar, so storing names as `nvarchar` satisfies `docs/20` §6's "never store Zawgyi" only if Zawgyi never arrives. Options: (a) reject at the API boundary with a detector; (b) detect and convert to Unicode; (c) no server control — only first-party clients producing Unicode may submit text. Also: are Zawgyi-font devices still in use at YCR counters, and what should a clerk see if input is rejected? (F-001 spec R4; `review-claude.md` C-11. Applies to every Myanmar-text field, not only station names.)
+    **Open.** F-001 validates presence and length only and has no Zawgyi control. No detector is to be implemented against a guessed rule. Tracked by T-014.
+
 ## Engineering decisions resolved on 2026-09-19
 
 Module layout, application pattern, frontend split, identifiers, ticket QR, counter online mode, authentication, audit, time and money. See ADR-0012 to ADR-0018 and their superseded ADRs.
