@@ -6,11 +6,13 @@ namespace YCR.Api.Common.Authorization;
 /// Succeeds when the authenticated principal carries the required permission claim.
 /// </summary>
 /// <remarks>
-/// Permissions are read from claims, not from roles. `docs/10` models authority as permissions,
-/// and OQ28 — which roles hold <c>stations.manage</c> — is still open with Myanma Railways, so
-/// <strong>no role-to-permission mapping is seeded anywhere</strong>. Tests mint the permission
-/// claim directly on the test principal. When OQ28 is answered, the mapping arrives in one place
-/// and nothing here changes.
+/// Permissions are read from claims, not from roles. `docs/10` models authority as permissions.
+/// OQ28 — which roles hold <c>stations.manage</c>/<c>stations.read</c> — is resolved by a final
+/// tech-lead ruling (hein, 2026-09-22; T-014, not a Myanma Railways answer), recorded in
+/// `docs/10-authorization-matrix.md`, but <strong>no role-to-permission mapping is seeded
+/// anywhere</strong>: no identity/role provisioning system exists until the ADR-0016 follow-up
+/// feature ships (ADR-0020). Tests mint the permission claim directly on the test principal.
+/// When that follow-up feature lands, the mapping arrives in one place and nothing here changes.
 /// </remarks>
 public sealed class PermissionAuthorizationHandler : AuthorizationHandler<PermissionRequirement>
 {

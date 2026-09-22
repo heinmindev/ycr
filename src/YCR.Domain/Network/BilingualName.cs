@@ -6,8 +6,10 @@ namespace YCR.Domain.Network;
 /// A station name in English and Myanmar Unicode.
 /// </summary>
 /// <remarks>
-/// ASSUMPTION (provisional, approved by hein 2026-09-20; replace when OQ26/OQ27/OQ28 answered):
-/// both names are required and contain 1-100 characters after trimming.
+/// DECISION (tech lead, hein, 2026-09-22; T-014) - final; not a Myanma Railways answer:
+/// both names are required and contain 1-100 characters after trimming. If Myanma Railways
+/// later gives an official, different answer to OQ27, that supersedes this ruling and
+/// needs its own follow-up task.
 /// </remarks>
 public sealed record BilingualName
 {
