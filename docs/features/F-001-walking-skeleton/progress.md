@@ -1415,3 +1415,23 @@ finding S-007A-2. No code was changed; the verdict is Not ready pending T-008 re
 **Blockers / open questions:** OQ29 remains intentionally open under T-014; Docker-backed tests are deferred to CI.
 
 **State of the branch:** implementation commits are clean and committed through `0beaa87`; review-status checkpoint is uncommitted.
+
+---
+
+## 2026-09-21 23:35 Asia/Yangon — codex — T-008b
+
+**Stage:** 8b (all requested finding remediations locally complete; CI pending).
+**Commit:** `f71a9f8` (latest implementation/review-status parent before this checkpoint).
+
+**Done this session:**
+- Remediated C-1–C-8, C-11, and C-12 exactly per T-008b's rulings; C-9/C-10 remain unchanged because they were already fixed.
+- Updated every requested Status cell with its fixing SHA (including multi-commit references for C-6 and C-8).
+- Confirmed C-11 is documentation-only with OQ29 in CRLF `docs/19`; no Zawgyi detector was added.
+
+**Evidence:** `dotnet build YCR.sln --no-restore` passed with 0 warnings / 0 errors; Domain 32/32, Architecture 13/13, StationModel 4/4, design-time factory 2/2, and SQL image-pin 3/3 passed with 0 skipped. The migration bundle smoke build passed with `YCR_DESIGN_TIME_CONNECTION` set. Docker-backed tests were not run locally.
+
+**Next step (exact):** Push `feature/F-001`, wait for the green push CI run, then record that run URL and the final pushed SHA in T-008b's Notes on `main` before changing its status to `review`.
+
+**Blockers / open questions:** CI is the remaining external verification gate; OQ29 remains open under T-014.
+
+**State of the branch:** committed locally; clean; ready to push.
