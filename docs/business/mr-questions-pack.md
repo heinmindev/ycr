@@ -2,13 +2,51 @@
 
 **Purpose:** provide a decision-ready list of the unresolved business questions in [`docs/19-open-questions.md`](../19-open-questions.md). This pack explains why each answer matters, what work it blocks or constrains, and presents neutral options for discussion with Myanma Railways.
 
-**Status:** all unresolved questions below are **OPEN QUESTION** items; OQ20 is explicitly marked as resolved. The options are discussion prompts only; none is a recommendation or a recorded business decision. Existing **ENGINEERING DECISION** references describe implementation constraints already accepted by the project and do not answer the business questions.
+**Status:** all questions below are **OPEN QUESTION** items. OQ20 is resolved and OQ22 is an **ENGINEERING DECISION**; both are listed in §Items not requiring a Myanma Railways answer so that no gap in the numbering is unexplained. The options are discussion prompts only; none is a recommendation or a recorded business decision. Existing **ENGINEERING DECISION** references describe implementation constraints already accepted by the project and do not answer the business questions.
 
 **Suggested response owner:** Myanma Railways should nominate the accountable role for each answer (for example, Network Operations, Commercial/Fares, Finance, Customer Service, Security, or IT). The role labels below are proposed routing labels, not assumed authorities.
 
 ## How to use this pack
 
 For each question, record the selected policy, the accountable approver, its effective date, and any exceptions. An answer should be added to `docs/19-open-questions.md` and, where it changes architecture or a binding constraint, captured in a superseding or new ADR before implementation.
+
+## Coverage against `docs/19-open-questions.md`
+
+The sections below are ordered thematically, for a workshop agenda. This table is ordered by OQ number, so coverage can be checked by eye. Every entry in `docs/19-open-questions.md` appears exactly once.
+
+| OQ | Section in this pack | Status |
+|---|---|---|
+| OQ1 | Network and operating model | Asked |
+| OQ2 | Network and operating model | Asked |
+| OQ3 | Ticket product and validation | Asked |
+| OQ4 | Ticket product and validation | Asked |
+| OQ5 | Ticket product and validation | Asked — a project-side **ASSUMPTION** exists; see its Status line |
+| OQ6 | Ticket product and validation | Asked |
+| OQ7 | Ticket product and validation | Asked |
+| OQ8 | Ticket product and validation | Asked |
+| OQ9 | Fares and money | Asked |
+| OQ10 | Payments, refunds, and sales | Asked |
+| OQ11 | Payments, refunds, and sales | Asked — a project-side **ASSUMPTION** exists; see its Status line |
+| OQ12 | Network and operating model | Asked |
+| OQ13 | Network and operating model | Asked |
+| OQ14 | Records, governance, and key operations | Asked |
+| OQ15 | Network and operating model | Asked |
+| OQ16 | Network and operating model | Asked |
+| OQ17 | Fares and money | Asked |
+| OQ18 | Payments, refunds, and sales | Asked |
+| OQ19 | Ticket product and validation | Asked |
+| OQ20 | Items not requiring a Myanma Railways answer | **Resolved** by ADR-0017 (SQL Server 2022) |
+| OQ21 | Fares and money | Asked |
+| OQ22 | Items not requiring a Myanma Railways answer | **Excluded** — **ENGINEERING DECISION** for the tech lead (ADR-0005) |
+| OQ23 | Ticket product and validation | Asked |
+| OQ24 | Payments, refunds, and sales | Asked |
+| OQ25 | Records, governance, and key operations | Asked |
+| OQ26 | Network and operating model | Asked — F-001 runs on a provisional value; see its Status line |
+| OQ27 | Network and operating model | Asked — F-001 runs on a provisional value; see its Status line |
+| OQ28 | Network and operating model | Asked — F-001 runs on a provisional value; see its Status line |
+| OQ29 | Network and operating model | Asked — F-001 implements no control; see its Status line |
+| OQ30–OQ33 | — | **Not asked in this pack.** Recorded in `docs/19-open-questions.md` awaiting a tech-lead classification of which are Myanma Railways questions; see §Items awaiting classification |
+
 
 ## Network and operating model
 
@@ -30,7 +68,7 @@ For each question, record the selected policy, the accountable approver, its eff
 
 ### OQ26 — Does a YCR station have an official station code, and what is its format?
 
-- **Status:** **OPEN QUESTION** for Myanma Railways. F-001 currently uses a provisional tech-lead engineering assumption: 2–10 characters, uppercase `A`–`Z` and `0`–`9`, unique across active and inactive stations, and never reused. This is an engineering placeholder for the walking skeleton, **not a Myanma Railways answer**.
+- **Status:** **OPEN QUESTION** for Myanma Railways. F-001 currently uses a provisional tech-lead **ASSUMPTION** (hein, 2026-09-20): 2–10 characters, uppercase `A`–`Z` and `0`–`9`, unique across active and inactive stations, and never reused. This is a placeholder for the walking skeleton, **not a Myanma Railways answer**.
 - **Why it matters:** Station codes are human-facing identifiers used in master data, routes, fares, timetables, printed material, and authenticated QR station-index mappings.
 - **Blocks or constrains:** Authoritative station data; `StationCode` validation and database constraints; data migration; code reuse after deactivation; interoperability with existing MR systems.
 - **Suggested options (non-binding):** (a) approve an MR-owned official code standard; (b) adopt an existing railway code catalogue; (c) use centrally assigned codes with a permanent non-reuse register; (d) define separate display and machine identifiers if MR requires both.
@@ -39,12 +77,21 @@ For each question, record the selected policy, the accountable approver, its eff
 
 ### OQ27 — What are the naming rules for a station?
 
-- **Status:** **OPEN QUESTION** for Myanma Railways. F-001 currently uses a provisional tech-lead engineering assumption: `NameEn` and `NameMy` are both required, each 1–100 characters after trimming, and neither is unique. This is an engineering placeholder for the walking skeleton, **not a Myanma Railways answer**. Unicode storage and the prohibition on Zawgyi remain separate project facts.
+- **Status:** **OPEN QUESTION** for Myanma Railways. F-001 currently uses a provisional tech-lead **ASSUMPTION** (hein, 2026-09-20): `NameEn` and `NameMy` are both required, each 1–100 characters after trimming, and neither is unique. This is a placeholder for the walking skeleton, **not a Myanma Railways answer**. Unicode storage and the prohibition on Zawgyi remain separate project facts.
 - **Why it matters:** Naming rules affect passenger-facing language, station search and display, printed tickets, data quality, deduplication, and historical reporting.
 - **Blocks or constrains:** `BilingualName` validation; station master-data import; API and print contracts; uniqueness and rename policy; language/transliteration support.
 - **Suggested options (non-binding):** (a) require English and Myanmar names with MR-approved maximum lengths; (b) make one language optional for stations without an approved translation; (c) require unique official names, with a separate short or printed name; (d) define an approved transliteration field and change process.
 - **Suggested decision owner:** Network Operations / Customer Service (roles to be nominated).
 - **Sources:** `docs/19-open-questions.md` OQ27; F-001 spec R4; `docs/20-coding-conventions.md` §3 and §6; T-014 release gate.
+
+### OQ29 — How must the system treat Zawgyi-encoded Myanmar text on input?
+
+- **Status:** **OPEN QUESTION** for Myanma Railways. F-001 validates presence and length only and implements **no Zawgyi control**; no detector will be built against a guessed rule. `docs/20-coding-conventions.md` §6 states "never store Zawgyi" as a project rule, but nothing currently enforces it. This is the absence of a control, **not a Myanma Railways answer**. Replacement tracked by T-014.
+- **Why it matters:** Zawgyi text occupies the same Unicode code points as standard Myanmar, so storing a name as `nvarchar` prevents Zawgyi only if Zawgyi never arrives. Zawgyi stored as though it were Unicode renders as unreadable text for every later reader, on tickets, reports and printed material, and cannot be reliably repaired once it is in an append-only record.
+- **Blocks or constrains:** `BilingualName` and every other Myanmar-text field, not only station names; API input validation; data import from existing systems; printing and display; audit rows, which cannot be edited after the fact.
+- **Suggested options (non-binding):** (a) reject Zawgyi at the API boundary with a detector; (b) detect and convert to Unicode on input; (c) no server-side control, on the basis that only first-party clients producing Unicode may submit text. Separately: are Zawgyi-font devices still in use at YCR counters, and what should a clerk see if input is rejected?
+- **Suggested decision owner:** MR IT with Operations and Customer Service (roles to be nominated).
+- **Sources:** `docs/19-open-questions.md` OQ29; F-001 spec R4; `docs/features/F-001-walking-skeleton/review-claude.md` C-11; `docs/20-coding-conventions.md` §6; T-014 release gate.
 
 ### OQ12 — What operator roles exist?
 
@@ -56,7 +103,7 @@ For each question, record the selected policy, the accountable approver, its eff
 
 ### OQ28 — Which operator roles may manage stations, and is there a separate read permission?
 
-- **Status:** **OPEN QUESTION** for Myanma Railways. F-001 currently uses the provisional engineering permission names `stations.manage` and `stations.read`, seeds no role-to-permission grants, and mints permissions directly in tests. This is an engineering placeholder and authorization containment measure, **not a Myanma Railways answer** about role grants.
+- **Status:** **OPEN QUESTION** for Myanma Railways. F-001 currently uses the provisional permission names `stations.manage` and `stations.read`, seeds no role-to-permission grants, and mints permissions directly in tests. This is a placeholder and an authorization containment measure, **not a Myanma Railways answer** about role grants.
 - **Why it matters:** Station management and read access need explicit segregation-of-duties, least-privilege, provisioning, and audit rules. The existing matrix table is only a proposal; the permission inventory governs until grants are approved.
 - **Blocks or constrains:** Authorization matrix approval; role provisioning; station endpoint access; audit attribution; release of production role seed data; F-001 replacement work tracked by T-014.
 - **Suggested options (non-binding):** (a) approve role grants in the existing matrix; (b) use a separate station-manager role for `stations.manage` and one or more read-only roles for `stations.read`; (c) grant permissions by station/region assignment rather than global role; (d) require dual control for changes while allowing broader read access.
@@ -105,11 +152,12 @@ For each question, record the selected policy, the accountable approver, its eff
 - **Suggested decision owner:** Operations / Commercial (role to be nominated).
 - **Sources:** `docs/19-open-questions.md` OQ4; ADR-0014 payload scope; `docs/12-fare-engine.md` potential service input.
 
-### OQ5 — Is seat reservation required? (Initial assumption: no.)
+### OQ5 — Is seat reservation required?
 
+- **Status:** **OPEN QUESTION** for Myanma Railways. `docs/19-open-questions.md` item 5 carries an initial project-side **ASSUMPTION** of no reservation. That is a starting position for discussion, **not a Myanma Railways answer**; option (a) below restates it.
 - **Why it matters:** Reservations introduce inventory, assignment, change, no-show, and concurrency rules that are absent from an unreserved ticket.
 - **Blocks or constrains:** Ticket and service capacity model; sale concurrency; passenger UI and printed content; operational handling of changes.
-- **Suggested options (non-binding):** (a) no reservation; (b) reservation for selected services/products; (c) reservation in a later phase after capacity data is available.
+- **Suggested options (non-binding):** (a) no reservation — this restates the project's current provisional position; (b) reservation for selected services/products; (c) reservation in a later phase after capacity data is available.
 - **Suggested decision owner:** Operations / Customer Service (role to be nominated).
 - **Sources:** `docs/19-open-questions.md` OQ5; ADR-0013 ticket lifecycle.
 
@@ -185,15 +233,17 @@ For each question, record the selected policy, the accountable approver, its eff
 
 - **Why it matters:** Cancellation and refund policy controls customer rights, financial exposure, fraud prevention, and the allowed lifecycle transitions.
 - **Blocks or constrains:** Ticket cancellation; refund request/approval/disbursement/rejection; refund amount calculation; business-date assignment; authorization and audit tests.
-- **Suggested options (non-binding):** (a) no refund except defined operational cancellation; (b) full refund before a cutoff; (c) partial refund by time/product/reason; (d) case-by-case approval under a documented policy. The policy should also state fees, evidence, deadlines, and whether a refunded ticket is cancelled.
+- **Suggested options (non-binding):** (a) no refund except defined operational cancellation; (b) full refund before a cutoff; (c) partial refund by time/product/reason; (d) case-by-case approval under a documented policy.
+- **The workshop may also want to capture:** fees, evidence requirements, deadlines, and whether a refunded ticket is also cancelled. These are prompts for a complete answer, not requirements on it.
 - **Suggested decision owner:** Finance / Commercial / Customer Service (roles to be nominated).
 - **Sources:** `docs/19-open-questions.md` OQ10; ADR-0013; ADR-0019; `docs/11-ticket-lifecycle.md`.
 
 ### OQ11 — What payment methods are required?
 
+- **Status:** **OPEN QUESTION** for Myanma Railways. `docs/19-open-questions.md` item 11 carries an **ASSUMPTION**: "Phase 1 currently models cash only; **this is not a BUSINESS DECISION**." Option (a) below restates that provisional position, **not a Myanma Railways answer**.
 - **Why it matters:** Payment methods determine integration, settlement, failure states, cashier reconciliation, and whether the current cash-only assumption is acceptable.
 - **Blocks or constrains:** Payment model and permissions; sale transaction flow; reversal/refund mechanics; cashier close; PCI/security scope.
-- **Suggested options (non-binding):** (a) cash only for Phase 1; (b) cash plus approved electronic methods; (c) electronic methods only at selected stations; (d) phase payment methods by rollout, with a named settlement owner.
+- **Suggested options (non-binding):** (a) cash only for Phase 1 — this restates the project's current provisional position; (b) cash plus approved electronic methods; (c) electronic methods only at selected stations; (d) phase payment methods by rollout, with a named settlement owner.
 - **Suggested decision owner:** Finance / Treasury / IT (roles to be nominated).
 - **Sources:** `docs/19-open-questions.md` OQ11 (cash-only is labelled an assumption); ADR-0013; ADR-0019.
 
@@ -227,15 +277,33 @@ For each question, record the selected policy, the accountable approver, its eff
 
 - **Why it matters:** A compromised signing key can permit fraudulent credentials. The response must identify who can revoke, approve emergency rotation, publish trust changes, and refresh inspector devices.
 - **Blocks or constrains:** Operational QR key management; incident response; trust-list publication; revocation timing; device refresh and audit evidence.
-- **Suggested options (non-binding):** (a) assign a single MR Security owner with an independent approver; (b) use a joint Security + Operations incident authority; (c) delegate key custody to an approved service while MR retains policy approval. In every option, define compromise detection, approval thresholds, revocation SLA, trust-list distribution, device refresh, and passenger remediation.
+- **Suggested options (non-binding):** (a) assign a single MR Security owner with an independent approver; (b) use a joint Security + Operations incident authority; (c) delegate key custody to an approved service while MR retains policy approval.
+- **The workshop may also want to capture:** compromise detection, approval thresholds, revocation timing, trust-list distribution, inspector-device refresh, and passenger remediation. These are prompts for a complete answer, not requirements on it.
 - **Suggested decision owner:** MR IT Security / Operations leadership (roles to be nominated).
 - **Sources:** `docs/19-open-questions.md` OQ25; ADR-0014; `docs/18-threat-model.md`.
 
-## Resolved item not requiring a business answer
+## Items not requiring a Myanma Railways answer
+
+Both are listed so that every gap in the OQ numbering is explained rather than silent.
 
 ### OQ20 — Production SQL Server version
 
 This item is **RESOLVED** as SQL Server 2022 by ADR-0017. It is included here only to make clear why the pack skips its numbering; no Myanma Railways decision is requested in this pack.
+
+### OQ22 — SPA framework and repository location
+
+This item is an **ENGINEERING DECISION** for the tech lead under ADR-0005, not a Myanma Railways question. It is included here only to make clear why the pack skips its numbering; no Myanma Railways decision is requested in this pack.
+
+## Items awaiting classification
+
+**OQ30 to OQ33 are not asked in this pack.** They are four unresolved items that lived only in ADR-0015, ADR-0017, ADR-0018 and ADR-0019 and had never been numbered into `docs/19-open-questions.md`, so they could not reach Myanma Railways through this pack at all. T-012's remediation of review finding **T12-2** numbered them into `docs/19` so they stop being invisible, but deliberately did **not** decide which of them are business questions for Myanma Railways and which are tech-lead calls. That classification is a tech-lead ruling, and the four move into this pack only once it is made.
+
+| OQ | Item | Source | Note |
+|---|---|---|---|
+| OQ30 | Maximum cashier-session length; may one operator hold more than one open session | ADR-0018 line 50, ADR-0019 line 40 | Has a concrete downstream block: `docs/20-coding-conventions.md` §5 defines idempotency-key retention as "the maximum cashier-session length plus an operational margin" |
+| OQ31 | Business-date source for refund operations with no cashier session | ADR-0018 line 51, ADR-0019 line 41 | ADR-0018 names Finance as the confirming party |
+| OQ32 | Ledger-digest custody: storage provider, schedule, alert routing, disaster-recovery ownership | ADR-0017 line 38 | OQ14 covers retention and OQ25 covers key-compromise ownership; neither covers the digest |
+| OQ33 | Is station connectivity sufficient for online counter operations | ADR-0015 line 44 | Recorded in the ADR as an **ASSUMPTION** that "must be validated by a survey"; the survey is an outstanding action |
 
 ## Cross-question dependencies
 
@@ -244,7 +312,7 @@ The following dependencies should be considered when scheduling decisions:
 - **Ticket product first:** OQ3, OQ4, OQ5, OQ19, and OQ23 jointly define what is sold and what validation accepts.
 - **Fare and payment:** OQ1, OQ2, OQ9, OQ11, OQ17, OQ21, and OQ24 jointly determine a reproducible sale and reconciliation result.
 - **Outage and validation:** OQ8 and OQ18 must align with the fraud, reconciliation, and operational controls in ADR-0014 and ADR-0015.
-- **Station master data and access:** OQ1, OQ2, OQ12, OQ26, OQ27, and OQ28 determine authoritative station data, naming, identifiers, and access ownership.
+- **Station master data and access:** OQ1, OQ2, OQ12, OQ26, OQ27, OQ28, and OQ29 determine authoritative station data, naming, text encoding, identifiers, and access ownership.
 - **Governance:** OQ13, OQ14, OQ15, OQ16, OQ25, and the role decision in OQ28 determine ownership, evidence, and operating readiness.
 
 No dependency listed here is a proposed sequencing decision; it is a prompt for the MR workshop agenda.
