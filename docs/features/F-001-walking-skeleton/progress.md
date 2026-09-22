@@ -1557,3 +1557,31 @@ finding S-007A-2. No code was changed; the verdict is Not ready pending T-008 re
 **Blockers / open questions:** none.
 
 **State of the branch:** committed; build clean; the Infrastructure suite green on the previously broken path.
+
+---
+
+## 2026-09-22 11:55 Asia/Yangon — claude — T-008a
+
+**Stage:** 8a, finding 3 of 8 — **R-4 and the ledger UTC check** complete.
+**Commit:** `c117dd2` (`fix(F-001): declare both UTC check constraints in the EF model`).
+
+**Done this session:**
+- `HasCheckConstraint` for `CK_Stations_CreatedAtUtc_Utc` (`StationConfiguration`) and `CK_AuditEvents_OccurredAtUtc_Utc` (`AuditEventConfiguration`), so both live in the EF model rather than only in a migration.
+- `CK_AuditEvents_OccurredAtUtc_Utc CHECK (DATEPART(TZOFFSET, [OccurredAtUtc]) = 0)` added to the unapplied `Audit_CreateAuditEventsLedger` migration, inside `CREATE TABLE` beside the three `ISJSON` checks.
+- `YcrDbContextModelSnapshot.cs` and all three `*.Designer.cs` files brought in line by hand.
+- New CI step **"Verify the model matches the migrations"** running `dotnet ef migrations has-pending-model-changes`.
+- Tests: `Model_WithUtcColumn_DeclaresItsCheckConstraint` (a `[Theory]` covering both constraints) and `LedgerTable_WithNonUtcOccurredAtUtc_IsRejectedByTheCheckConstraint`. `LedgerMigrationTests`' constraint-inventory assertion now expects all four.
+
+**Evidence:** `has-pending-model-changes` reports "No changes have been made to the model since the last migration", **exit 0**, locally. `YCR.Infrastructure.Tests` **53/53 passed, 0 skipped** with both `YCR_DESIGN_TIME_CONNECTION` and `YCR_MIGRATION_BUNDLE` unset. Build 0 warnings / 0 errors.
+
+**Two things worth recording, because neither was obvious:**
+1. **`ExcludeFromMigrations()` and `HasCheckConstraint` are compatible.** The switch stops EF *generating* DDL for the ledger table, which is what ADR-0017 item 6 requires; it does not stop EF knowing the table's shape. So the constraint can be in the model — and therefore diffable — while the raw SQL remains the only thing that creates it.
+2. **Check constraints are not in the runtime model.** `context.Model.GetCheckConstraints()` throws `InvalidOperationException: The requested configuration is not stored in the read-optimized model`. The assertion uses `context.GetService<IDesignTimeModel>().Model` — which is also the model `has-pending-model-changes` diffs, so it is the right one to assert. Note `IDesignTimeModel` is in `Microsoft.EntityFrameworkCore.Metadata`, not `.Infrastructure`.
+
+**One hidden dependency removed on the way:** the container tests inserted rows with `SYSDATETIMEOFFSET()`, which returns the *server's* local offset. With the new constraints in place those inserts would fail on any container whose clock is not UTC. They now use `SYSUTCDATETIME() AT TIME ZONE 'UTC'`, so they assert what they mean regardless of the container's timezone.
+
+**Next step (exact):** finding 4 — **S-007A-2**: `::add-mask::` every generated password in CI as it is generated, then investigate whether the bundle can take its connection from `YCR_DESIGN_TIME_CONNECTION` instead of `--connection`; adopt it if it works in both CI and `MigrationBundle.cs`, otherwise record why not.
+
+**Blockers / open questions:** none.
+
+**State of the branch:** committed; build clean; Infrastructure suite green.
