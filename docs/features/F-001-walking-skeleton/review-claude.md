@@ -255,3 +255,60 @@ The blocker is a side effect, not a missed finding. Making the design-time conne
 R-2, R-3 and R-4 are Low and can travel with the R-1 fix.
 
 **T-008b should reopen for R-1.** R-4 needs a tech-lead call on whether the constraint belongs in the EF model. Neither T-006a/T-007a's findings nor `docs/20` §3 and §6 are affected — those remain T-008a's.
+
+---
+
+# Security re-review at `d98bf12`
+
+Security reviewer: **claude** (security-agent). Task **T-007b**, re-run under `TASKS.md` §Protocol item 10 after T-008b's remediation.
+
+**Commit: `d98bf12`.** Scope is **only the security surface of the `9106d53..d98bf12` delta, codex's changes**: the C-1 CHECK constraint, the C-8 design-time factory and its CI environment changes, and the C-12 guard. Everything else in the delta is behavioural or documentation and was covered by the code re-review above. Findings against **claude's** steps (`review-codex.md`'s F-006A-1 and S-007A-2) are T-008a's and are untouched here.
+
+Threat categories with a surface in this delta (`docs/18` names categories, not numbered IDs): **Insider manipulation**, **Unauthorized configuration**, **Data disclosure**.
+
+## C-1 — the `CK_Stations_CreatedAtUtc_Utc` check constraint
+
+**Net positive, and it closes a gap the domain guard alone could not.** `network.Stations` is writable by the `ycr_app` credential, which the least-privilege role grants `SELECT, INSERT, UPDATE`. The domain guard in `Station.Create` protects only callers that go through the aggregate; anything else holding that credential — a future handler taking a shortcut, an operational script, or an insider with the application login — could previously have stored a local-offset instant. The constraint binds **every** writer of that column, at the database, which is the right layer for a control that has to survive the application being wrong. `CreatedAtUtc` orders station history and feeds reporting, so a silently local-offset value is exactly the kind of quiet corruption `docs/18` §Insider manipulation is about.
+
+Verified: `MigrationBundleTests.Stations_WithNonUtcCreatedAtUtc_AreRejectedByDatabase` inserts `+06:30` through **raw SQL**, bypassing EF entirely, and asserts `SqlException.Number == 547`. That is the right shape of proof — it demonstrates the database refuses the write, not that a mapping refused to build it.
+
+Scope worth stating plainly: `DATEPART(TZOFFSET, [CreatedAtUtc]) = 0` constrains the stored **offset**, not the correctness of the instant. It prevents a local time being recorded as though it were UTC; it cannot detect a wrong UTC value. That is the correct scope for a CHECK constraint and not a shortfall.
+
+No new attack surface: the constraint is deterministic, takes no input, and cannot be used to infer or smuggle data.
+
+## C-8 — the design-time factory and the CI environment
+
+### Do the `YCR_DESIGN_TIME_CONNECTION` values hold a secret?
+
+**No.** Every occurrence is the same literal: `Server=localhost;Database=YcrDesignTime;Trusted_Connection=True;TrustServerCertificate=True`. There is **no `User Id`, no `Password`, no token** — `Trusted_Connection=True` means integrated authentication, which carries no credential material in the string. A scan of the whole delta for credential-shaped additions (`password`, `pwd=`, `secret`, `token`, `api key`, `user id=`) returns nothing but prose inside the review documents. The **Secret scan job passed at `d98bf12`**.
+
+One hardening note, **Low**: `TrustServerCertificate=True` in this value is inert — the connection is never opened (see below) — but it is a string that invites copying into a connection that *is* opened, where it disables TLS certificate validation. It costs nothing to drop it from a value that never connects.
+
+### Can a missing variable make a migration run against an unintended server?
+
+**No. It fails closed, and it could not redirect an applied migration even if it were wrong.** Two independent reasons:
+
+1. **Unset means throw, before anything is built.** `YcrDbContextFactory.CreateDbContext` reads the variable and throws `InvalidOperationException` when it is null or whitespace, *before* `DbContextOptionsBuilder` is configured. No `DbContextOptions` exists, so no connection is ever attempted. Proved by `YcrDbContextFactoryTests.CreateDbContext_WithoutDesignTimeConnection_ThrowsClearMessage`, and observed unmistakably in practice — this is the very mechanism behind **R-1** in the code re-review, where the failure is a hard error rather than a silent fallback.
+2. **The variable never chooses where a migration runs.** It is consumed only by `dotnet ef migrations bundle`, which builds the bundle and does **not open a connection** — it needs the factory only to discover the model. Migrations are applied by executing the bundle with an explicit target: `"$RUNNER_TEMP/efbundle" --connection "Server=localhost,1433;Database=YCR;User Id=ycr_migrator;Password=${YCR_MIGRATOR_PASSWORD};…"` (`.github/workflows/ci.yml:174-175`), under the **migrator** credential. So the applied-migration target is a separate, explicit argument that `YCR_DESIGN_TIME_CONNECTION` cannot influence.
+
+**The change is strictly safer than what it replaced.** The removed hardcoded `Server=(localdb)\MSSQLLocalDB;Database=YcrDesignTime` default was the one path by which an unconfigured `dotnet ef database update` could silently reach a live local server under a developer's own — typically sysadmin — identity. That was the substance of the original C-8 note, and it is gone.
+
+**Residual, Low.** The design-time target is now entirely whatever the environment says. A `YCR_DESIGN_TIME_CONNECTION` exported in a shell profile, or set as an organisation-level CI variable, becomes the silent design-time target for every subsequent EF command in that environment. The controls that actually matter still hold — E7 and spec S22 keep DDL rights off the application login, and migrations run as a separate step under the migrator credential — so this is a hardening note, not a defect. It is worth one line in `docs/07` saying the variable is expected to name a throwaway design-time target and never a real database.
+
+### Out of scope, observed and unchanged
+
+`.github/workflows/ci.yml:175` interpolates `${YCR_MIGRATOR_PASSWORD}` into a command line, and `review-codex.md` already raises that as **S-007A-2 (Medium)** against claude's step 13. It is **pre-existing and untouched by this delta** — codex's edits added only `env:` blocks — so it is T-008a's to remediate, not a finding against this delta. Recorded so the re-review cannot be read as having cleared it.
+
+## C-12 — the `Result<T>.Success` null guard
+
+Small positive. Before the guard, a null reference could be wrapped as a *successful* result and read back through `Value` as null. In a codebase where handler results flow into API responses and into `IAuditSnapshot` payloads, that null would surface either as an unexpected `500` or as an audit row recording an empty state for an action that did happen — and ADR-0021 rows cannot be corrected afterwards. The guard fails fast at the construction site instead. Proved by `ResultTests.GenericSuccess_WithNullReferenceValue_ThrowsArgumentNullException`.
+
+## R-1 is not a security finding
+
+The code re-review's blocking finding — the migration bundle failing to build locally because `YCR_DESIGN_TIME_CONNECTION` reaches only CI — **weakens no control, exposes no secret, and changes nothing about what the application can do at runtime**. It breaks a developer command and hides behind a green pipeline. It is a correctness and process defect, recorded there. Stated here so "Not ready" in the code re-review is not mistaken for a security block.
+
+## Result
+
+**Open Critical/High: none.**
+
+Two Low hardening notes, both on the C-8 change and neither blocking: drop `TrustServerCertificate=True` from a connection string that is never opened, and record in `docs/07` that `YCR_DESIGN_TIME_CONNECTION` is expected to name a throwaway design-time target. The C-1 constraint and the C-12 guard are both net improvements to the security posture of this delta, and the C-8 change removes a real, if minor, unintended-target path rather than adding one.

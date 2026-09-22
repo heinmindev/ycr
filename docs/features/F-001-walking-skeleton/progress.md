@@ -1479,3 +1479,32 @@ finding S-007A-2. No code was changed; the verdict is Not ready pending T-008 re
 **Blockers / open questions:** R-1 is a blocking engineering defect for codex. R-4 needs a tech-lead decision. No business OQ added; OQ29 stays open under T-014.
 
 **State of the branch:** review and this entry committed and pushed; no source file changed by this task.
+
+---
+
+## 2026-09-22 09:05 Asia/Yangon — claude — T-007b (security re-review)
+
+**Stage:** 7b re-run, under `TASKS.md` §Protocol item 10, after T-008b's remediation.
+**Commit:** this entry and the `# Security re-review at d98bf12` section appended to `review-claude.md`, on `feature/F-001`.
+
+**Done this session:**
+- Security re-review of **only the security surface** of the `9106d53..d98bf12` delta, codex's changes: the C-1 CHECK constraint, the C-8 design-time factory and its CI environment changes, and the C-12 guard. Read-only; no source file changed.
+- Appended the section to `review-claude.md`; the original review and the code re-review above it are untouched.
+
+**Evidence:** the delta scanned for credential-shaped additions (`password`, `pwd=`, `secret`, `token`, `api key`, `user id=`) — **no credential added**, only prose inside review documents; CI **Secret scan job success** at `d98bf12`; `ci.yml:174-175` read to establish how migrations actually receive their target; `YcrDbContextFactoryTests` and `MigrationBundleTests.Stations_WithNonUtcCreatedAtUtc_AreRejectedByDatabase` re-run green (13/13 with the variable set).
+
+**Result: Open Critical/High — none.**
+- **C-1 CHECK constraint:** net positive. `ycr_app` holds INSERT/UPDATE on `network.Stations`, so the domain guard alone protected only the aggregate path; the constraint binds every writer of the column at the database. Proved by a **raw-SQL** insert asserting `SqlException 547`, which is the right shape of proof. Its scope is the stored offset, not the correctness of the instant — correct for a CHECK.
+- **C-8, secrets:** none. The value is `Server=localhost;Database=YcrDesignTime;Trusted_Connection=True;TrustServerCertificate=True` — no user id, no password, no token.
+- **C-8, unintended server:** **no — it fails closed.** Unset throws before `DbContextOptions` is built, so no connection is attempted; and the variable is consumed only by `dotnet ef migrations bundle`, which never opens a connection. Migrations are applied by the bundle with an explicit `--connection` under the migrator credential (`ci.yml:174-175`), which the variable cannot influence. The change is **strictly safer** than the hardcoded LocalDB default it replaced.
+- **C-12 guard:** small positive — a null "success" could otherwise have reached an API response or an un-correctable audit payload.
+- Two **Low** hardening notes: drop `TrustServerCertificate=True` from a string that is never opened; record in `docs/07` that the variable names a throwaway design-time target.
+- **R-1 is explicitly not a security finding** — it breaks a developer command, it does not weaken a control.
+
+**Out of scope, recorded so it is not read as cleared:** `ci.yml:175` passes `${YCR_MIGRATOR_PASSWORD}` on a command line. `review-codex.md` already raises this as **S-007A-2 (Medium)** against claude's step 13. It is pre-existing and untouched by this delta — T-008a owns it.
+
+**Next step (exact):** T-008b reopens for **R-1** (code re-review); this security re-review adds nothing blocking. T-006b and T-007b re-run again against the next SHA once R-1 is fixed.
+
+**Blockers / open questions:** none from security. R-1 (correctness) and R-4 (tech-lead ruling on whether the CHECK constraint belongs in the EF model) are recorded in the code re-review.
+
+**State of the branch:** review and this entry committed and pushed; no source file changed by this task.
