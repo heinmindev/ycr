@@ -48,10 +48,16 @@ services:
       sqlserver:
         condition: service_healthy
     environment:
-      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?set MSSQL_SA_PASSWORD in .env}
-      YCR_DATABASE: ${YCR_DATABASE:-YCR}
-      YCR_APP_PASSWORD: ${YCR_APP_PASSWORD:?set YCR_APP_PASSWORD in .env}
-      YCR_MIGRATOR_PASSWORD: ${YCR_MIGRATOR_PASSWORD:?set YCR_MIGRATOR_PASSWORD in .env}
+      # S-2: named so sqlcmd picks each one up on its own — SQLCMDPASSWORD in place of -P, and
+      # YcrDatabase/YcrAppPassword/YcrMigratorPassword as the scripting-variable fallback sqlcmd
+      # uses for a $(Name) that -v didn't set — so none of the four values are passed as a
+      # command-line argument and none appears in sqlcmd's argv (`ps`, `docker top`,
+      # `/proc/<pid>/cmdline`). init-principals.sql is unchanged: it still reads $(YcrDatabase),
+      # $(YcrAppPassword) and $(YcrMigratorPassword).
+      SQLCMDPASSWORD: ${MSSQL_SA_PASSWORD:?set MSSQL_SA_PASSWORD in .env}
+      YcrDatabase: ${YCR_DATABASE:-YCR}
+      YcrAppPassword: ${YCR_APP_PASSWORD:?set YCR_APP_PASSWORD in .env}
+      YcrMigratorPassword: ${YCR_MIGRATOR_PASSWORD:?set YCR_MIGRATOR_PASSWORD in .env}
     volumes:
       - ./docker/sqlserver:/docker/sqlserver:ro
     restart: "no"
@@ -60,10 +66,7 @@ services:
       - -c
       - >
         /opt/mssql-tools18/bin/sqlcmd
-        -S sqlserver -U sa -P "$$MSSQL_SA_PASSWORD" -C -b
-        -v YcrDatabase="$$YCR_DATABASE"
-        -v YcrAppPassword="$$YCR_APP_PASSWORD"
-        -v YcrMigratorPassword="$$YCR_MIGRATOR_PASSWORD"
+        -S sqlserver -U sa -C -b
         -i /docker/sqlserver/init-principals.sql
 
 volumes:
