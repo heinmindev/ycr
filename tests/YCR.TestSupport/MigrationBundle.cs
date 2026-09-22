@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text;
 using System.Text.RegularExpressions;
+using YCR.Infrastructure.Persistence;
 
 namespace YCR.TestSupport;
 
@@ -194,11 +195,47 @@ public static partial class MigrationBundle
             $"No YCR.sln found above '{AppContext.BaseDirectory}'; cannot locate the repository root.");
     }
 
-    private static async Task RunAsync(
+    /// <summary>
+    /// A syntactically valid connection string that resolves to nothing, used only so
+    /// <c>dotnet ef migrations bundle</c> can construct a context for model discovery.
+    /// </summary>
+    /// <remarks>
+    /// Building a bundle never opens a connection — EF needs the factory only to read the model —
+    /// so the value is inert by construction. It deliberately carries no
+    /// <c>TrustServerCertificate</c>, because a string that is never opened should not model a
+    /// disabled certificate check for anyone who copies it.
+    /// </remarks>
+    public const string DesignTimeConnectionPlaceholder =
+        "Server=ycr-design-time-placeholder;Database=YcrDesignTime;Trusted_Connection=True";
+
+    /// <summary>
+    /// Builds the start info for a child process, supplying
+    /// <see cref="YcrDbContextFactory.DesignTimeConnectionVariable"/> when
+    /// <paramref name="inheritedDesignTimeConnection"/> is absent.
+    /// </summary>
+    /// <param name="inheritedDesignTimeConnection">
+    /// What the parent process has, or null/whitespace when it has nothing. A real value is
+    /// **never** overridden: a developer or a CI job that points EF somewhere deliberately keeps
+    /// that target.
+    /// </param>
+    /// <remarks>
+    /// R-1. The factory requires this variable and has no default, but the fixture builds the
+    /// bundle by spawning <c>dotnet ef</c>, which inherits the parent's environment — so on a
+    /// clean clone `dotnet test YCR.sln` failed every container-backed test with
+    /// "YCR_DESIGN_TIME_CONNECTION must be set". CI never saw it, because CI builds the bundle in
+    /// its own step and hands the fixture <see cref="BundlePathVariable"/>, taking the other
+    /// branch entirely.
+    /// <para>
+    /// Taking the inherited value as a parameter rather than reading the environment inside keeps
+    /// this testable without any test mutating a process-global variable — which is itself a race
+    /// when xUnit runs collections in parallel.
+    /// </para>
+    /// </remarks>
+    public static ProcessStartInfo CreateStartInfo(
         string workingDirectory,
         string fileName,
-        string[] arguments,
-        CancellationToken cancellationToken)
+        IReadOnlyList<string> arguments,
+        string? inheritedDesignTimeConnection)
     {
         var startInfo = new ProcessStartInfo(fileName)
         {
@@ -212,6 +249,27 @@ public static partial class MigrationBundle
         {
             startInfo.ArgumentList.Add(argument);
         }
+
+        if (string.IsNullOrWhiteSpace(inheritedDesignTimeConnection))
+        {
+            startInfo.Environment[YcrDbContextFactory.DesignTimeConnectionVariable] =
+                DesignTimeConnectionPlaceholder;
+        }
+
+        return startInfo;
+    }
+
+    private static async Task RunAsync(
+        string workingDirectory,
+        string fileName,
+        string[] arguments,
+        CancellationToken cancellationToken)
+    {
+        var startInfo = CreateStartInfo(
+            workingDirectory,
+            fileName,
+            arguments,
+            Environment.GetEnvironmentVariable(YcrDbContextFactory.DesignTimeConnectionVariable));
 
         using var process = Process.Start(startInfo)
             ?? throw new InvalidOperationException($"Could not start '{fileName}'.");

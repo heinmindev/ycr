@@ -49,5 +49,9 @@ the database counterpart to the domain factory's UTC guard required by ADR-0018.
 The EF design-time factory is `src/YCR.Infrastructure/Persistence/YcrDbContextFactory.cs`. It is
 used only by EF tooling and reads the required `YCR_DESIGN_TIME_CONNECTION` environment variable;
 it has no fallback connection, so a design-time database update cannot silently target a developer's
-LocalDB. `src/YCR.Domain/Properties/AssemblyInfo.cs` grants `YCR.Infrastructure` access to the
+LocalDB. **Set `YCR_DESIGN_TIME_CONNECTION` before running `dotnet ef migrations add` or any other
+EF design-time command; there is no default and the command fails without it.** The test fixture
+supplies an inert placeholder to the `dotnet ef` process it spawns when the variable is absent, so
+`dotnet test YCR.sln` needs no setup, and it never replaces a value that is already set.
+`src/YCR.Domain/Properties/AssemblyInfo.cs` grants `YCR.Infrastructure` access to the
 domain's internal EF materialisation path (`StationCode.From`).
