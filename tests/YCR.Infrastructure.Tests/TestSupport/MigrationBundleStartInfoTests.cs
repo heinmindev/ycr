@@ -43,12 +43,17 @@ public sealed class MigrationBundleStartInfoTests
 
         var startInfo = MigrationBundle.CreateStartInfo(".", "dotnet", Arguments, inherited);
 
-        // Absent from the child's explicit overrides means the child inherits the parent's real
-        // value untouched. Writing the placeholder here would silently redirect a developer or a
-        // CI job that had pointed EF somewhere on purpose.
-        Assert.DoesNotContain(
-            YcrDbContextFactory.DesignTimeConnectionVariable,
-            startInfo.Environment.Keys);
+        // `ProcessStartInfo.Environment` starts as a **copy of this process's environment**, not as
+        // an empty set of overrides, so "the method left it alone" cannot be asserted by the key
+        // being absent — on a machine that has the variable set, it is present either way. What
+        // must hold is that the entry still says exactly what this process says, which is true
+        // whether the ambient value exists or not. Writing the placeholder here would silently
+        // redirect a developer or a CI job that had pointed EF somewhere on purpose.
+        var ambient = Environment.GetEnvironmentVariable(YcrDbContextFactory.DesignTimeConnectionVariable);
+        startInfo.Environment.TryGetValue(YcrDbContextFactory.DesignTimeConnectionVariable, out var actual);
+
+        Assert.Equal(ambient, actual);
+        Assert.NotEqual(MigrationBundle.DesignTimeConnectionPlaceholder, actual);
     }
 
     /// <summary>
