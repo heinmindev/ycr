@@ -1746,3 +1746,37 @@ Each of the first five seeds a state the name never mentioned — `SeedAsync("AA
 **Blockers / open questions:** none.
 
 **State of the branch:** committed and pushed.
+
+---
+
+## 2026-09-22 18:40 Asia/Yangon — claude — T-006a / T-007a
+
+**Stage:** 6a and 7a — code re-review and security re-review of the `d98bf12..52326b3` delta.
+**Commit:** re-reviewed `52326b3`; this checkpoint's own commit is the one that adds the two report sections to `review-codex.md`.
+
+**Exception under which this ran.** §Protocol item 11 bars the implementer from reviewing. `f6e2fb1` on `main` (hein) records a one-time exception because codex is over its usage limit, with T-009 personally checking the findings and codex still re-reviewing before production release. Both reports state this in their opening paragraph and again in their verdicts, so the exception travels with the artefact rather than living only in the ledger.
+
+**Done this session:**
+- **T-006a code re-review** appended to `review-codex.md` as `## T-006a re-review at 52326b3`: a per-finding verdict table for F-006A-1, R-1, the `3d87e6a` own-test fix, R-4 + ledger UTC, F-006A-2/R-2/R-3, F-005-1, the six renames and the stage-8 docs; a scope section reconciling 158 → 174 tests; nine new findings N-1..N-9.
+- **T-007a security re-review** appended as `## T-007a re-review at 52326b3`: the `ycr_migrator` identity and rights, the S-007A-2 mask/environment change, and an explicit answer on whether anything new touches auth, secrets or privilege; four new Low findings S-1..S-4.
+
+**Evidence — everything below was run here, not copied from this file's earlier entries:**
+- `dotnet build YCR.sln --configuration Debug`: **0 warnings, 0 errors** (19.4 s).
+- `dotnet test YCR.sln --no-build` with **both** `YCR_DESIGN_TIME_CONNECTION` and `YCR_MIGRATION_BUNDLE` unset (`env -u`), Docker up: **174 / 174, 0 failed, 0 skipped** (2 m 20 s). This is the precise condition R-1 reported broken at `d98bf12`.
+- `dotnet ef migrations has-pending-model-changes` with the placeholder set: **exit 0**, "No changes have been made to the model since the last migration" — the hand-edited snapshot and three Designers genuinely match the model, which was the real risk in R-4's implementation. With the variable unset it fails closed, which confirms the new `docs/07` sentence is load-bearing.
+- CI at `52326b3` read through `gh`, not from this file: pull_request run 35700061128, `headSha` `52326b3c…`, conclusion success, all four jobs success; build-and-test step 6 "Verify the model matches the migrations" success.
+- **Mutation probes on `ci.yml`, then restored (worktree verified clean):** deleting build-and-test's job-level `env:` makes `CiWorkflowTests` **fail**; deleting api-smoke's makes it **pass**. That is N-1, found by mutation rather than by reading.
+- `grep -rn "\.Redact(" --include=*.cs src/ tests/` returns nothing → `SqlServerTestContainer.Redact` has no call site (N-3 / S-3).
+- Doc claims checked against code: `HealthEndpoints.cs:20,28`, `Program.cs:60-65`, `BilingualName.cs:31`, `IAuditWriter.cs:35-41` vs `CreateStationHandler.cs:55-60`, and the four ledger check constraints at `20260920130536_…cs:94-102` against `docs/07:86` (N-4).
+
+**Verdicts:**
+- **T-006a: Ready, with findings. No open Critical or High.** All eight scope items verified fixed. N-1 (Medium) is a regression this delta introduced and should be fixed before merge; N-2 and N-3 are the two places a test proves less than its name or documentation claims.
+- **T-007a: Ready. No open Critical or High.** S-007A-1/F-006A-1 closed and verified; S-007A-2 closed for the paths it cited. S-1 (migrator `db_owner` breadth) wants a tech-lead ruling; S-2 (`sqlcmd` argv in `sqlserver-init`) is pre-existing, outside this delta, and wants a task row of its own.
+
+**Next step (exact):** hein to rule on S-1 and decide whether N-1 + N-6 are fixed on this branch before T-009 or tracked as a follow-up row; then T-008 and T-009.
+
+**Blockers / open questions:** none of the business kind — no OQ is needed. S-1 is an engineering decision for the tech lead; S-2 and N-1..N-6 are ordinary follow-ups.
+
+**Ledger discrepancy found while claiming (reported to hein, not acted on unilaterally):** `f6e2fb1`'s message says it reopens T-006a/T-007a, but its diff only reverts the **T-008a** row from `review`/`claude`/`52326b3` back to `todo`/`—`, undoing `8a51ed4`. The T-006a and T-007a rows were left `done`/`codex`. Restored T-008a to its `8a51ed4` content and set T-006a/T-007a to `done` with these verdicts, which is what the instruction intended.
+
+**State of the branch:** committed and pushed; build clean, 174/174 local, CI green at the reviewed SHA.
