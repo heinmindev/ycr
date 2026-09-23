@@ -111,6 +111,101 @@ public sealed class DatabasePrivilegeTests(SqlServerFixture fixture) : IAsyncLif
         Assert.Equal(0, await ColumnPermissionAsApplicationAsync("network.Stations", "UPDATE", "CreatedAtUtc"));
     }
 
+    /// <summary>F-002 plan P7 / <c>Security_IdentityGrants</c>: the grants the Identity module needs.</summary>
+    [Fact]
+    public async Task ApplicationCredential_HasExactlyTheIdentityGrants()
+    {
+        string[] tables = ["Users", "Roles", "RolePermissions", "UserRoles", "AuthSessions", "RefreshTokens"];
+        foreach (var table in tables)
+        {
+            Assert.Equal(1, await PermissionAsApplicationAsync($"identity.{table}", "SELECT"));
+            Assert.Equal(0, await PermissionAsApplicationAsync($"identity.{table}", "ALTER"));
+            Assert.Equal(0, await PermissionAsApplicationAsync($"identity.{table}", "CONTROL"));
+        }
+
+        Assert.Equal(1, await PermissionAsApplicationAsync("identity.Users", "INSERT"));
+        Assert.Equal(1, await PermissionAsApplicationAsync("identity.UserRoles", "INSERT"));
+        Assert.Equal(1, await PermissionAsApplicationAsync("identity.UserRoles", "DELETE"));
+        Assert.Equal(0, await PermissionAsApplicationAsync("identity.UserRoles", "UPDATE"));
+        Assert.Equal(1, await PermissionAsApplicationAsync("identity.AuthSessions", "INSERT"));
+        Assert.Equal(1, await PermissionAsApplicationAsync("identity.RefreshTokens", "INSERT"));
+        Assert.Equal(0, await PermissionAsApplicationAsync("identity.Users", "DELETE"));
+
+        Assert.Equal(1, await ColumnPermissionAsApplicationAsync("identity.AuthSessions", "UPDATE", "RevokedAtUtc"));
+        Assert.Equal(1, await ColumnPermissionAsApplicationAsync("identity.AuthSessions", "UPDATE", "RevocationReason"));
+        Assert.Equal(0, await ColumnPermissionAsApplicationAsync("identity.AuthSessions", "UPDATE", "ExpiresAtUtc"));
+        Assert.Equal(0, await ColumnPermissionAsApplicationAsync("identity.AuthSessions", "UPDATE", "UserId"));
+        Assert.Equal(1, await ColumnPermissionAsApplicationAsync("identity.RefreshTokens", "UPDATE", "RotatedAtUtc"));
+        Assert.Equal(1, await ColumnPermissionAsApplicationAsync("identity.RefreshTokens", "UPDATE", "ReplacedByTokenId"));
+        Assert.Equal(0, await ColumnPermissionAsApplicationAsync("identity.RefreshTokens", "UPDATE", "TokenHash"));
+        Assert.Equal(0, await ColumnPermissionAsApplicationAsync("identity.RefreshTokens", "UPDATE", "SessionId"));
+    }
+
+    /// <summary>D18 / plan P7: F-002 deletes no session or token row.</summary>
+    [Fact]
+    public async Task ApplicationCredential_HasNoDeleteOnSessionsOrTokens()
+    {
+        Assert.Equal(0, await PermissionAsApplicationAsync("identity.AuthSessions", "DELETE"));
+        Assert.Equal(0, await PermissionAsApplicationAsync("identity.RefreshTokens", "DELETE"));
+    }
+
+    /// <summary>D8: grants change by reviewed migration only.</summary>
+    [Fact]
+    public async Task ApplicationCredential_CannotWriteRolesOrGrants()
+    {
+        foreach (var table in new[] { "identity.Roles", "identity.RolePermissions" })
+        {
+            Assert.Equal(0, await PermissionAsApplicationAsync(table, "INSERT"));
+            Assert.Equal(0, await PermissionAsApplicationAsync(table, "UPDATE"));
+            Assert.Equal(0, await PermissionAsApplicationAsync(table, "DELETE"));
+        }
+
+        var failure = await Assert.ThrowsAsync<SqlException>(() => ExecuteAsApplicationAsync(
+            """
+            INSERT INTO [identity].[RolePermissions] ([RoleId], [Permission])
+            SELECT [Id], N'users.manage' FROM [identity].[Roles] WHERE [Name] = N'TicketOperator';
+            """));
+        Assert.Contains("permission", failure.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(14, await ScalarAsMigratorAsync("SELECT COUNT(*) FROM [identity].[RolePermissions];"));
+    }
+
+    /// <summary>
+    /// Plan P7: the columns that legitimately change are updatable; a user's identity columns are
+    /// not (no endpoint renames a user).
+    /// </summary>
+    [Fact]
+    public async Task ApplicationCredential_CanUpdateOnlyListedUserColumns()
+    {
+        string[] updatable =
+        [
+            "PasswordHash", "SecurityStamp", "PasswordChangedAtUtc", "MustChangePassword",
+            "IsDisabled", "DisabledAtUtc", "LockoutEndUtc", "AccessFailedCount",
+        ];
+        foreach (var column in updatable)
+        {
+            Assert.Equal(1, await ColumnPermissionAsApplicationAsync("identity.Users", "UPDATE", column));
+        }
+
+        foreach (var column in new[] { "Id", "UserName", "NormalizedUserName", "CreatedAtUtc" })
+        {
+            Assert.Equal(0, await ColumnPermissionAsApplicationAsync("identity.Users", "UPDATE", column));
+        }
+
+        await ExecuteAsApplicationAsync(
+            """
+            INSERT INTO [identity].[Users]
+                ([Id], [UserName], [NormalizedUserName], [PasswordHash], [SecurityStamp], [IsDisabled],
+                 [AccessFailedCount], [PasswordChangedAtUtc], [MustChangePassword], [CreatedAtUtc])
+            VALUES (NEWID(), N'grant.check', N'GRANT.CHECK', N'placeholder-hash', N'stamp', 0,
+                    0, SYSUTCDATETIME() AT TIME ZONE 'UTC', 1, SYSUTCDATETIME() AT TIME ZONE 'UTC');
+            """);
+        await ExecuteAsApplicationAsync("UPDATE [identity].[Users] SET [AccessFailedCount] = 1;");
+
+        var failure = await Assert.ThrowsAsync<SqlException>(() =>
+            ExecuteAsApplicationAsync("UPDATE [identity].[Users] SET [UserName] = N'renamed';"));
+        Assert.Contains("permission", failure.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
     [Fact]
     public async Task ApplicationCredential_IsAMemberOfOnlyTheYcrAppRole()
     {

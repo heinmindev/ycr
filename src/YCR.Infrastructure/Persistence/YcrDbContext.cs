@@ -1,15 +1,23 @@
 using Microsoft.EntityFrameworkCore;
 using YCR.Application.Common;
+using YCR.Application.Identity;
 using YCR.Application.Network;
+using YCR.Domain.Identity;
 using YCR.Domain.Network;
 using YCR.Infrastructure.Audit;
 
 namespace YCR.Infrastructure.Persistence;
 
 public sealed class YcrDbContext(DbContextOptions<YcrDbContext> options)
-    : DbContext(options), INetworkDbContext
+    : DbContext(options), INetworkDbContext, IIdentityDbContext
 {
     public DbSet<Station> Stations => Set<Station>();
+
+    public DbSet<StaffUser> Users => Set<StaffUser>();
+
+    public DbSet<Role> Roles => Set<Role>();
+
+    public DbSet<AuthSession> AuthSessions => Set<AuthSession>();
 
     /// <summary>
     /// The audit ledger. Internal on purpose: no module context interface exposes it, so the
