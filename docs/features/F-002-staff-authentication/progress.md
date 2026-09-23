@@ -135,3 +135,30 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** none.
 
 **State of the branch:** committed and pushed; build green; tests green.
+
+---
+
+## 2026-09-23 19:55 Asia/Yangon — claude — T-025 step 2
+
+**Stage:** 4 (IMPLEMENT), plan step 2 of 12
+**Commit:** `176eec5` on `feature/F-002`
+**Done this session:**
+- `src/YCR.Domain/Identity/`: `UserName`, `StaffUser`, `UserRole`, `Role`, `RolePermission`, `RoleNames`, `AccountLockoutPolicy`, `AuthSession`, `RefreshToken`, `RefreshOutcome`, `RevocationReason`, `IdentityErrors`.
+- Domain tests (RED as compile failure first, then green): `UserNameTests`, `StaffUserTests` (incl. G2 repeat cases `Disable_WhenAlreadyDisabled_ReportsNoChange`, `Enable_WhenActive_ReportsNoChange`), `AuthSessionTests`, `RoleNamesTests`.
+- **G2 applied** (hein, T-024): `Disable` → `Result<bool>` / `Enable` → `bool`, where `false` = no change (handler returns `204`, no audit, no session change).
+
+**Deviations from the plan (all small; stated so a reviewer can check them):**
+- `IdentityErrors` holds the codes the Application returns. The four pipeline codes (`Auth.Unauthenticated`, `Auth.PasswordChangeRequired`, `Auth.OriginRejected`, `Auth.TooManyRequests`) go in `YCR.Api` at steps 7–8, because the architecture rule forbids the Api to reference `YCR.Domain.Identity`. The plan said "All `Auth.*` and `Identity.*` codes".
+- Added `Identity.InvalidUserName` (Validation → `400`) for `UserName.Create`; the API's validator still answers `400 Common.ValidationFailed` first (spec §6). The CLI uses this code.
+- `Unlock(nowUtc)` takes the clock (the plan wrote `Unlock()`); "not locked" means `IsLockedOut(now)` is false, so an expired lockout is a no-op too.
+- `ReplaceRoles(roleIds, Guid? callerId)`: null caller = the bootstrap (D10, no actor). An unchanged role set still succeeds; R22 audits every set-roles operation once.
+- `StaffUser.Create` sets `NormalizedUserName` = upper-invariant (what Identity's default normalizer gives; step 4 checks the store agrees) and `PasswordChangedAtUtc` = creation time. `PasswordHash` / `SecurityStamp` are applied by the Infrastructure store through `internal` methods (`InternalsVisibleTo("YCR.Infrastructure")` already exists).
+- Username is neither trimmed nor case-folded: `" hein"` and `"Hein"` are refused (S32a).
+
+**Evidence:** `dotnet test YCR.sln` → **258/258 passed, 0 skipped** (+56 Domain tests). One earlier run failed 106 tests only because Docker Desktop had stopped (the fixture could not reach `npipe://./pipe/docker_engine`); after Docker Desktop was restarted, the same code gave 258/258.
+
+**Next step (exact):** plan step 3 — `IIdentityDbContext`, six EF configurations, migrations `Identity_CreateIdentitySchema`, `Identity_SeedRolesAndPermissionGrants`, `Security_IdentityGrants`; V4, V7; Infrastructure migration/seed/constraint/privilege tests.
+
+**Blockers / open questions:** none.
+
+**State of the branch:** committed and pushed; build green; tests green.
