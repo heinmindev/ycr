@@ -162,3 +162,31 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** none.
 
 **State of the branch:** committed and pushed; build green; tests green.
+
+---
+
+## 2026-09-23 20:40 Asia/Yangon — claude — T-025 step 3
+
+**Stage:** 4 (IMPLEMENT), plan step 3 of 12
+**Commit:** `97ad32f` on `feature/F-002`
+**Done this session:**
+- `YCR.Application/Identity/IIdentityDbContext.cs` (`Users`, `Roles`, `AuthSessions`, `Database`, `SaveChangesAsync`) and `IdentityConstraints.cs` (index names handlers will match on). `YcrDbContext` implements it; `AddInfrastructure` registers it (scoped, same instance).
+- Six configurations in `Persistence/Configurations/Identity/` matching plan §DB changes; every check constraint declared in the EF model (R-4); `has-pending-model-changes` → no changes.
+- Migrations: `20260923133457_Identity_CreateIdentitySchema` (EF-built; `Down()` also drops the schema), `20260923133735_Identity_SeedRolesAndPermissionGrants` (8 roles with fixed ids `0199b3a0-0000-7000-8000-00000000000{1..8}`, 14 grants, no user; `Down()` deletes exactly those rows), `20260923133743_Security_IdentityGrants` (plan P7 grant table; `Down()` revokes).
+- Tests: `IdentityMigrationTests` (upgrade from F-001's last migration with a station row; tables, 18 check constraints, 7 indexes incl. the filtered successor index, 6 FKs all NO ACTION, every `*Utc` is `datetimeoffset(3)`; model constants), `IdentitySeedTests` (8/14, docs/10 parse, `Permissions` constants, no user), `IdentityConstraintTests` (username format, permission format, UTC checks, half-set rows, S33 raw SQL, V4, V7), `DatabasePrivilegeTests` (+4 identity grant tests), `ModuleInterfacesTests` (+1).
+- **V4 passed:** EF emits the `ReplacedByTokenId IS NULL` guard; the losing parallel rotation throws `DbUpdateConcurrencyException` and its successor INSERT rolls back (one successor remains). Same for racing revocations on `RevokedAtUtc`.
+- **V7 passed:** lockout, disable/enable, unlock, own password change and role replacement saved through EF as `ycr_app` succeed under the column-scoped grants.
+
+**Deviations from the plan:**
+- `UserRoles`→`Users` FK uses EF `DeleteBehavior.ClientCascade`: the database FK stays `NO ACTION` (asserted), and EF deletes the orphaned `UserRole` rows it tracks when `ReplaceRoles` drops one. Plain `NoAction` makes EF throw on a severed required relationship.
+- `CK_RolePermissions_Permission_Format` is `NOT LIKE N'%[^-a-z.]%'` (hyphen first). The plan's `[^a-z.-]` does not treat a trailing `-` as a literal in T-SQL and rejected `auth-sessions.revoke`; found by the seed migration failing, fixed before commit, with a new test for the constraint.
+- `IIdentityDbContext` registration moved from step 4 to step 3, because step 3's `ModuleInterfaces_IdentityContext_…` test needs it.
+- Added `IdentityConstraints` (Application) for the unique-index names, following `NetworkConstraints`.
+
+**Evidence:** `dotnet test YCR.sln` → **304/304 passed, 0 skipped** (+46). `dotnet ef migrations has-pending-model-changes` → "No changes have been made to the model since the last migration."
+
+**Next step (exact):** plan step 4 — `StaffUserStore`, `PasswordService` (dummy hash for unknown users), `PasswordPolicyValidator` (12–128 scalar values, blocklist), `CommonPasswordBlocklist` + `common-passwords.txt` + `THIRD-PARTY-NOTICES.md`, `RefreshTokenGenerator`, `SqlServerIdentityAdministratorLock`, `IAuditWriter.RecordWithoutActor`/`RecordSignIn`, DI (`AddIdentityCore<StaffUser>`); V5 (applock as `ycr_app`). Then stop for hein's first checkpoint.
+
+**Blockers / open questions:** none.
+
+**State of the branch:** committed and pushed; build green; tests green.
