@@ -33,7 +33,7 @@ Until F-002 ships, no grant is seeded: F-001 has no identity/role provisioning s
 | Permission | Allows | Held by |
 |---|---|---|
 | `users.read` | list and view staff accounts and their sessions; read the role catalogue | `SystemAdministrator` only |
-| `users.manage` | create, disable and enable accounts; administrator password reset | `SystemAdministrator` only |
+| `users.manage` | create, disable, enable and unlock accounts; administrator password reset | `SystemAdministrator` only |
 | `users.roles.manage` | replace a user's role assignments — never the caller's own (no user may change their own roles) | `SystemAdministrator` only |
 | `auth-sessions.revoke` | revoke a user's sign-in session | `SystemAdministrator` only |
 

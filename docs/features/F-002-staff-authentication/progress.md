@@ -65,3 +65,24 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** approval (stage-2 ⛔). Implementer choices for hein to confirm: `Identity.CannotDisableOwnAccount` and `Identity.CannotResetOwnPassword` (U5 names no code for the self-target refusals); `/auth-sessions/*` and `/roles` use `Identity.*` under D14 (U1 names only `/auth/*` and `/users/*`); unlocking a user who is not locked is a `204` no-op with no audit row. Not edited (outside this task's file list): `docs/10` `users.manage` row (unlock), `docs/19` OQ34 block (U5).
 
 **State of the branch:** committed and pushed; builds and tests unaffected (docs-only change).
+
+---
+
+## 2026-09-23 16:10 Asia/Yangon — claude — T-023
+
+**Stage:** 2 (SPECIFY) closed — spec Approved
+**Commit:** the commit that adds this entry on `feature/F-002` (SHA recorded in `TASKS.md` T-023 Notes)
+**Done this session:**
+- Pulled `main` in the coordination checkout and read hein's approval in the T-023 row (spec Approved at `b28e0fe`, subject to three doc syncs; the four implementer gap-fills accepted as written).
+- ADR-0021: inline "Amended 2026-09-23 (hein; T-023, U4)" notes on `ActorUserId` and `ActorRole` — also null when no user is signed in (failed sign-in, lockout, refresh-family revocation), consistent with ADR-0017 §2. Nothing else changed.
+- `docs/10` §Identity permission grants: `users.manage` also allows unlock.
+- `docs/19` OQ34 ruling block: U5 added (no administrator may disable or administrator-reset their own account; at least one active `SystemAdministrator` must remain).
+- `spec.md` Status → "Approved (hein, 2026-09-23)".
+
+**Evidence:** docs only; no code, tests or migrations; no build or test run needed. Files changed: `spec.md`, `progress.md`, `docs/decisions/ADR-0021-audit-event-record-shape.md`, `docs/10-authorization-matrix.md`, `docs/19-open-questions.md`.
+
+**Next step (exact):** T-024 — stage 3 PLAN (architect-agent) on the approved spec.
+
+**Blockers / open questions:** none for T-023. Still outside any task's file list: `docs/glossary.md` §Actor and role labels; `docs/business/mr-questions-pack.md` (C15; OQ34/OQ35).
+
+**State of the branch:** committed and pushed; builds and tests unaffected (docs-only change).
