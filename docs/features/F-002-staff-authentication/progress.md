@@ -107,3 +107,31 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** approval (stage-3 ⛔); spec gaps G1, G2; confirmation N1.
 
 **State of the branch:** committed and pushed; builds and tests unaffected (docs-only change).
+
+---
+
+## 2026-09-23 17:10 Asia/Yangon — claude — T-025 step 1
+
+**Stage:** 4 (IMPLEMENT), plan step 1 of 12
+**Commit:** `8a11a8c` on `feature/F-002` (after merging `main` at `e2c5e44`, which claims T-025)
+**Done this session:**
+- Setup: claimed T-025 on `main` (`claim/T-025`, `e2c5e44`); merged `origin/main` into `feature/F-002` (`4af917b`, TASKS.md only).
+- Baseline before step 1: `dotnet test YCR.sln` 178/178.
+- Pinned `Microsoft.AspNetCore.Authentication.JwtBearer` and `Microsoft.Extensions.Identity.Core` 10.0.12; referenced from `YCR.Api` and `YCR.Infrastructure`.
+- `Permissions`: `UsersRead`, `UsersManage`, `UsersRolesManage`, `AuthSessionsRevoke`; stale "no grant is seeded" comment corrected.
+- `PermissionPolicyProvider`: two or more `.`-separated `[a-z]+(-[a-z]+)*` segments (RED first: `users.roles.manage` and `auth-sessions.revoke` failed, then green).
+- `YCR.TestSupport`: `TestClock`, `TestSigningKey` (with their own tests in `YCR.Infrastructure.Tests/TestSupport`).
+- **V1 passed:** `AddInfrastructure_RegistersNoAuthenticationScheme` — `AddAuthentication` + `AddInfrastructure` + `AddIdentityCore` → no scheme, no default scheme. Until step 4 puts `AddIdentityCore<StaffUser>` inside `AddInfrastructure`, the test calls `AddIdentityCore<ProbeUser>` itself.
+- **V2 failed → plan fallback applied.** In a project that references the ASP.NET Core shared framework (as `YCR.Api` does), the SDK resolves `Microsoft.Extensions.Identity.Core` to the framework's copy: **10.0.10+f7d90799** on this machine; `YCR.Api`'s `bin` has no app-local Identity dll. `YCR.Worker` (no shared framework) does get the app-local 10.0.12 package. Risk moves to R-9 as the plan says.
+
+**Deviations from the plan:**
+- V2 test renamed `IdentityCore_LoadedAssembly_Is10_0_12` → `IdentityCore_LoadedAssembly_ComesFromTheAspNetCoreRuntime` (plan V2 fallback: record the version). It asserts what does hold: Identity is 10.0.x and the same runtime build and directory as `Microsoft.AspNetCore.Authentication`, so the API never mixes versions. P13's reason "stops the Identity version following the installed runtime" holds for the Worker only; comments in the csproj and `Directory.Packages.props` say so. Stage 8 should note this in the plan's P13/R-9 history.
+- `YCR.Infrastructure.Tests` gains `<FrameworkReference Include="Microsoft.AspNetCore.App" />` (test project only) so V1 can call `AddAuthentication` and V2 runs in the API's shape.
+
+**Evidence:** `dotnet test YCR.sln` → **202/202 passed, 0 skipped** (was 178; +17 `PermissionPolicyProviderTests`, +2 `IdentityCoreRegistrationTests`, +5 TestClock/TestSigningKey). Docker Desktop 29.8.0.
+
+**Next step (exact):** plan step 2 — `YCR.Domain.Identity` (`UserName`, `StaffUser` with G2 = no-op, `AuthSession`, `RefreshToken`, `RoleNames`, `AccountLockoutPolicy`, `IdentityErrors`, `RevocationReason`, `RefreshOutcome`) with the Domain test rows of plan §Test plan.
+
+**Blockers / open questions:** none.
+
+**State of the branch:** committed and pushed; build green; tests green.
