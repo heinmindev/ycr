@@ -222,3 +222,15 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** approval (tech-lead checkpoint after step 4).
 
 **State of the branch:** committed and pushed; build green; tests green.
+
+---
+
+## 2026-09-23 22:10 Asia/Yangon — hein (recorded by claude) — T-025 checkpoint 1 review
+
+**Stage:** 4 (IMPLEMENT), tech-lead checkpoint after step 4 — **passed**
+**Commit reviewed:** `01cd7e9` (checkpoint entry `5bd0672`)
+**Rulings (hein, 2026-09-23):**
+- Every deviation recorded for steps 1–4 is **accepted as written**: `RecordSignIn` takes the user id; `CK_RolePermissions_Permission_Format` uses `[^-a-z.]`; the xato-net blocklist source at the pinned commit; the pipeline error codes live in `YCR.Api`; `Identity.InvalidUserName`; time-aware `Unlock`; `ClientCascade` on `UserRoles`; `bool TrySetPasswordAsync`; hashing the raw token text; the Identity context registration moved to step 3. **V2's fallback is accepted.**
+- **New requirement for step 5 (ADR-0023 item 3, D3):** a disabled or a locked account gets the identical `401` **and** equalised timing. `PasswordService` runs the dummy hash only for an unknown user, so `LoginHandler` must still run the full password verification for disabled and locked users before rejecting them — no early return. One test per case in the unknown-user style (proving the full hash check runs, not timing). **Neither case counts a failure towards lockout, nor unlocks, nor resets the count.**
+- **G1 confirmed:** the subject of both `Identity.SessionRevoked` and `Identity.RefreshFamilyRevoked` is the user; the session id and the reason go in `AfterJson`.
+- Continue with steps 5, 6 and 7 under the same rules; stop after step 7 for the next checkpoint.
