@@ -190,3 +190,35 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** none.
 
 **State of the branch:** committed and pushed; build green; tests green.
+
+---
+
+## 2026-09-23 21:45 Asia/Yangon — claude — T-025 step 4 (tech-lead checkpoint 1)
+
+**Stage:** 4 (IMPLEMENT), plan step 4 of 12 — **stopped for hein's first checkpoint (after steps 1–4)**
+**Commit:** `01cd7e9` on `feature/F-002`
+**Done this session:**
+- `YCR.Application/Identity/Abstractions/`: `IPasswordService` (`VerifyAsync`, `TrySetPasswordAsync`), `IRefreshTokenGenerator` + `RefreshTokenMaterial` (redacted `ToString`), `IIdentityAdministratorLock`.
+- `IAuditWriter.RecordWithoutActor` and `RecordSignIn`; `AuditWriter` implements both (actor fields forced null / the verified user; client address and correlation id still from `ICurrentUser`). `Record` is unchanged in behaviour.
+- `YCR.Infrastructure/Identity/`: `StaffUserStore` (P1: `IUserPasswordStore` + `IUserSecurityStampStore` only; no lockout store (P2); never saves; create/delete/rename unsupported), `PasswordService` (UserManager `CheckPasswordAsync` with rehash for real users; dummy V3 hash verified with the registered hasher for unknown users), `PasswordPolicyValidator` (12–128 scalar values, blocklist), `CommonPasswordBlocklist` + `common-passwords.txt`, `RefreshTokenGenerator`, `SqlServerIdentityAdministratorLock`.
+- `AddInfrastructure` now calls `AddIdentityCore<StaffUser>` (allowed username characters `a-z0-9.`), removes Identity's default `PasswordValidator`, registers the services above.
+- `THIRD-PARTY-NOTICES.md` (new) with the SecLists source, commit, filter program, both SHA-256s and the MIT licence; `.gitattributes` fixes the blocklist to LF. The committed blob hashes to the recorded `e1e5d002…716fb`.
+- Tests: `PasswordPolicyValidatorTests` (8+), `CommonPasswordBlocklistTests` (3), `PasswordServiceTests` (counting hasher; unknown, disabled, locked and wrong-password paths each perform exactly one verification), `RefreshTokenGeneratorTests`, `AuditWriterTests` (4, ambient principal naming another user reaches no actor field), `DatabasePrivilegeTests.ApplicationCredential_CanTakeTheAdministratorApplock` (V5), `IdentityCoreRegistrationTests` updated (V1 with the real registration; UserManager reports lockout, email, claims and 2FA unsupported).
+- **V1 re-proved** with `AddIdentityCore<StaffUser>` inside `AddInfrastructure`: zero schemes.
+- **V5 passed:** `ycr_app` acquires `sp_getapplock` with no grant; a second transaction waits until the first commits. Without a transaction the lock throws instead of running unowned.
+
+**Deviations from the plan:**
+- **`IAuditWriter.RecordSignIn(Guid verifiedUserId, …)`**, not `RecordSignIn(StaffUser verifiedUser, …)`. With the aggregate in the signature the existing architecture rule "Common must not depend on any module" (ADR-0012; `CommonKernel_WithModuleDependency_DetectsViolation`) failed. Behaviour is unchanged; the step-5 architecture test still restricts callers to `LoginHandler`.
+- **Blocklist source file:** the plan named SecLists `10-million-password-list-top-1000000.txt`; SecLists deleted it at `4ff3ff8` as a duplicate of `xato-net-10-million-passwords-1000000.txt`, which was used at commit `7ee9b278` (46,146 entries after filtering). Recorded in the notice.
+- `IPasswordService.TrySetPasswordAsync` returns `bool` (the plan said "policy result"): the caller maps `false` to `Auth.PasswordRejected` or `Identity.PasswordRejected` by path (U1).
+- Refresh-token hash is SHA-256 over the UTF-8 of the base64url raw token (not over the decoded bytes), so every presented value — including a malformed cookie — has a hash that simply matches no row. The test was renamed in spirit only (`Generate_Returns32RandomBytesAndTheirSha256` checks 32 decoded bytes and the SHA-256 of the raw text).
+- `THIRD-PARTY-NOTICES.md` landed at step 4 (plan §Affected files put it with step 11's docs; step 4's row lists "blocklist + notice", and the hash test needs it).
+- The step-4 tests were written together with the implementation, not strictly before it; the failures seen during the step were a test-helper DI validation issue and the architecture rule above, both fixed.
+
+**Evidence:** `dotnet test YCR.sln` → **332/332 passed, 0 skipped** (+28).
+
+**Next step (exact):** wait for hein's review of steps 1–4. On approval: plan step 5 — Application sign-in slice (`Login`, `RefreshSession`, `Logout`, `ChangeOwnPassword`, `GetCurrentUser`, `ResolveSessionPrincipal`, snapshots, `IdentityAuditSubjects` with G1 = user subject for both revocation events, telemetry), `IAccessTokenIssuer` abstraction, architecture rules for P5 and module boundaries (V6).
+
+**Blockers / open questions:** approval (tech-lead checkpoint after step 4).
+
+**State of the branch:** committed and pushed; build green; tests green.
