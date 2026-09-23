@@ -22,6 +22,7 @@ namespace YCR.Infrastructure.Tests.TestSupport;
 /// run discards its output.
 /// </para>
 /// </remarks>
+[Collection(DesignTimeConnectionCollection.Name)]
 public sealed class MigrationBundleRunAsyncTests
 {
     [Fact]

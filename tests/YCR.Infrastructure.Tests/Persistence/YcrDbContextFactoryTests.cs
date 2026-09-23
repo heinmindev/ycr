@@ -3,6 +3,7 @@ using YCR.Infrastructure.Persistence;
 
 namespace YCR.Infrastructure.Tests.Persistence;
 
+[Collection(DesignTimeConnectionCollection.Name)]
 public sealed class YcrDbContextFactoryTests
 {
     private const string VariableName = "YCR_DESIGN_TIME_CONNECTION";
