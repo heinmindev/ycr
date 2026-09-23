@@ -8,6 +8,14 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <!--
+      ASP.NET Core Identity via AddIdentityCore (ADR-0023 item 1, F-002 plan P1): UserManager,
+      PasswordHasher and the password-validator pipeline over a hand-written store. An explicit
+      package, not a FrameworkReference, so the whole web framework stays out of this layer (P13).
+      V2 (step 1): YCR.Worker loads this 10.0.12 package; YCR.Api, which references the shared
+      framework, loads the runtime's copy instead (risk R-9).
+    -->
+    <PackageReference Include="Microsoft.Extensions.Identity.Core" />
   </ItemGroup>
 
 </Project>

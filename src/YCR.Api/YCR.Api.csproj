@@ -23,6 +23,8 @@
     <PackageReference Include="Scalar.AspNetCore" />
     <!-- /health/ready must report database connectivity (docs/02 section Reliability). -->
     <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" />
+    <!-- The framework JwtBearerHandler, the only scheme the guard allows (ADR-0020 item 5 as amended; ADR-0023). -->
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
   </ItemGroup>
 
 </Project>

@@ -8,6 +8,11 @@
   <ItemGroup>
     <ProjectReference Include="../../src/YCR.Infrastructure/YCR.Infrastructure.csproj" />
     <ProjectReference Include="../YCR.TestSupport/YCR.TestSupport.csproj" />
+    <!--
+      F-002 V1/V2: the Identity registration checks run where the shared framework and the
+      explicit Microsoft.Extensions.Identity.Core pin meet, as they do in YCR.Api.
+    -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
 </Project>
