@@ -1,6 +1,7 @@
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using YCR.Application.Identity.Abstractions;
 using YCR.Infrastructure.Persistence;
 using YCR.TestSupport;
 
@@ -204,6 +205,41 @@ public sealed class DatabasePrivilegeTests(SqlServerFixture fixture) : IAsyncLif
         var failure = await Assert.ThrowsAsync<SqlException>(() =>
             ExecuteAsApplicationAsync("UPDATE [identity].[Users] SET [UserName] = N'renamed';"));
         Assert.Contains("permission", failure.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// V5 / plan P14: <c>ycr_app</c> can take the R27 administrator lock with no extra grant, and
+    /// the lock is exclusive — a second transaction waits until the first ends.
+    /// </summary>
+    [Fact]
+    public async Task ApplicationCredential_CanTakeTheAdministratorApplock()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var provider = new ServiceCollection()
+            .AddLogging()
+            .AddInfrastructure(database.ApplicationConnectionString)
+            .BuildServiceProvider();
+        await using var firstScope = provider.CreateAsyncScope();
+        await using var secondScope = provider.CreateAsyncScope();
+        var firstContext = firstScope.ServiceProvider.GetRequiredService<YcrDbContext>();
+        var secondContext = secondScope.ServiceProvider.GetRequiredService<YcrDbContext>();
+        var firstLock = firstScope.ServiceProvider.GetRequiredService<IIdentityAdministratorLock>();
+        var secondLock = secondScope.ServiceProvider.GetRequiredService<IIdentityAdministratorLock>();
+
+        // Without a transaction the lock refuses to run unowned.
+        await Assert.ThrowsAsync<InvalidOperationException>(() => firstLock.AcquireAsync(cancellationToken));
+
+        await using var firstTransaction = await firstContext.Database.BeginTransactionAsync(cancellationToken);
+        await firstLock.AcquireAsync(cancellationToken);
+
+        await using var secondTransaction = await secondContext.Database.BeginTransactionAsync(cancellationToken);
+        var waiting = secondLock.AcquireAsync(cancellationToken);
+        await Task.Delay(TimeSpan.FromMilliseconds(750), cancellationToken);
+        Assert.False(waiting.IsCompleted, "The second transaction acquired the lock while the first still held it.");
+
+        await firstTransaction.CommitAsync(cancellationToken);
+        await waiting.WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
+        await secondTransaction.CommitAsync(cancellationToken);
     }
 
     [Fact]

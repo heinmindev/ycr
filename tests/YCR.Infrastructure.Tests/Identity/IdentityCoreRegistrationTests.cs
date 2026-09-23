@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
+using YCR.Domain.Identity;
 
 namespace YCR.Infrastructure.Tests.Identity;
 
@@ -21,9 +22,8 @@ public sealed class IdentityCoreRegistrationTests
     /// ever have is the one it registers itself (ADR-0023 item 1, ADR-0020 item 5).
     /// </summary>
     /// <remarks>
-    /// Until plan step 4 wires <c>AddIdentityCore&lt;StaffUser&gt;</c> into
-    /// <c>AddInfrastructure</c>, the test adds <c>AddIdentityCore</c> itself with a probe user
-    /// type, so V1 is proved now on the pinned package and stays proved once step 4 lands.
+    /// Since plan step 4, <c>AddInfrastructure</c> itself calls <c>AddIdentityCore&lt;StaffUser&gt;</c>;
+    /// the test resolves <c>UserManager</c> to prove Identity really is registered.
     /// </remarks>
     [Fact]
     public async Task AddInfrastructure_RegistersNoAuthenticationScheme()
@@ -32,14 +32,24 @@ public sealed class IdentityCoreRegistrationTests
         services.AddLogging();
         services.AddAuthentication();
         services.AddInfrastructure("Server=unused;Database=unused;Integrated Security=true");
-        services.AddIdentityCore<ProbeUser>();
         await using var provider = services.BuildServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
 
-        var schemes = provider.GetRequiredService<IAuthenticationSchemeProvider>();
+        var schemes = scope.ServiceProvider.GetRequiredService<IAuthenticationSchemeProvider>();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<StaffUser>>();
 
         Assert.Empty(await schemes.GetAllSchemesAsync());
         Assert.Null(await schemes.GetDefaultAuthenticateSchemeAsync());
         Assert.Null(await schemes.GetDefaultChallengeSchemeAsync());
+
+        // Plan P1/P2: the store supports exactly passwords and security stamps. Lockout stays in
+        // the domain on TimeProvider, so UserManager must not think it owns it.
+        Assert.True(userManager.SupportsUserPassword);
+        Assert.True(userManager.SupportsUserSecurityStamp);
+        Assert.False(userManager.SupportsUserLockout);
+        Assert.False(userManager.SupportsUserEmail);
+        Assert.False(userManager.SupportsUserClaim);
+        Assert.False(userManager.SupportsUserTwoFactor);
     }
 
     /// <summary>
@@ -63,6 +73,4 @@ public sealed class IdentityCoreRegistrationTests
             Path.GetDirectoryName(typeof(IAuthenticationSchemeProvider).Assembly.Location),
             Path.GetDirectoryName(typeof(UserManager<>).Assembly.Location));
     }
-
-    private sealed class ProbeUser;
 }

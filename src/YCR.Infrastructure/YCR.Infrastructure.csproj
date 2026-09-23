@@ -18,4 +18,9 @@
     <PackageReference Include="Microsoft.Extensions.Identity.Core" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Offline common-password blocklist (F-002 plan P9); provenance in THIRD-PARTY-NOTICES.md. -->
+    <EmbeddedResource Include="Identity/common-passwords.txt" LogicalName="YCR.Infrastructure.Identity.common-passwords.txt" />
+  </ItemGroup>
+
 </Project>

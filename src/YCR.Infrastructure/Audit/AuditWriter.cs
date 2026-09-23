@@ -22,6 +22,12 @@ namespace YCR.Infrastructure.Audit;
 /// no parameter through which a request could influence them.
 /// </para>
 /// <para>
+/// F-002 plan P5 adds the two exceptions ADR-0023 item 6 (U4) requires, neither of which reads a
+/// request: <see cref="RecordWithoutActor"/> writes no actor at all, and
+/// <see cref="RecordSignIn"/> names the user whose password <c>LoginHandler</c> has just verified
+/// (architecture-tested to that one caller). Both write <c>ActorRole</c> null when there is no actor.
+/// </para>
+/// <para>
 /// <strong>REQUIRED CONTROL (ADR-0021 rule 4):</strong> <c>before</c> and <c>after</c> must never
 /// carry passwords, tokens, refresh cookies, full QR payloads or private keys. This class cannot
 /// enforce that; each module owns what its snapshot record contains.
@@ -65,6 +71,79 @@ internal sealed class AuditWriter(
         IAuditSnapshot? after,
         string? reasonCode = null)
     {
+        Add(
+            action,
+            actorUserId: currentUser.UserId,
+            actorRoles: currentUser.Roles,
+            authorizedByPermission: currentUser.AuthorizedByPermission,
+            subjectType,
+            subjectId,
+            before,
+            after,
+            reasonCode);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// F-002 plan P5: the actor fields are forced null here, not read from
+    /// <see cref="ICurrentUser"/>, so a bearer token attached to a sign-in or refresh request
+    /// cannot put its user on a failed-login, lockout or family-revocation row (S27).
+    /// </remarks>
+    public void RecordWithoutActor(
+        string action,
+        string subjectType,
+        Guid? subjectId,
+        IAuditSnapshot? before,
+        IAuditSnapshot? after) =>
+        Add(
+            action,
+            actorUserId: null,
+            actorRoles: [],
+            authorizedByPermission: null,
+            subjectType,
+            subjectId,
+            before,
+            after,
+            reasonCode: null);
+
+    /// <inheritdoc />
+    public void RecordSignIn(
+        Guid verifiedUserId,
+        IReadOnlyCollection<string> roles,
+        string action,
+        string subjectType,
+        IAuditSnapshot? after)
+    {
+        if (verifiedUserId == Guid.Empty)
+        {
+            throw new ArgumentException("The signed-in user must be identified.", nameof(verifiedUserId));
+        }
+
+        ArgumentNullException.ThrowIfNull(roles);
+
+        Add(
+            action,
+            actorUserId: verifiedUserId,
+            actorRoles: roles,
+            authorizedByPermission: null,
+            subjectType,
+            subjectId: verifiedUserId,
+            before: null,
+            after,
+            reasonCode: null);
+    }
+
+    private void Add(
+        string action,
+        Guid? actorUserId,
+        IReadOnlyCollection<string> actorRoles,
+        string? authorizedByPermission,
+        string subjectType,
+        Guid? subjectId,
+        IAuditSnapshot? before,
+        IAuditSnapshot? after,
+        string? reasonCode)
+    {
         ArgumentException.ThrowIfNullOrWhiteSpace(action);
         ArgumentException.ThrowIfNullOrWhiteSpace(subjectType);
 
@@ -73,8 +152,8 @@ internal sealed class AuditWriter(
             Id = idGenerator.New(),
             OccurredAtUtc = timeProvider.GetUtcNow(),
             Action = action,
-            ActorUserId = currentUser.UserId,
-            ActorRole = SerializeRoles(currentUser.Roles),
+            ActorUserId = actorUserId,
+            ActorRole = SerializeRoles(actorRoles),
             SubjectType = subjectType,
             SubjectId = subjectId,
             BeforeJson = SerializeSnapshot(before),
@@ -82,7 +161,7 @@ internal sealed class AuditWriter(
             CorrelationId = currentUser.CorrelationId,
             ClientIp = currentUser.ClientIp,
             ReasonCode = reasonCode,
-            AuthorizedByPermission = currentUser.AuthorizedByPermission,
+            AuthorizedByPermission = authorizedByPermission,
             PayloadVersion = CurrentPayloadVersion
         });
     }
