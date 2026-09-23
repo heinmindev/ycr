@@ -19,6 +19,8 @@
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
     <!-- OpenAPI document for YCR.Api.http and client generation; Development only at runtime. -->
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <!-- Scalar API reference UI over that same document; Development only at runtime (T-021). -->
+    <PackageReference Include="Scalar.AspNetCore" />
     <!-- /health/ready must report database connectivity (docs/02 section Reliability). -->
     <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" />
   </ItemGroup>
