@@ -29,7 +29,7 @@ public sealed class DependencyInjectionTests
     }
 
     [Fact]
-    public void HandlerTypes_IncludesEveryHandlerF001Defines()
+    public void HandlerTypes_IncludesEveryHandlerDefined()
     {
         // Named explicitly, so deleting a handler or renaming it out of the convention is a
         // failing test rather than a silently smaller registration.
@@ -39,7 +39,14 @@ public sealed class DependencyInjectionTests
         Assert.Contains(typeof(DeactivateStationHandler), handlers);
         Assert.Contains(typeof(GetStationHandler), handlers);
         Assert.Contains(typeof(ListStationsHandler), handlers);
-        Assert.Equal(4, handlers.Count);
+        // F-002 step 5: the sign-in slice.
+        Assert.Contains(typeof(YCR.Application.Identity.Login.LoginHandler), handlers);
+        Assert.Contains(typeof(YCR.Application.Identity.RefreshSession.RefreshSessionHandler), handlers);
+        Assert.Contains(typeof(YCR.Application.Identity.Logout.LogoutHandler), handlers);
+        Assert.Contains(typeof(YCR.Application.Identity.ChangeOwnPassword.ChangeOwnPasswordHandler), handlers);
+        Assert.Contains(typeof(YCR.Application.Identity.GetCurrentUser.GetCurrentUserHandler), handlers);
+        Assert.Contains(typeof(YCR.Application.Identity.ResolveSessionPrincipal.ResolveSessionPrincipalHandler), handlers);
+        Assert.Equal(10, handlers.Count);
     }
 
     [Fact]

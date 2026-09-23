@@ -1,4 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using YCR.Application.Identity;
 
 namespace YCR.Application;
 
@@ -23,6 +25,10 @@ public static class DependencyInjection
         {
             services.AddScoped(handler);
         }
+
+        // Session lifetime and grace window (D12). The defaults are ADR-0023's; YCR.Api registers
+        // the values bound from configuration first, which this does not replace.
+        services.TryAddSingleton(new AuthSettings());
 
         return services;
     }

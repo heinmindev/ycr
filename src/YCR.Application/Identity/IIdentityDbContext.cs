@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using YCR.Domain.Identity;
 
@@ -23,6 +24,12 @@ public interface IIdentityDbContext
     DbSet<AuthSession> AuthSessions { get; }
 
     DatabaseFacade Database { get; }
+
+    /// <summary>
+    /// Cleared before a handler retries after losing an optimistic-concurrency race, so the retry
+    /// reloads current rows instead of re-saving stale ones (plan P15; <c>IdentityRetry</c>).
+    /// </summary>
+    ChangeTracker ChangeTracker { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
