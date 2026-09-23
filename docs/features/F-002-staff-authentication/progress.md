@@ -45,3 +45,23 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** approval (stage-2 ⛔). Unruled: §0.8 U1–U6. Left outside T-023's file list for hein: `docs/glossary.md` §Actor and role labels still says the role model is unapproved; `docs/business/mr-questions-pack.md` (C15, and whether OQ34/OQ35 go into it).
 
 **State of the branch:** committed and pushed; builds and tests unaffected (docs-only change).
+
+---
+
+## 2026-09-23 15:46 Asia/Yangon — claude — T-023
+
+**Stage:** 2 (SPECIFY), §0.8 rulings applied; stopped at the stage-2 ⛔
+**Commit:** the commit that adds this entry on `feature/F-002` (SHA recorded in `TASKS.md` T-023 Notes)
+**Done this session:**
+- Pulled `main` in the coordination checkout and read "Rulings on spec §0.8 U1–U6" (hein, 2026-09-23) in the T-023 row; everything else at `43ed652` accepted as written.
+- `spec.md`: Status → "Draft — all rulings applied, awaiting hein's approval". §0.8 gains a Ruling column. R12 (U4 actors), R16 (U6 defaults), R18 (U3 unlock), R20 (U5 self-target, U2), R21 (U1 path-based prefixes), R22 (thirteen events, `Identity.UserUnlocked`) updated; new R26 (must-change restriction, `403 Auth.PasswordChangeRequired`) and R27 (last `SystemAdministrator`, `422 Identity.LastAdministrator`, provisional tech-lead ruling — not a Myanma Railways answer). Scenarios S4, S5, S12, S16, S17, S19a, S27 updated; new S19c (unlock), S19d (must-change), S19e (last administrator, incl. concurrency). §2, §5, §6 (unlock endpoint, must-change 403, path-based prefixes, new 422 codes), §7, §8 audit list, §10, Blocked behaviour (the §0.8 row removed) and the notes updated.
+- ADR-0023 items 3 (U3), 5 (U6), 6 (U3, U4) and 9 (U1, U2) amended inline, marked "Amended 2026-09-23 (hein; T-023, U-n)"; still Accepted.
+- `docs/20` §2: U1's path-based prefix rule recorded next to the D14 split.
+
+**Evidence:** docs only; no code, tests or migrations; no build or test run needed. Files changed: `spec.md`, `progress.md`, `docs/decisions/ADR-0023-staff-account-security-and-access-tokens.md`, `docs/20-coding-conventions.md`.
+
+**Next step (exact):** hein reviews and approves the spec at the stage-2 ⛔. Only then may a PLAN task start.
+
+**Blockers / open questions:** approval (stage-2 ⛔). Implementer choices for hein to confirm: `Identity.CannotDisableOwnAccount` and `Identity.CannotResetOwnPassword` (U5 names no code for the self-target refusals); `/auth-sessions/*` and `/roles` use `Identity.*` under D14 (U1 names only `/auth/*` and `/users/*`); unlocking a user who is not locked is a `204` no-op with no audit row. Not edited (outside this task's file list): `docs/10` `users.manage` row (unlock), `docs/19` OQ34 block (U5).
+
+**State of the branch:** committed and pushed; builds and tests unaffected (docs-only change).
