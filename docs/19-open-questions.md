@@ -11,7 +11,7 @@
 9. What are current fares and passenger categories?
 10. What are cancellation/refund rules, including refund eligibility and amount? **BLOCKS:** Ticket cancellation and Refund transitions.
 11. What payment methods are required? **ASSUMPTION:** Phase 1 currently models cash only; this is not a BUSINESS DECISION.
-12. What operator roles exist?
+12. What operator roles exist? **BLOCKS:** F-002 staff authentication. The role catalogue, the role identifiers written into `audit.AuditEvents.ActorRole`, and seeding even the approved `stations.*` grants (`docs/features/F-002-staff-authentication/spec.md` D7, contradictions C2-C4).
 13. What reports are mandatory?
 14. What retention period applies to audit/financial records?
 15. What availability and peak-load targets are required?
@@ -46,6 +46,12 @@
 
 33. Is station connectivity sufficient for online counter operations? ADR-0015 records this as an **ASSUMPTION** that "must be validated by a survey", so a survey is an outstanding action rather than a decision already taken. Related to OQ18 (paper fallback) and OQ15 (availability targets). (ADR-0015 line 44.)
     **Open with Myanma Railways.** No provisional value is assumed, and nothing currently blocks on this question. ADR-0015's connectivity ASSUMPTION stands unchanged until Myanma Railways answers.
+
+34. How are staff accounts governed? Specifically: who may create a staff account, disable it, assign or remove roles and reset its password; whether segregation of duties applies (may an administrator grant a role to themselves, and does granting a privileged role need a second approver); what identifies a staff member in the system (username format, a Myanma Railways employee number, a name in Myanmar script); and which person or office holds the first administrator account. **BLOCKS:** F-002's account-administration API and its bootstrap of the first administrator (`docs/features/F-002-staff-authentication/spec.md` D9, D10, §6.2). Related to OQ12 (which roles exist) and OQ28 (role grants). (Raised by T-023, 2026-09-23.)
+    **Open with Myanma Railways.** No provisional value is assumed.
+
+35. Does Myanma Railways, or a government policy it must follow, mandate an authentication policy for staff systems: password length or composition, account lockout, multi-factor authentication for particular roles, or a maximum sign-in session length? If none exists, the choices are engineering decisions for the tech lead. **BLOCKS:** F-002's password, lockout and MFA rules, in so far as a mandated policy exists (`docs/features/F-002-staff-authentication/spec.md` D2, D3, D4, D12). Background: superseded ADR-0009 made TOTP mandatory for System Administrator, Railway Administrator and Finance Officer; its successor, ADR-0016, does not restate that. (Raised by T-023, 2026-09-23.)
+    **Open with Myanma Railways.** No provisional value is assumed.
 
 ## Engineering decisions resolved on 2026-09-19
 
