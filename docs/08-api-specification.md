@@ -56,7 +56,11 @@ financial nor retryable, so no `Idempotency-Key` is required (`docs/20` §5).
 the F-001 spec §9. The station **field rules** behind these contracts are provisional under
 OQ26–OQ28 and change when T-014 replaces them.
 
-The OpenAPI document is served at `/openapi/v1.json` in Development only.
+The OpenAPI document is served at `/openapi/v1.json` in Development only. The Scalar API reference
+UI renders that same document at `/scalar` (redirects to `/scalar/`; `/scalar/v1` selects the `v1`
+document explicitly), also in Development only. Health checks (`/health/live`, `/health/ready`) are
+mapped with `MapHealthChecks`, which does not add them to the OpenAPI document, so neither the
+document nor Scalar lists them.
 
 ## Blocked behavior
 

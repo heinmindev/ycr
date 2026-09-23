@@ -1,6 +1,7 @@
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authorization.Policy;
+using Scalar.AspNetCore;
 using YCR.Api.Common;
 using YCR.Api.Common.Authentication;
 using YCR.Api.Common.Authorization;
@@ -57,12 +58,14 @@ app.UseStatusCodePages();
 app.UseAuthentication();
 app.UseAuthorization();
 
-// The OpenAPI document, served at /openapi/v1.json. Development only: the document describes
+// The OpenAPI document, served at /openapi/v1.json, and the Scalar API reference UI that renders
+// it, served at /scalar. Development only: the document describes
 // every route and permission, which is a map of the system that a deployed instance has no
 // reason to hand out.
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.MapScalarApiReference();
 }
 
 app.MapGroup("/api/v1").MapStationEndpoints();

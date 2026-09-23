@@ -46,4 +46,8 @@
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.12" />
   </ItemGroup>
 
+  <ItemGroup Label="API reference UI (T-021). Third-party, versioned independently of the runtime.">
+    <PackageVersion Include="Scalar.AspNetCore" Version="2.17.8" />
+  </ItemGroup>
+
 </Project>
