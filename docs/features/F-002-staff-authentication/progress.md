@@ -234,3 +234,36 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 - **New requirement for step 5 (ADR-0023 item 3, D3):** a disabled or a locked account gets the identical `401` **and** equalised timing. `PasswordService` runs the dummy hash only for an unknown user, so `LoginHandler` must still run the full password verification for disabled and locked users before rejecting them — no early return. One test per case in the unknown-user style (proving the full hash check runs, not timing). **Neither case counts a failure towards lockout, nor unlocks, nor resets the count.**
 - **G1 confirmed:** the subject of both `Identity.SessionRevoked` and `Identity.RefreshFamilyRevoked` is the user; the session id and the reason go in `AfterJson`.
 - Continue with steps 5, 6 and 7 under the same rules; stop after step 7 for the next checkpoint.
+
+---
+
+## 2026-09-23 23:20 Asia/Yangon — claude — T-025 step 5
+
+**Stage:** 4 (IMPLEMENT), plan step 5 of 12
+**Commit:** `55bd042` on `feature/F-002`
+**Done this session:**
+- `YCR.Application/Identity/`: `IdentityAuditActions` (13), `IdentityAuditSubjects` (`Identity.User` only — G1), `UserAuditSnapshot`, `AuthSessionAuditSnapshot` (session id, user id, reason), `AuthSettings` (12 h / 20 s defaults, registered by `AddApplication` with `TryAdd`), `IdentityTelemetry` (meter `YCR.Identity`, the four `Auth*` counters, the cache-age histogram, `LoggerMessage` events with no usernames), `IdentityQueries` (role names in catalogue order + permission union), `IdentityRetry` (optimistic-concurrency retry, clears the change tracker incl. pending audit rows), `Abstractions/IAccessTokenIssuer`.
+- Handlers: `LoginHandler`, `RefreshSessionHandler`, `LogoutHandler`, `ChangeOwnPasswordHandler`, `GetCurrentUserHandler`, `ResolveSessionPrincipalHandler`. `IIdentityDbContext` gains `ChangeTracker`.
+- **hein's step-5 requirement:** `LoginHandler` runs `IPasswordService.VerifyAsync` once, before looking at the account's state, on every path (null → dummy hash; disabled/locked → real hash). Disabled or locked: `LoginFailed` (subject the user), uniform `Auth.InvalidCredentials`, count and lockout untouched. Tests `Handle_WithDisabledUserAndCorrectPassword_…`, `Handle_WithLockedUserAndCorrectPassword_…` and the two wrong-password variants assert exactly one hasher verification and an unchanged `(AccessFailedCount, LockoutEndUtc)`. **Mutation check:** with the verification skipped for disabled/locked users, all four fail; restored.
+- **G1 applied:** `RefreshFamilyRevoked` (and, in step 6, `SessionRevoked`) has subject `Identity.User` / the user id; `AfterJson` = `{"sessionId":…,"userId":…,"revocationReason":"FamilyReuse"}`.
+- Tests (`YCR.Application.Tests/Identity/`): `LoginHandlerTests` (15), `RefreshSessionHandlerTests` (8, incl. parallel same-token → one 200 + one 409 and S29's exactly-two-rows ledger), `SessionHandlerTests` (logout ×3, own password ×5, resolve ×5, me, S31 secrets at rest); `DependencyInjectionTests` now names the 10 handlers.
+- Architecture (`YCR.ArchitectureTests`): `RecordSignIn_CalledOutsideLoginHandler_IsDetected`, `IdentityApplication_DependingOnAnotherModuleContext_IsDetected`, `NetworkApplication_DependingOnIdentityContext_IsDetected`, `Application_DependingOnAspNetIdentity_IsDetected`, with fixtures `RecordSignInOutsideLoginHandler`, `IdentityModuleBoundaryViolations` (two), `ApplicationUsingAspNetIdentity`.
+- **V6 passed:** ArchUnitNET 0.13.4 `NotCallAny(MethodMembers().That().HaveNameStartingWith("RecordSignIn("))` sees the call inside `LoginHandler`'s async state machine — the test asserts the unexempted rule flags `LoginHandler` on the source, then that the exempted rule passes on the source and flags the fixture. No fallback needed.
+
+**Deviations from the plan / decisions made inside the plan's latitude:**
+- Username lookup at sign-in matches the upper-invariant normalized name (ASP.NET Core Identity's behaviour, D1), so `Hein.Min` signs in `hein.min`. Values over 50 characters are not looked up (they cannot match); the dummy verification still runs. Test `Handle_UserNameInOtherCase_MatchesTheNormalizedName`.
+- `IdentityRetry.MaxAttempts` = 10 with 1–10·n ms jitter: with 5 attempts, 6 parallel wrong passwords exhausted the retries (seen once); stable over 3 repeated runs after the change.
+- `ChangeOwnPassword`: the current password is checked before the new one's policy; a wrong current password does not count towards lockout (spec S16 "nothing changed").
+- `LockedOut` carries `AfterJson` = `UserAuditSnapshot` (username, roles, locked-until); `LoginFailed` has no payload. `LoginSucceeded` carries the new session's `AuthSessionAuditSnapshot`; `PasswordChanged` before/after `UserAuditSnapshot`.
+- Logout of a session that is not the caller's, or already revoked, is a silent no-op (unreachable through the pipeline, which only admits the caller's active `sid`).
+- `ResolveSessionPrincipalHandler` uses two queries (session⋈user, then role grants), not one. A locked user's existing sessions stay valid (lockout guards password guessing; spec does not revoke on lockout).
+- `IdentityAuditSubjects.AuthSession` (plan) not created: G1 made it unused.
+- `GetCurrentUserHandler` returns `null` (endpoint → 401) instead of an `Identity.UserNotFound` error, so no `Identity.*` code can leak onto the `/auth/*` path (U1).
+
+**Evidence:** `dotnet test YCR.sln` → **375/375 passed, 0 skipped** (+43).
+
+**Next step (exact):** plan step 6 — administration handlers (`ListUsers`, `GetUser`, `CreateUser`, `DisableUser`, `EnableUser` (G2 no-op), `UnlockUser`, `ReplaceUserRoles`, `ResetUserPassword`, `ListUserSessions`, `RevokeSession` (G1 subject), `ListRoles`, `BootstrapAdministrator`) with P14's lock for R27.
+
+**Blockers / open questions:** none.
+
+**State of the branch:** committed and pushed; build green; tests green.
