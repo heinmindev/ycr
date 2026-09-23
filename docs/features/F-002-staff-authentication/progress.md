@@ -86,3 +86,24 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** none for T-023. Still outside any task's file list: `docs/glossary.md` §Actor and role labels; `docs/business/mr-questions-pack.md` (C15; OQ34/OQ35).
 
 **State of the branch:** committed and pushed; builds and tests unaffected (docs-only change).
+
+---
+
+## 2026-09-23 17:30 Asia/Yangon — claude — T-024
+
+**Stage:** 3 (PLAN), stopped at the stage-3 ⛔
+**Commit:** the commit that adds `plan.md` on `feature/F-002` (SHA recorded in `TASKS.md` T-024 Notes)
+**Done this session:**
+- Claimed T-024 (`claim/T-024`, ledger claim on `main`, pushed).
+- Read the architect-agent prompt, the plan template, the approved spec, ADR-0016, ADR-0020 (as amended), ADR-0021 (as amended), ADR-0022, ADR-0023, ADR-0012/0017 decisions, `docs/20`, `docs/21`, F-001's plan, and the current auth, audit, persistence, Worker, test-fixture and CI code.
+- Verified spec O6 in a scratch app outside the repository (packages at 10.0.12; installed runtime 10.0.10): `AddIdentityCore` registers no scheme; JwtBearer 10.0.12 → IdentityModel 8.19.2; `UserOnlyStore` over-reports capabilities; a hand-written store over a POCO works; PasswordHasher V3 = PBKDF2-SHA512 100k; ES256 token shape and rejections as expected.
+- Wrote `plan.md`: P1–P15, verifications V1–V8, files, three migrations with grants, endpoint inventory, test plan mapped to S1–S33/S19a–e and ADR-0016's required tests, two new packages, risks, twelve steps.
+- Found at PLAN: `PermissionPolicyProvider` rejects `users.roles.manage` and `auth-sessions.revoke` (fixed in plan step 1).
+
+**Evidence:** docs only; no code, tests or migrations; no build or test run needed. Files changed: `plan.md` (new), `progress.md`.
+
+**Next step (exact):** hein reviews the plan, rules on spec gaps **G1** (subject of `Identity.RefreshFamilyRevoked`) and **G2** (repeat disable/enable), confirms or overturns P1–P15 and N1, then approves at the stage-3 ⛔. Only then may the implementation task start.
+
+**Blockers / open questions:** approval (stage-3 ⛔); spec gaps G1, G2; confirmation N1.
+
+**State of the branch:** committed and pushed; builds and tests unaffected (docs-only change).
