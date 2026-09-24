@@ -95,3 +95,22 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** `approval` (⛔ stage 3). Q1–Q3 for hein (not Myanma Railways questions; no new OQ in `docs/19`). OQ36–OQ41 still open with Myanma Railways (provisional rulings apply). OQ1, OQ17 unchanged.
 
 **State of the branch:** documentation only; all work committed on `feature/F-003` and pushed.
+
+---
+
+## 2026-09-24 21:00 Asia/Yangon — claude — T-034
+
+**Stage:** 3 (PLAN) complete — plan **Approved (hein, 2026-09-24)**.
+**Commit:** spec amendments at `bcbba09`, approved plan at `84f8ad8`, both on `feature/F-003`; this entry is the commit after them.
+
+**Done this session:**
+- Applied hein's rulings of 2026-09-24 on the plan questions to the spec, as §0.9 **Amendment 1** (Q1 (a): `UX_RouteStations_StationId_RouteId` on `(StationId, RouteId)` replaces `UX_RouteStations_RouteId_StationId`; `IX_RouteStations_StationId` dropped; R7, §7, the OQ37 and IX rows in §0.8 and Notes updated) and **Amendment 2** (Q2 (b): new R26, `stationIds` at most 200, a REQUIRED CONTROL; S5 and §6 updated. Q3 (a): §9 now allows glossary edits at stage 8; the MR questions pack stays out of scope). The Status line stays "Approved (hein, 2026-09-24)" and adds "amended by Amendments 1–2".
+- Plan revision 2: the questions table replaced by "Rulings on the plan questions (hein, 2026-09-24)"; every Q-conditional row resolved (P6 validator cap, P7, `NetworkConstraints`, `RouteStationConfiguration`, §DB changes, security, S5 tests, R-1 retired, R-7, steps, stage-8 list, stop point); Status "Approved (hein, 2026-09-24)". Test plan now 94 named tests (87 new, 7 existing changed) for the 24 live scenarios.
+
+**Evidence:** documentation only; no build or test was run because no code changed. Commands: `git pull` (both checkouts), `grep`/`sed` checks, `git commit`, `git push`.
+
+**Next step (exact):** T-035, stage 4 (IMPLEMENT), following `plan.md` §Steps 1–7 from step 1. Not started by T-034.
+
+**Blockers / open questions:** none for F-003. OQ36–OQ41 are still open with Myanma Railways (the provisional rulings apply). OQ1 and OQ17 are unchanged.
+
+**State of the branch:** documentation only; all work committed on `feature/F-003` and pushed.
