@@ -81,6 +81,7 @@ var api = app.MapGroup("/api/v1");
 api.MapAuthEndpoints();
 api.MapUserEndpoints();
 api.MapStationEndpoints();
+api.MapRouteEndpoints();
 app.MapHealthEndpoints();
 
 await app.RunAsync();

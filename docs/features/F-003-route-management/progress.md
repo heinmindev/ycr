@@ -242,3 +242,28 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** none.
 
 **State of the branch:** builds; tests green; committed and pushed.
+
+---
+
+## 2026-09-25 00:20 Asia/Yangon — claude — T-035
+
+**Stage:** 4 (IMPLEMENT), plan step 6 of 7 (API) — done.
+**Commit:** step 6 code and this entry are one commit on `feature/F-003`.
+
+**Done:**
+- `Contracts/Network/RouteContracts.cs`: `CreateRouteRequest` (`isClosed` `bool?`, `stationIds` `IReadOnlyList<string?>?`, P6) with `CreateRouteRequestValidator` (`NotEmpty` code/names, `NotNull` `isClosed` (R25), `stationIds` present, non-empty and **at most `MaxStationIds = 200`**, REQUIRED CONTROL R26, each element a `D`-format GUID); `CreateRouteResponse`, `RouteResponse`, `RouteStationResponse`, `RouteSummaryResponse`, each mapped explicitly from its DTO; `PagedResponse<T>` reused.
+- `Endpoints/Network/RouteEndpoints.cs`: the four endpoints, tag `Routes`, `routes.manage` on both POSTs and `routes.read` on both GETs, `.WithName`/`.WithSummary`/`.Produces`/`.ProducesProblem` as `StationEndpoints`. `Program.cs`: `api.MapRouteEndpoints();`. The station endpoints are not changed.
+- **plan-V5 recorded (probe, not committed):** a JSON type mismatch (`"isClosed": "yes"`, `"stationIds": "x"`) or a malformed body gives `400 application/problem+json` with `traceId` and **no `errorCode`**, from the framework's binding failure. As plan R-6 says, this predates F-003, applies to every endpoint, and is not in S5, so F-003 does not change it. If hein wants an `errorCode` there, it is a cross-cutting follow-up task.
+- Tests written in this step (RED seen first: the build failed on the missing response contracts): `RouteEndpointsTests` (26 test methods as the plan lists them), `RoutePermissionGrantTests` (2, real ES256 tokens: `TicketOperator_ReadsRoutesButCannotCreateOrDeactivate`, `RailwayAdministrator_CreatesAndDeactivatesRoute`), `DeployedShapeTests.ProtectedEndpoint_Anonymous_Returns401BearerChallengeWithProblemDetails` +4 route rows. Every F-001/F-002 API suite passes unchanged (apart from the V3 updates at step 3).
+
+**Deviations:**
+- **V7 — a whitespace-only name at the endpoint is `400 Common.ValidationFailed`, not `400 Network.InvalidRouteName`.** Spec S11 lists "a blank, whitespace-only … name → `400 Network.InvalidRouteName`". Plan P6 (approved) makes the validator `NotEmpty()` "as in `CreateStationRequestValidator`", and FluentValidation's `NotEmpty()` treats a whitespace-only string as empty. So at the API, `"   "` is refused by the filter, exactly as F-001's station endpoint does (see `StationEndpointsTests.Post_WithMissingField_Returns400FromTheValidationFilter` and `Post_WithOverlongMyanmarName_Returns400FromTheDomainRule`). Both are `400`. The domain rule (`BilingualName` → `Network.InvalidRouteName` for whitespace) is proven at the handler by `CreateRoute_WithInvalidCodeOrName_ReturnsValidationErrorAndWritesNothing`. At the endpoint, `Post_WithInvalidName_Returns400InvalidRouteName` uses the two overlong cases, and `Post_WithInvalidBody_Returns400CommonValidationFailed` gains a "whitespace nameEn" row that pins the filter's answer. **hein to confirm**; if S11's code must hold at the endpoint too, the validator would use `NotNull()` for the names (a one-line change plus the row).
+- **V8 — one extra row in the S5 theory**, the "whitespace nameEn" row above, beyond the nine the plan lists.
+
+**Evidence:** targeted API run 62/62 (`RouteEndpointsTests`, `RoutePermissionGrantTests`, `DeployedShapeTests`). `dotnet build YCR.sln` 0 warnings, 0 errors. `dotnet test YCR.sln` **789 passed, 0 failed, 0 skipped**.
+
+**Next step (exact):** plan step 7 (`YCR.Api.http` Routes section; `api-smoke` route checks in `.github/workflows/ci.yml`; push; a green GitHub Actions run on `feature/F-003`; record the run URL here).
+
+**Blockers / open questions:** none. V7 is for hein's review.
+
+**State of the branch:** builds; tests green; committed and pushed.
