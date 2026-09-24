@@ -7,12 +7,11 @@ namespace YCR.Api.Common.Authorization;
 /// </summary>
 /// <remarks>
 /// Permissions are read from claims, not from roles. `docs/10` models authority as permissions.
-/// OQ28 — which roles hold <c>stations.manage</c>/<c>stations.read</c> — is resolved by a final
-/// tech-lead ruling (hein, 2026-09-22; T-014, not a Myanma Railways answer), recorded in
-/// `docs/10-authorization-matrix.md`, but <strong>no role-to-permission mapping is seeded
-/// anywhere</strong>: no identity/role provisioning system exists until the ADR-0016 follow-up
-/// feature ships (ADR-0020). Tests mint the permission claim directly on the test principal.
-/// When that follow-up feature lands, the mapping arrives in one place and nothing here changes.
+/// Since F-002 the claims are server-built: <c>JwtBearerSetup</c> replaces the token's principal
+/// with one carrying the union of the permissions granted, as data in
+/// <c>identity.RolePermissions</c>, to the user's roles (plan P3; D8). No access token carries a
+/// permission, so nothing a caller sends can add one. The F-001 test handler still mints the
+/// claim directly for non-authentication API tests (D13).
 /// </remarks>
 public sealed class PermissionAuthorizationHandler : AuthorizationHandler<PermissionRequirement>
 {

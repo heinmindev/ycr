@@ -1,6 +1,5 @@
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Authorization.Policy;
 using Scalar.AspNetCore;
 using YCR.Api.Common;
 using YCR.Api.Common.Authentication;
@@ -24,6 +23,11 @@ var connectionString = builder.Configuration.GetConnectionString("Application")
         + "REQUIRED CONTROL and .env.example).");
 
 builder.Services.AddInfrastructure(connectionString);
+
+// F-002 (ADR-0016, ADR-0023): the framework JwtBearerHandler is the one scheme; the principal is
+// rebuilt from the database on every (uncached) request. Before AddApplication, so the session
+// settings bound from Auth replace AddApplication's defaults.
+builder.Services.AddYcrAuthentication(builder.Configuration);
 builder.Services.AddApplication();
 
 builder.Services.AddHttpContextAccessor();
@@ -31,16 +35,9 @@ builder.Services.AddScoped<ICurrentUser, HttpContextCurrentUser>();
 
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
-// ADR-0020: F-001 registers the authorization pipeline but no authentication handler. Outside
-// Testing there is deliberately no scheme, so every endpoint requiring a caller answers 401
-// until the ADR-0016 token feature lands. AuthenticationSchemeGuard proves that stays true.
-builder.Services.AddAuthentication();
 builder.Services.AddAuthorization();
 builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
 builder.Services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
-// Turns a challenge into a plain 401 while ADR-0020 leaves the deployment with no scheme to
-// challenge with; without it an unauthenticated request is a 500. See the type's remarks.
-builder.Services.AddSingleton<IAuthorizationMiddlewareResultHandler, AuthorizationResultHandler>();
 
 builder.Services.AddYcrProblemDetails();
 builder.Services.AddOpenApi();
@@ -51,11 +48,18 @@ builder.Services.AddHealthChecks()
 var app = builder.Build();
 
 await app.GuardAuthenticationSchemesAsync();
+app.ValidateSigningKeys();
+
+// First, so every response — including the exception handler's and the challenge's — carries
+// the security headers (R24, plan P10). No CORS anywhere (D16).
+app.UseMiddleware<SecurityHeadersMiddleware>();
 
 app.UseYcrExceptionHandler();
 app.UseStatusCodePages();
 
 app.UseAuthentication();
+// R26: after authentication (the server-built principal) and before authorization (N1).
+app.UseMiddleware<PasswordChangeRequiredMiddleware>();
 app.UseAuthorization();
 
 // The OpenAPI document, served at /openapi/v1.json, and the Scalar API reference UI that renders

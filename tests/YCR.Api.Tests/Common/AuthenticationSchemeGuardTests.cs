@@ -1,4 +1,5 @@
 using System.Net;
+using Microsoft.Extensions.DependencyInjection;
 using YCR.Api.Tests.Authentication;
 
 namespace YCR.Api.Tests.Common;
@@ -23,6 +24,25 @@ public sealed class AuthenticationSchemeGuardTests(SqlServerFixture fixture) : A
         var response = await client.GetAsync("/health/live", CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    /// <summary>S23: outside Testing, exactly the framework JwtBearerHandler starts (ADR-0020 item 5 as amended).</summary>
+    [Fact]
+    public async Task Startup_WithOnlyJwtBearerOutsideTesting_Succeeds()
+    {
+        await using var production = new YcrApiFactory(
+            Database.ApplicationConnectionString,
+            environment: "Production",
+            mode: AuthMode.Unmodified,
+            signingKey: new YCR.TestSupport.TestSigningKey($"ci-{Guid.NewGuid():N}", developmentOnly: false));
+        using var client = production.CreateAnonymousClient();
+
+        var response = await client.GetAsync("/health/live", CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var schemes = production.Services.GetRequiredService<Microsoft.AspNetCore.Authentication.IAuthenticationSchemeProvider>();
+        var scheme = Assert.Single(await schemes.GetAllSchemesAsync());
+        Assert.Equal(typeof(Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerHandler), scheme.HandlerType);
     }
 
     [Fact]

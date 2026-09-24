@@ -21,6 +21,11 @@ namespace YCR.Api.Common;
 /// <c>ICurrentUser</c> implementation, but <c>AuditWriter</c> requires one and the composition
 /// root is the only place with an <c>HttpContext</c>. Recorded in `progress.md`.
 /// </para>
+/// <para>
+/// F-002: the user id and role claims it reads are built by the server from the session and the
+/// database on every request (plan P3), never taken from the access token, so <c>ActorRole</c>
+/// holds the canonical role identifiers the user held at the time (ADR-0021; spec R12).
+/// </para>
 /// </remarks>
 public sealed class HttpContextCurrentUser(IHttpContextAccessor accessor) : ICurrentUser
 {

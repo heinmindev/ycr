@@ -14,14 +14,19 @@ namespace YCR.TestSupport;
 /// </remarks>
 public sealed class TestSigningKey : IDisposable
 {
-    public TestSigningKey(string? keyId = null)
+    /// <param name="keyId">The <c>kid</c>; a fresh <c>test-</c> id when null.</param>
+    /// <param name="developmentOnly">Whether the key is marked <c>DevelopmentOnly</c> in configuration.</param>
+    public TestSigningKey(string? keyId = null, bool developmentOnly = true)
     {
+        DevelopmentOnly = developmentOnly;
         Key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         KeyId = keyId ?? $"test-{Guid.NewGuid():N}";
         PrivateKeyPkcs8Pem = Key.ExportPkcs8PrivateKeyPem();
     }
 
     public string KeyId { get; }
+
+    public bool DevelopmentOnly { get; }
 
     public ECDsa Key { get; }
 
@@ -30,13 +35,13 @@ public sealed class TestSigningKey : IDisposable
     /// <summary>
     /// The <c>Auth:Signing</c> configuration for this key as the only, active key.
     /// </summary>
-    public IReadOnlyDictionary<string, string?> ToConfiguration(bool developmentOnly = true) =>
+    public IReadOnlyDictionary<string, string?> ToConfiguration() =>
         new Dictionary<string, string?>
         {
             ["Auth:Signing:ActiveKeyId"] = KeyId,
             ["Auth:Signing:Keys:0:KeyId"] = KeyId,
             ["Auth:Signing:Keys:0:PrivateKeyPkcs8Pem"] = PrivateKeyPkcs8Pem,
-            ["Auth:Signing:Keys:0:DevelopmentOnly"] = developmentOnly ? "true" : "false",
+            ["Auth:Signing:Keys:0:DevelopmentOnly"] = DevelopmentOnly ? "true" : "false",
         };
 
     public void Dispose() => Key.Dispose();
