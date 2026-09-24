@@ -267,3 +267,32 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** none.
 
 **State of the branch:** committed and pushed; build green; tests green.
+
+---
+
+## 2026-09-24 00:20 Asia/Yangon — claude — T-025 step 6
+
+**Stage:** 4 (IMPLEMENT), plan step 6 of 12
+**Commit:** `8b93f1f` on `feature/F-002`
+**Done this session:**
+- `YCR.Application/Identity/`: `ListUsers`, `GetUser` (`UserDto`: id, username, roles, disabled, locked-until only while a lockout is in force, created), `CreateUser`, `DisableUser`, `EnableUser`, `UnlockUser`, `ReplaceUserRoles`, `ResetUserPassword`, `ListUserSessions` (`AuthSessionDto`, newest first), `RevokeSession`, `ListRoles`, `BootstrapAdministrator`; shared `AdministratorGuard` (R27 + role-name resolution), `UserReads`, `UserRolesAuditSnapshot`.
+- **G2 applied:** a repeat disable or enable → success (`204`), nothing changes (`DisabledAtUtc` kept), no audit, no session change.
+- **G1 applied:** `SessionRevoked` subject = the session's user; `AfterJson` = `{"sessionId":…,"userId":…,"revocationReason":"AdministratorRevoked"}`. An already-revoked session → `204`, no second row.
+- **R27 / P14:** `DisableUser` and `ReplaceUserRoles` take the `sp_getapplock` inside a transaction only when the target is an active `SystemAdministrator` (checked first, read-only), then reload the target under the lock, count other active administrators, change, audit, save, commit. The bootstrap always takes it. **Mutation check:** with the lock removed from `DisableUser`, `DisableUser_TwoAdministratorsDisablingEachOtherConcurrently_ExactlyOneSucceeds` failed 3/3; restored.
+- Check order implemented (from spec §6.2 and the S-scenarios): disable — 404, own account, G2 no-op, last administrator; roles — 404, own account (with any value, S19b), unknown role, last administrator; reset — 404, own account, policy; create — username format, unknown role, policy, duplicate (pre-check + unique index).
+- Tests: `AdministrationHandlerTests` (37 cases incl. both S19e concurrency tests, parallel duplicate create, bootstrap ×5 incl. two concurrent runs); `DependencyInjectionTests` names all 22 handlers.
+
+**Deviations from the plan / decisions inside its latitude:**
+- New domain errors: `Identity.UnknownRole` (400; the API validator answers `Common.ValidationFailed` first, spec §6), `Identity.InvalidPageRequest` (400; the `Network.InvalidPageRequest` pattern), `Identity.AdministratorAlreadyExists` (422; bootstrap refusal — the CLI maps any failure to a non-zero exit in step 10).
+- The bootstrap refuses when **any** user holds `SystemAdministrator`, disabled or not (S32: "when any SystemAdministrator exists").
+- One `UserDto` for list and view (plan named `UserDto` and `UserSummaryDto`).
+- `RolesChanged` is audited for every accepted request, including one that sets the same roles (R22: one row per operation).
+- `ResetUserPassword` leaves the lockout state as it is (not specified; the reset does not claim to unlock).
+
+**Evidence:** `dotnet test YCR.sln` → **412/412 passed, 0 skipped** (+37).
+
+**Next step (exact):** plan step 7 — API pipeline swap: `JwtBearerSetup` (P3, P11, ProblemDetails challenge), `SessionPrincipalCache` (P4), signing-key provider + `JwtAccessTokenIssuer`, `AuthOptions` validation, guard allowlist = `JwtBearerHandler`, `PasswordChangeRequiredMiddleware` (N1), `SecurityHeadersMiddleware` (P10), delete `AuthorizationResultHandler`, `YcrApiFactory` modes, `MissingSchemeTests` → `DeployedShapeTests`; V3. Then stop for the second checkpoint.
+
+**Blockers / open questions:** none.
+
+**State of the branch:** committed and pushed; build green; tests green.
