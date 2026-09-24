@@ -1,6 +1,6 @@
 # F-003: Route management
 
-Status: **Approved (hein, 2026-09-24)**. Written by claude (T-032). Stages 1–2 of `docs/workflows/02-feature-development.md`. hein's rulings of 2026-09-24 on OQ36–OQ41 and E1–E8, and the approval-time decisions (A1, R25, `IX_RouteStations_StationId`, the creation/deactivation race), are recorded in §0.8 and applied throughout. The business rulings are **provisional tech-lead rulings — not a Myanma Railways answer**.
+Status: **Approved (hein, 2026-09-24)**, amended by Amendments 1–2 (hein, 2026-09-24, T-034; §0.9). Written by claude (T-032). Stages 1–2 of `docs/workflows/02-feature-development.md`. hein's rulings of 2026-09-24 on OQ36–OQ41 and E1–E8, and the approval-time decisions (A1, R25, `IX_RouteStations_StationId`, the creation/deactivation race), are recorded in §0.8 and applied throughout. The business rulings are **provisional tech-lead rulings — not a Myanma Railways answer**.
 
 Module(s): `Network` (routes only; station deactivation is unchanged); cross-cutting `Audit`, `Identity` (permission grants only)
 Related: FR-002, UC 2 "Manage routes" (`docs/03-use-cases.md` §Core use cases, item 2), FR-001 (stations), ADR-0004, ADR-0006, ADR-0012, ADR-0014, ADR-0017, ADR-0018, ADR-0021, `docs/20-coding-conventions.md` §3
@@ -117,7 +117,7 @@ The stage-2 ⛔ asked hein to rule on OQ36–OQ41 and E1–E8. hein ruled on all
 | ID | Ruling | Label | Applied in |
 |---|---|---|---|
 | **OQ36** | The system may hold several routes, and routes may share stations. A route has **no direction attribute**: direction belongs to services (FR-003) and fares (OQ17). There is **no separate `Line` concept**: "line" in FR-002 is read as "route", which closes C1, and the glossary's forbidden-synonym rule stands. The YCR loop is entered as one route. No seed data (OQ1). | BUSINESS DECISION — provisional tech-lead ruling, not a Myanma Railways answer | R5, R23; §6; §7 (no direction column) |
-| **OQ37** | Each route has a yes/no closed-or-open setting, stored as a column (`IsClosed bit`). A closed route runs from its last station back to its first; that connection comes from the setting, and the first station is never repeated at the end. A station never appears twice in one sequence, so the unique index on `(RouteId, StationId)` applies. Minimum length: **2 stations for an open route, 3 for a closed one**. | BUSINESS DECISION — provisional tech-lead ruling, not a Myanma Railways answer | R6–R8; S8, S9, S28; §7 `IsClosed`, `UX_RouteStations_RouteId_StationId` |
+| **OQ37** | Each route has a yes/no closed-or-open setting, stored as a column (`IsClosed bit`). A closed route runs from its last station back to its first; that connection comes from the setting, and the first station is never repeated at the end. A station never appears twice in one sequence, so a unique index on the route–station pair applies (`UX_RouteStations_StationId_RouteId` since Amendment 1). Minimum length: **2 stations for an open route, 3 for a closed one**. | BUSINESS DECISION — provisional tech-lead ruling, not a Myanma Railways answer | R6–R8; S8, S9, S28; §7 `IsClosed`, `UX_RouteStations_StationId_RouteId` |
 | **OQ38** | Option **(c), immutable.** A route's sequence can never change after creation. To change the network, create a new route and deactivate the old one. There is no `PUT /routes/{id}/stations` and no sequence-replacement operation; S4, S19, S20, S27 and the `RouteStationsReplaced` audit action are removed. `RouteStations` is insert-only. | BUSINESS DECISION — provisional tech-lead ruling, not a Myanma Railways answer | R9, R10; §4 (removals); §6; §7 grants; §8 |
 | **OQ39** | An inactive station cannot be placed in a route (`422 Network.RouteStationInactive`). Deactivating a station that is in a route is allowed, and the station stays in the sequence; route reads show it with `isActive = false`. F-001's `DeactivateStation` does **not** change. S16, S18 and `Network.StationInUseByRoute` are dropped; S17's "stays in sequence" case is kept. Accepted consequence: a station deactivated by mistake cannot be placed in a new route until station reactivation ships (accepted for now; no task created). | BUSINESS DECISION — provisional tech-lead ruling, not a Myanma Railways answer | R11, R12; S7, S17; §5; §9 Known limitation |
 | **OQ40** | `routes.manage` → `SystemAdministrator` and `RailwayAdministrator`. `routes.read` → all eight roles: `SystemAdministrator`, `RailwayAdministrator`, `StationManager`, `TicketOperator`, `TicketInspector`, `FinanceOfficer`, `Auditor`, `ReportingUser`. Holding `stations.*` gives no route right. | BUSINESS DECISION — provisional tech-lead ruling, not a Myanma Railways answer | R2, R3; §2; `docs/10` §Route permission grants; S14, S15 |
@@ -137,9 +137,18 @@ The stage-2 ⛔ asked hein to rule on OQ36–OQ41 and E1–E8. hein ruled on all
 |---|---|---|---|
 | **A1** | Add `DeactivatedAtUtc datetimeoffset(3) NULL` to `network.Routes`, with `CK_Routes_DeactivatedAtUtc_Utc` (NULL or offset 0). Deactivation sets `IsActive = 0` and `DeactivatedAtUtc` = now (UTC, from the clock) in the same `UPDATE`. `RouteResponse`, `RouteSummaryResponse` and the audit snapshot gain `deactivatedAtUtc` (null while active). Grant: `Routes` `SELECT`, `INSERT`, `UPDATE(IsActive, DeactivatedAtUtc)`. Reason: because sequences are immutable, the rows are the business history, and "which routes were active on date X" must be answerable without reading the audit ledger. | ENGINEERING DECISION (tech lead, hein, 2026-09-24) | R10, R15, R17; S23, S25; §6; §7; §8 |
 | **R25** | `isClosed` required on `POST /routes`, no default: accepted. | ENGINEERING DECISION (tech lead, hein, 2026-09-24) | R25; S5 |
-| **IX** | `IX_RouteStations_StationId` is left to PLAN: kept only if a named query uses it, otherwise dropped at stage 3. | ENGINEERING DECISION (tech lead, hein, 2026-09-24) | §7; Notes for the next stage |
+| **IX** | `IX_RouteStations_StationId` is left to PLAN: kept only if a named query uses it, otherwise dropped at stage 3. **Outcome: dropped** (no F-003 query uses it; plan §DB changes), by the mechanism of Amendment 1 (§0.9). | ENGINEERING DECISION (tech lead, hein, 2026-09-24) | §7; Notes for the next stage |
 | **Race** | A route created while one of its stations is being deactivated: accepted, no serialisation required. | ENGINEERING DECISION (tech lead, hein, 2026-09-24) | §5 |
 | **ADR-0024** | Stays Proposed. Its Follow-up line naming F-003 as first user is replaced by "F-003 does not use this ADR (OQ38 ruling, immutable sequences; hein, 2026-09-24). The first user will be the first feature that edits a document composed from an earlier read." | ENGINEERING DECISION (tech lead, hein, 2026-09-24) | ADR-0024 Follow-up |
+
+### 0.9 Amendments after approval
+
+Recorded after the spec was Approved. They come from hein's rulings on the stage-3 plan questions (T-034, `plan.md` §Questions for hein). The approval stands; these amendments change only what they name.
+
+| ID | Amendment | Label | Applied in |
+|---|---|---|---|
+| **Amendment 1 (hein, 2026-09-24, T-034 Q1)** | `UX_RouteStations_RouteId_StationId` on `(RouteId, StationId)` is replaced by **`UX_RouteStations_StationId_RouteId` on `(StationId, RouteId)`**. It enforces the same rule: a station appears at most once in one route. **`IX_RouteStations_StationId` is dropped.** No F-003 query filters `RouteStations` by `StationId` alone, and stations are never deleted, so nothing needs a separate index (the "IX" decision above). EF Core adds an index for every foreign key that no other index *leads* with, and adds it back if it is removed (verified on EF Core 10.0.12 at PLAN, `plan.md` O1–O3). With `StationId` as the unique index's leading column, the foreign key is covered and EF adds no extra index. | ENGINEERING DECISION (tech lead, hein, 2026-09-24; T-034 Q1 (a)) | R7; §7 |
+| **Amendment 2 (hein, 2026-09-24, T-034 Q2, Q3)** | **Q2:** `stationIds` has at most **200** elements; more is `400 Common.ValidationFailed` (new **R26**, **S5**). **Q3:** spec §9's glossary line is narrowed. Editing `docs/glossary.md` is out of scope for stages 1–2 only, and stage 8 updates it per `docs/21`. Editing `docs/business/mr-questions-pack.md` stays out of scope. | Q2: ENGINEERING DECISION / REQUIRED CONTROL (tech lead, hein, 2026-09-24; T-034 Q2 (b)). Q3: ENGINEERING DECISION (tech lead, hein, 2026-09-24; T-034 Q3 (a)) | R26; S5; §6; §9 |
 
 ---
 
@@ -173,7 +182,7 @@ Provisional rulings are labelled "BUSINESS DECISION — provisional tech-lead ru
 | R4 | A route is an ordered sequence of stations, in the `Network` module. | FACT | `docs/glossary.md` (`Route`); `docs/04`; `docs/05` |
 | R5 | The system may hold several routes, and routes may share stations. A route has no direction attribute; direction belongs to services and fares. There is no `Line` concept: "line" in R1 means "route". The YCR loop is entered as one route. | **PROVISIONAL RULING (OQ36)** | `docs/19` OQ36 |
 | R6 | Each route is either open or closed, stored as `IsClosed`. A closed route runs from its last station back to its first; that connection comes from `IsClosed`, and the first station is never repeated at the end of the sequence. | **PROVISIONAL RULING (OQ37)** | `docs/19` OQ37 |
-| R7 | A station appears at most once in one route's sequence. `UX_RouteStations_RouteId_StationId` is the database authority; the handler's pre-check gives the error code (`422 Network.RouteStationRepeated`). | **PROVISIONAL RULING (OQ37)**; enforcement: ENGINEERING DECISION (tech lead, hein, 2026-09-24; ADR-0004) | `docs/19` OQ37 |
+| R7 | A station appears at most once in one route's sequence. `UX_RouteStations_StationId_RouteId` (unique on `(StationId, RouteId)`, Amendment 1) is the database authority; the handler's pre-check gives the error code (`422 Network.RouteStationRepeated`). | **PROVISIONAL RULING (OQ37)**; enforcement: ENGINEERING DECISION (tech lead, hein, 2026-09-24; ADR-0004) | `docs/19` OQ37 |
 | R8 | A route has at least 2 stations if open and at least 3 if closed; fewer is `422 Network.RouteTooFewStations`. | **PROVISIONAL RULING (OQ37)** | `docs/19` OQ37 |
 | R9 | A route's sequence, `IsClosed`, code and names never change after creation. To change the network, an administrator creates a new route and deactivates the old one. There is no sequence-replacement operation. | **PROVISIONAL RULING (OQ38 option (c), OQ41)** | `docs/19` OQ38, OQ41 |
 | R10 | Database grants to `ycr_app`, by a reviewed migration: `network.Routes` `SELECT`, `INSERT`, `UPDATE(IsActive, DeactivatedAtUtc)` only; `network.RouteStations` `SELECT`, `INSERT` only. No `DELETE`, no other `UPDATE`, no DDL. The grant set is the database-level statement of R9. | ENGINEERING DECISION (tech lead, hein, 2026-09-24, E7 as amended by A1; ADR-0017 item 3 spirit) | `Security_AppDatabaseRole` precedent |
@@ -192,6 +201,7 @@ Provisional rulings are labelled "BUSINESS DECISION — provisional tech-lead ru
 | R23 | No real route data ships: no seed migration and no fixture of the YCR loop. Tests build their own stations and routes. The real loop is entered later as one route (R5). | FACT (consequence of OQ1, open) | `docs/19` OQ1; F-001 §Blocked behaviour precedent |
 | R24 | Route responses show each station's **current** code, names and active flag, read at query time; a route row stores only `StationId`. | ENGINEERING DECISION | E5; G8 |
 | R25 | `isClosed` is a required boolean on `POST /routes`; a missing value is `400 Common.ValidationFailed`. There is no default, so the API never picks a topology on the caller's behalf. | ENGINEERING DECISION (tech lead, hein, 2026-09-24) | R6; AGENTS.md rule 1 |
+| R26 | `stationIds` on `POST /routes` has at most 200 elements; a longer list is `400 Common.ValidationFailed`, and nothing is read or written. This is an input-size limit against API abuse, not a statement about how long a real route can be. | ENGINEERING DECISION / REQUIRED CONTROL (tech lead, hein, 2026-09-24; Amendment 2, T-034 Q2) | `docs/18` (API abuse); §0.9 |
 
 **Blocking open questions:** none. OQ36–OQ41 are resolved for F-003 by provisional tech-lead rulings and remain open with Myanma Railways. OQ1 (real station and route data) and OQ17 (fare direction) stay open and do not block this spec (R23, §9).
 
@@ -210,7 +220,7 @@ Status codes follow ADR-0004. Every error response is ProblemDetails with `error
 
 ### Failures, each with its error code
 
-- **S5.** Validation → `400 Common.ValidationFailed`: missing `stationIds`; empty `stationIds`; a non-GUID station id; missing `code`, `nameEn` or `nameMy`; missing `isClosed` (R25).
+- **S5.** Validation → `400 Common.ValidationFailed`: missing `stationIds`; empty `stationIds`; a non-GUID station id; missing `code`, `nameEn` or `nameMy`; missing `isClosed` (R25); more than 200 `stationIds` (R26, Amendment 2). A list of exactly 200 passes validation and reaches the handler.
 - **S6.** A station id that does not exist → `422 Network.RouteStationNotFound`; nothing is written (R16).
 - **S7.** An inactive station in the sequence → `422 Network.RouteStationInactive`; nothing is written (R11).
 - **S8.** A station repeated in the sequence → `422 Network.RouteStationRepeated`; nothing is written (R7). This includes `[A, B, C, A]` with `isClosed = true`: a closed route never repeats its first station (R6).
@@ -268,7 +278,7 @@ Base path `/api/v1`, JSON camelCase, GUID ids, ProblemDetails with `errorCode` a
 
 | Method | Path | Request | Success | Error codes | Permission |
 |---|---|---|---|---|---|
-| POST | `/routes` | `CreateRouteRequest { code, nameEn, nameMy, isClosed, stationIds: Guid[] }` — the complete sequence, in order | `201` + `CreateRouteResponse { id }` and `Location` | `400 Common.ValidationFailed` · `400 Network.InvalidRouteCode` · `400 Network.InvalidRouteName` · `401` · `403` · `409 Network.RouteCodeAlreadyExists` · `422 Network.RouteStationNotFound` · `422 Network.RouteStationInactive` · `422 Network.RouteStationRepeated` · `422 Network.RouteTooFewStations` | `routes.manage` |
+| POST | `/routes` | `CreateRouteRequest { code, nameEn, nameMy, isClosed, stationIds: Guid[] }` — the complete sequence, in order, at most 200 ids (R26) | `201` + `CreateRouteResponse { id }` and `Location` | `400 Common.ValidationFailed` · `400 Network.InvalidRouteCode` · `400 Network.InvalidRouteName` · `401` · `403` · `409 Network.RouteCodeAlreadyExists` · `422 Network.RouteStationNotFound` · `422 Network.RouteStationInactive` · `422 Network.RouteStationRepeated` · `422 Network.RouteTooFewStations` | `routes.manage` |
 | GET | `/routes/{id}` | — | `200` + `RouteResponse { id, code, nameEn, nameMy, isClosed, isActive, createdAtUtc, deactivatedAtUtc, stations: [{ position, stationId, code, nameEn, nameMy, isActive }] }` | `401` · `403` · `404 Network.RouteNotFound` | `routes.read` |
 | GET | `/routes` | `?page=1&pageSize=50` (max 200); ordered by code; inactive routes included | `200` + `{ items: RouteSummaryResponse[], page, pageSize, totalCount }`; `RouteSummaryResponse { id, code, nameEn, nameMy, isClosed, isActive, stationCount, createdAtUtc, deactivatedAtUtc }` | `400 Network.InvalidPageRequest` · `401` · `403` | `routes.read` |
 | POST | `/routes/{id}/deactivate` | — | `204` | `401` · `403` · `404 Network.RouteNotFound` · `422 Network.RouteAlreadyInactive` | `routes.manage` |
@@ -319,8 +329,9 @@ There is no `rowversion` and no direction column.
 |---|---|---|
 | `PK_RouteStations` | on `(RouteId, Position)` | One station per position. Contiguity (`1..n`, no gaps) and the minimum length (R8) are enforced by the aggregate, since a check constraint cannot see other rows |
 | `CK_RouteStations_Position` | `Position >= 1` | Rejects zero and negatives from any writer |
-| `UX_RouteStations_RouteId_StationId` | unique on `(RouteId, StationId)` | A station never repeats in one sequence (R7, S8); matched by name in `NetworkConstraints` |
-| `IX_RouteStations_StationId` | nonclustered on `StationId` | Left to PLAN (hein, 2026-09-24): kept only if a named query uses it, otherwise dropped at stage 3. Its original reason (the station-deactivation check) no longer applies after the OQ39 ruling |
+| `UX_RouteStations_StationId_RouteId` | unique on `(StationId, RouteId)` | A station never repeats in one sequence (R7, S8); matched by name in `NetworkConstraints`. `StationId` leads, so the index also covers `FK_RouteStations_Stations_StationId` (Amendment 1) |
+
+**No `IX_RouteStations_StationId` (Amendment 1, hein, 2026-09-24, T-034 Q1).** Its original reason, the station-deactivation check, went away with the OQ39 ruling, and no F-003 query filters `RouteStations` by `StationId` alone. Stations are never deleted, so the foreign key's reverse check never runs. EF Core would add the index by convention for an uncovered foreign key, and adds it back if it is removed. Putting `StationId` first in the unique index covers the foreign key, so EF adds nothing. A later "routes through station X" query can use the unique index.
 
 `RouteStations` is insert-only (R9, R10). The database, not only the application, therefore guarantees that a stored sequence never changes.
 
@@ -363,7 +374,8 @@ Migrations are named `yyyyMMddHHmmss_Network_<Change>` (`docs/20` §6) and revie
 - Seed or fixture route data (R23, OQ1).
 - **Editing a route in any way** after creation: no sequence replacement, no `PATCH /routes/{id}` for code or names, no reactivation, no delete (R9, R15). Code and names are fixed because of the immutable model and the F-001 §9 rename-history question.
 - ADR-0024 (client-held version): stays Proposed and is not used by F-003 (E1).
-- Editing `docs/business/mr-questions-pack.md` and `docs/glossary.md`.
+- Editing `docs/business/mr-questions-pack.md`.
+- Editing `docs/glossary.md` is out of scope for stages 1–2; stage 8 updates it per `docs/21` (Amendment 2, hein, 2026-09-24, T-034 Q3).
 
 **Known limitation (accepted, OQ39 ruling, hein, 2026-09-24):** a station deactivated by mistake cannot be placed in a new route until station reactivation ships, and it cannot be recreated because station codes are never reused (F-001 R3). Accepted for now; no task created.
 
@@ -387,6 +399,6 @@ No placeholder rule may be implemented for any of these (AGENTS.md §When a busi
 
 - Stage 3 (PLAN, `docs/templates/plan.md`) may start: this spec is Approved (hein, 2026-09-24). It is a separate task and is not started by T-032.
 - PLAN writes the route grants into a seed migration (F-002 R11 mechanism) matching `docs/10` §Route permission grants, and the `Security_NetworkRouteGrants` migration (R10). F-001's station scenarios, including S27, must still pass unchanged.
-- PLAN keeps `IX_RouteStations_StationId` only if a named query uses it, otherwise drops it (§7).
+- PLAN keeps `IX_RouteStations_StationId` only if a named query uses it, otherwise drops it (§7). **Done at PLAN:** dropped, by Amendment 1 (§0.9).
 - `docs/08` gets the route endpoints and the note that `PATCH /routes` is not provided (stage 8).
 - Add OQ36–OQ41 to `docs/business/mr-questions-pack.md` (hein, listed in `progress.md`), marked as provisionally ruled.
