@@ -31,3 +31,26 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** `approval` (⛔ stage 2). Business: OQ36, OQ37, OQ38, OQ39, OQ40, OQ41 — all blocking. Engineering: ADR-0024 Proposed; E2–E8. Unchanged background: OQ1 (no seed data), OQ17 (out of scope).
 
 **State of the branch:** documentation only; nothing to build or test. All work committed on `feature/F-003` and pushed.
+
+---
+
+## 2026-09-24 20:40 Asia/Yangon — claude — T-032
+
+**Stage:** 2 (SPECIFY), revision applying hein's rulings — stopped at the stage-2 ⛔ again, for approval.
+**Commit:** spec at `bee71fe` on `feature/F-003`; this entry is the commit after it.
+
+**Done this session:**
+- Applied hein's rulings of 2026-09-24 (OQ36–OQ41 as provisional tech-lead rulings, not a Myanma Railways answer; E1–E8) to `spec.md`: §0.8 rulings table; §3 relabelled (R2, R3, R5–R17 rewritten, R22/R23 adjusted, R25 added); §4 scenarios rewritten (S4, S16, S18, S19, S20, S27 removed with their numbers kept; S7–S12, S15, S17, S23, S25 made definite; S28–S30 added); §5–§9 and Blocked behaviour rewritten. Status: "Draft — all rulings applied, awaiting approval".
+- `docs/19`: resolution block under each of OQ36–OQ41 (CRLF kept).
+- `docs/10`: `routes.read` in the inventory; §Route permission grants — resolved (OQ40).
+- ADR-0024: Proposed-stage review note in Follow-up only; status unchanged, README row unchanged.
+
+**For hein at approval:** R25 (`isClosed` required, no default) is an engineering choice added in this revision; ADR-0024's Context/Follow-up still name F-003 as its first user (left as instructed); `IX_RouteStations_StationId` has lost its original reason (PLAN confirms or drops); the route-creation vs station-deactivation race is noted in §5 for PLAN.
+
+**Evidence:** documentation only; no build or test run because no code changed. Commands: `git pull` (both checkouts), `git diff --stat`, `file` (line-ending checks), `git commit`, `git push`.
+
+**Next step (exact):** hein reviews the spec and sets it Approved (or amends). Stage 3 (PLAN) must not start before that.
+
+**Blockers / open questions:** `approval` (⛔ stage 2). OQ36–OQ41 still open with Myanma Railways (not blocking). OQ1, OQ17 unchanged.
+
+**State of the branch:** documentation only; all work committed on `feature/F-003` and pushed.
