@@ -426,3 +426,30 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** none.
 
 **State of the branch:** committed and pushed; build green; tests green (CI `api-smoke` red until step 12, as accepted).
+
+---
+
+## 2026-09-24 13:40 Asia/Yangon — claude — T-025 step 11
+
+**Stage:** 4 (IMPLEMENT), plan step 11 of 12
+**Commit:** `1b31cd1` on `feature/F-002`
+**Done this session:**
+- `src/YCR.Api/appsettings.json`: the non-secret `Auth` defaults — issuer/audience `YCR.Api`, 15 min / 12 h / 20 s, principal cache 15 s, rate limits 5 / 20 / 30, `AllowedOrigins: []`. No key material. (`RateLimitTests`' default-limit tests now read these values through the host's configuration.)
+- `src/YCR.Worker/appsettings.json` (new): logging only; EF Core at `Warning` so the bootstrap command's console output is not SQL.
+- `YCR.Api.csproj`: `UserSecretsId` for per-developer signing keys (D11), loaded in Development only.
+- `.env.example`: `Auth__AllowedOrigins__0` and the rule that the signing key never goes in `.env`. `.gitignore`: `*.pem`, `*.key`.
+- `README.md`: "Developer setup" — dev ES256 key with `openssl genpkey … P-256` into user-secrets (`dev-` kid, `DevelopmentOnly: true`), the allowed origin, the Origin requirement for scripts, and the bootstrap command with its exit codes.
+- `YCR.Api.http`: rewritten for real tokens — sign-in, refresh (explicit cookie), me, password, logout, every administration endpoint, and the station calls with a bearer token.
+
+**Deviations from the plan:**
+- The README's key command is `openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256` (emits PKCS#8 directly) instead of the plan's `openssl ecparam … | openssl pkcs8 -topk8 -nocrypt` pipe; same key format.
+- `.gitignore` gains `*.pem` / `*.key` (not in the plan's file list): a locally generated dev key cannot be committed by accident. Step 12's gitleaks rule is the second line.
+- `THIRD-PARTY-NOTICES.md` needed no change (landed at step 4, accepted at checkpoint 1).
+
+**Evidence:** `dotnet test YCR.sln` → **614/614 passed, 0 skipped** (no new tests, as planned). `dotnet build YCR.sln` 0 warnings.
+
+**Next step (exact):** plan step 12 — CI `api-smoke` job (ephemeral ES256 key per run, masked; `Auth__AllowedOrigins__0`; expect `401` `Auth.Unauthenticated` with `WWW-Authenticate: Bearer`; security-header checks), gitleaks PEM rule if the default ruleset does not flag one; push and prove the GitHub Actions run green.
+
+**Blockers / open questions:** none.
+
+**State of the branch:** committed and pushed; build green; tests green (CI `api-smoke` red until step 12, as accepted).
