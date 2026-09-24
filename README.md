@@ -24,6 +24,8 @@ Start with `docs/00-project-specification.md`, then execute the discovery workfl
 
 ## Developer setup
 
+**Full step-by-step guide:** [`docs/local-development.md`](docs/local-development.md) (Windows/PowerShell: database, migrations, first administrator, signing key, signing in, tests, troubleshooting).
+
 ```bash
 cp .env.example .env            # then fill in the three passwords
 docker compose up -d            # SQL Server 2022 for local development and integration tests
