@@ -500,3 +500,22 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** none.
 
 **State of the branch:** review report and this checkpoint are uncommitted; production code unchanged.
+
+---
+
+## 2026-09-24 18:10 Asia/Yangon — codex — T-028
+
+**Stage:** 6 (REVIEW)
+**Commit:** reviewed `b3464b6`; review evidence committed in `review-codex.md`
+**Done this session:**
+- Reviewed correctness, module boundaries, error contracts, migrations/grants, test quality and the `docs/21` checklist.
+- Recorded C-1 (Medium: fixed security lifetimes are freely reconfigurable) and C-2 (Medium: required F-002 durable documentation is deferred to stage 8).
+- Confirmed architecture tests, DTO boundaries, migration upgrade/grants and the full 614-test suite are green.
+
+**Evidence:** `review-codex.md` §Stage 6. `dotnet test YCR.sln --no-restore` → **614 passed, 0 failed, 0 skipped**.
+
+**Next step (exact):** claim T-029 on `main`, then perform the threat-oriented security review of `b3464b6` and append Critical/High/Medium/Low findings to `review-codex.md`.
+
+**Blockers / open questions:** C-1 and C-2 are open review findings; no business blocker.
+
+**State of the branch:** review report and checkpoint are ready to commit; production code unchanged.

@@ -74,3 +74,39 @@ No missing scenario or ADR-0016 required test was identified. No test was added,
 
 **READY for stage 6.** Scenario and required-test coverage is complete for reviewed commit `b3464b6`; the full solution test run is green with zero skipped tests.
 
+## Stage 6 — code review (T-028)
+
+Reviewer: codex  
+Reviewed implementation commit: `b3464b6`
+
+### Evidence
+
+| Check | Result |
+|---|---|
+| Architecture and module boundaries | `dotnet test YCR.sln --no-restore` passed the architecture assembly. The Identity application references its own `IIdentityDbContext`, API responses use contracts/DTOs, and the negative boundary fixtures for EF entities, foreign contexts, ASP.NET Identity in Application, and authentication handlers pass. |
+| Error contracts | Auth pipeline and `/auth/*` use `Auth.*`; administration paths use `Identity.*`; endpoint validation and ProblemDetails tests pass. `DeployedShapeTests` covers the bearer challenge and removal of `AuthorizationResultHandler`. |
+| Migrations and grants | `IdentityMigrationTests` covers the F-001 upgrade path, identity constraints/indexes and no-cascade FKs. `DatabasePrivilegeTests` covers the `ycr_app` role, column-scoped writes, no role/grant writes, no session/token deletes, and the separate migrator identity. |
+| Test quality and composition | The stage-5 matrix above names the real tests; `ProductionCompositionTests` exercises the API without test-service overrides. The full suite was 614/614 passed, 0 skipped. |
+| Definition of Done | Code, architecture, tests, security controls and data checks have executable evidence. The documentation items listed in findings C-2 and the pending stage-7 security review keep the feature from a final ready verdict. |
+
+### Findings
+
+| # | Severity | Finding | Evidence (file:line, test) | Recommended action | Status |
+|---|---|---|---|---|---|
+| C-1 | Medium | The implementation treats the token, session and refresh-grace lifetimes as arbitrary positive configuration, even though the approved F-002 rules fix them at 15 minutes, 12 hours and approximately 20 seconds. A deployment can currently set `Auth:AccessTokenLifetime`, `Auth:SessionLifetime` or `Auth:RefreshGraceWindow` to another positive value and still start successfully, changing token exposure and refresh replay behavior without an ADR or documented business decision. | `src/YCR.Api/Common/Authentication/AuthOptionsValidator.cs:32-36` validates only `> 0`/non-negative; the fixed values are stated in `docs/features/F-002-staff-authentication/spec.md:160-163` and `plan.md:89, P11`, while `src/YCR.Api/appsettings.json:12-14` exposes them as settings. No startup test rejects a value that differs from the approved lifetime. | Keep these values fixed in code, or add an explicit accepted configuration decision and startup bounds/tests that preserve the approved security limits. Do not let an operator silently change the approved token/session policy. | Open |
+| C-2 | Medium | The feature changes the API surface, identity schema/grants, account-security controls and observability, but the required durable docs are still F-001-only. The Definition of Done requires affected docs in the same change; the implementation branch has no F-002 update to the API specification, database design, security architecture, deployment/observability docs, or glossary. The stage-4 progress file explicitly defers these to stage 8, so the feature is not ready for the final DoD gate at `b3464b6`. | `docs/08-api-specification.md:1-49` lists only the proposal and F-001 station endpoints; `docs/07-database-design.md:35-91` documents only Stations/Audit and even retains the stale “five check constraints” sentence; `docs/09-security-architecture.md:1-26` remains a generic checklist; `docs/features/F-002-staff-authentication/plan.md:235` assigns these docs to stage 8. | Complete stage 8 before approval: document `/auth/*`, `/users/*`, `/auth-sessions/*` and `/roles`, the `identity` tables and grants, implemented security controls/blocked production gates, metrics/log events, signing-key/origin/bootstrap deployment requirements, and any canonical role vocabulary. | Open |
+
+### Definition of Done review
+
+- [x] Approved spec and plan exist; rules and accepted decisions are labelled and sourced.
+- [x] No domain logic is in endpoints; API responses are DTO/contract projections.
+- [x] Architecture tests and negative boundary cases pass.
+- [x] Domain, handler, API, concurrency, production-composition and SQL privilege tests pass.
+- [x] Migration upgrade path, constraints, indexes and grants are tested.
+- [ ] Security review is pending T-029.
+- [ ] Affected durable documentation is pending stage 8 (C-2).
+- [ ] Human approval and merge remain outside this review.
+
+### Stage 6 verdict
+
+**NOT READY.** Reviewed commit `b3464b6` has no identified architecture or migration correctness blocker, but C-1 and C-2 are open Medium findings. C-1 requires a security-policy decision/fix; C-2 is the required stage-8 documentation work. T-029 must complete the independent security review before any final readiness claim.
