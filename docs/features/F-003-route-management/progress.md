@@ -54,3 +54,23 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** `approval` (⛔ stage 2). OQ36–OQ41 still open with Myanma Railways (not blocking). OQ1, OQ17 unchanged.
 
 **State of the branch:** documentation only; all work committed on `feature/F-003` and pushed.
+
+---
+
+## 2026-09-24 20:31 Asia/Yangon — claude — T-032
+
+**Stage:** 2 (SPECIFY) complete — spec **Approved (hein, 2026-09-24)**.
+**Commit:** approved spec at `15d3709` on `feature/F-003`; this entry is the commit after it.
+
+**Done this session:**
+- Applied hein's approval-time decisions: **A1** `Routes.DeactivatedAtUtc datetimeoffset(3) NULL` + `CK_Routes_DeactivatedAtUtc_Utc`, set with `IsActive = 0` in one `UPDATE`, exposed as `deactivatedAtUtc` in `RouteResponse`, `RouteSummaryResponse` and `RouteAuditSnapshot`, grant `UPDATE(IsActive, DeactivatedAtUtc)` (R10, R15, R17, S23, S25, §5–§8); R25 relabelled as accepted; `IX_RouteStations_StationId` left to PLAN (keep only if a named query uses it); the creation/station-deactivation race stated as accepted without serialisation (§5). All recorded in §0.8 "Decisions at approval".
+- ADR-0024 (still Proposed): Follow-up line now says F-003 does not use it.
+- Spec Status set to "Approved (hein, 2026-09-24)".
+
+**Evidence:** documentation only; no build or test run because no code changed. Commands: `git pull` (both checkouts), `grep` stale-phrase checks, `git commit`, `git push`.
+
+**Next step (exact):** stage 3 (PLAN) for F-003, as a new task in `TASKS.md`. Not started by T-032.
+
+**Blockers / open questions:** none for F-003. OQ36–OQ41 still open with Myanma Railways (provisional rulings apply). OQ1, OQ17 unchanged.
+
+**State of the branch:** documentation only; all work committed on `feature/F-003` and pushed.
