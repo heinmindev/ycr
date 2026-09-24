@@ -267,3 +267,42 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** none. V7 is for hein's review.
 
 **State of the branch:** builds; tests green; committed and pushed.
+
+---
+
+## 2026-09-25 00:55 Asia/Yangon — claude — T-035
+
+**Stage:** 4 (IMPLEMENT), plan step 7 of 7 (`.http` and CI) — done. **Stage 4 complete; T-035 → `review`.**
+**Commit:** **code SHA `910724e`** (step 7). This entry is a docs-only commit after it (CI skips `docs/features/**/progress.md`).
+
+**Done:**
+- `YCR.Api.http`: a "Routes (F-003)" section with the seven requests plan §API changes lists (open route with 3 stations → `201`; closed route with 2 → `422 Network.RouteTooFewStations`; repeated station → `422 Network.RouteStationRepeated`; list; read; deactivate → `204`; again → `422 Network.RouteAlreadyInactive`), each commented with its permission and errors, plus the `@stationId2`, `@stationId3` and `@routeId` variables.
+- `.github/workflows/ci.yml` `api-smoke`: the six route checks the plan lists (as 11 `check` lines), after the existing real-token calls, with the same administrator token. `CiWorkflowTests` passes **unchanged**, which confirms the plan's statement that it needs no change.
+
+**GitHub Actions — run https://github.com/heinmindev/ycr/actions/runs/36027185726 on `910724e207dd2223c8d16088547b6ed1763617c0` (push): success.**
+- Build and test: success. Log: `has-pending-model-changes` "No changes have been made to the model since the last migration."; **789 passed, 0 failed, 0 skipped**.
+- API smoke test: success, **37/37 checks PASS** (26 from F-001/F-002 plus the 11 route checks).
+- Secret scan: success.
+- Trunk-only tests: **skipped**. The job runs only on `pull_request` and on `main` (`if:` in `ci.yml`), so a push to `feature/F-003` never runs it. That is the design, and F-002 recorded the same (run 35955113706). No PR was opened, since that was not asked for. As evidence instead, the trunk-only suite was run locally in trunk-only mode (`YCR_RUN_TRUNK_ONLY_TESTS=1 dotnet test YCR.sln`): **4 passed, 0 failed, 0 skipped**. With the branch run's 789, all 793 tests ran. The CI job itself will run when a PR into `main` is opened.
+
+**Stage 4 summary (per step: commit, tests added, `dotnet test YCR.sln` total):**
+1. `8278dcb` Domain — 21 new domain tests (V1) — 681/681, 0 skipped.
+2. `57eb024` Persistence + `Network_CreateRoutes` — 8 new tests + 2 UTC-theory rows — 691/691.
+3. `f0911f4` Seed — 0 new; 3 planned test updates + 5 unplanned F-002 updates (V3) — 691/691.
+4. `d365d50` Grants — 4 new tests + 2 DDL-theory rows — 697/697.
+5. `ad72396` Application — 27 planned new tests + 2 SQL tests (V5) — 736/736.
+6. `9dde7a3` API — 28 planned new tests (26 TH + 2 real-token) + 4 `DeployedShapeTests` rows + 1 extra theory row (V8) — 789/789.
+7. `910724e` `.http` + CI — no tests — 789/789; CI green (above).
+Baseline before step 1: 643/643.
+
+**Migrations:** `20260924145627_Network_CreateRoutes`, `20260924150657_Identity_SeedRoutePermissionGrants`, `20260924152836_Security_NetworkRouteGrants`.
+
+**Deviations (all recorded in their step's entry above):** V1 extra domain test; V2 down-migration test file; **V3 five unplanned F-002 tests updated to the new exact grant sets (hein to confirm)**; V4 DI test name; V5 two extra SQL tests for plan-V1/V2; V6 `RouteTestData.cs` holds a base class; **V7 whitespace-only name at the endpoint is `Common.ValidationFailed` (the F-001 filter behaviour), not `Network.InvalidRouteName` (hein to confirm)**; V8 one extra S5 theory row. Plan verifications: plan-V1 to plan-V4 passed with no fallback; plan-V5 recorded (framework `400` without `errorCode` on a JSON type mismatch, pre-existing, unchanged).
+
+**Not done here, on purpose:** stage-8 documentation (`docs/07`, `docs/08`, glossary, README) is left for stage 8. Stages 5–7 go to codex (AGENTS.md rule 11); no review was run by the implementer.
+
+**Next step (exact):** codex — stage 5 (scenario tests), 6 (code review), 7 (security review) against code SHA `910724e`.
+
+**Blockers / open questions:** none blocking. For hein: V3 and V7 above; whether to open a PR now so the trunk-only CI job runs on this branch.
+
+**State of the branch:** builds; tests green; everything committed and pushed.
