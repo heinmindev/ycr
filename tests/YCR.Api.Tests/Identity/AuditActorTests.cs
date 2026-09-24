@@ -9,7 +9,7 @@ namespace YCR.Api.Tests.Identity;
 
 /// <summary>
 /// Audit actors from the server context only (spec S27; R12, U4; plan P5). This file holds the
-/// sign-in half; the administration events join it with the administration endpoints (step 9).
+/// sign-in events and the administration events.
 /// </summary>
 public sealed class AuditActorTests(SqlServerFixture fixture) : RealAuthApiTestBase(fixture)
 {
@@ -87,5 +87,43 @@ public sealed class AuditActorTests(SqlServerFixture fixture) : RealAuthApiTestB
         Assert.Null(row.AuthorizedByPermission);
         Assert.Equal("Identity.User", row.SubjectType);
         Assert.Equal(target, row.SubjectId);
+    }
+
+    /// <summary>
+    /// S27: every administration event takes its actor, role and permission from the server
+    /// context. Body fields and headers naming another user, role or permission change nothing.
+    /// </summary>
+    [Fact]
+    public async Task AdministrationEvents_ActorAndPermissionFromServerContext_BodyAndHeadersIgnored()
+    {
+        await using var api = RealApi();
+        var (adminId, admin) = await SignedInAsync(api, "admin.user", RoleNames.SystemAdministrator);
+        var other = await StaffUserSeeder.SeedAsync(api, "other.admin", [RoleNames.SystemAdministrator], cancellationToken: CancellationToken);
+        var target = await StaffUserSeeder.SeedAsync(api, "hein.min", [RoleNames.StationManager], cancellationToken: CancellationToken);
+        admin.DefaultRequestHeaders.Add("X-User-Id", other.ToString());
+        admin.DefaultRequestHeaders.Add("X-User-Roles", RoleNames.Auditor);
+        admin.DefaultRequestHeaders.Add("X-User-Permissions", "stations.read");
+        var spoof = new { actorUserId = other, actorRole = RoleNames.Auditor, authorizedByPermission = "stations.read" };
+        using var anonymous = Client(api);
+        var (targetToken, _) = await SignInAsync(anonymous, "hein.min");
+
+        var calls = new (string Action, string Permission, Func<Task<HttpResponseMessage>> Call)[]
+        {
+            (IdentityAuditActions.UserCreated, "users.manage", () => admin.PostAsJsonAsync("/api/v1/users", new { userName = "new.clerk", password = "shwe.dagon.2026", roles = Array.Empty<string>(), spoof.actorUserId, spoof.actorRole, spoof.authorizedByPermission }, CancellationToken)),
+            (IdentityAuditActions.RolesChanged, "users.roles.manage", () => admin.PutAsJsonAsync($"/api/v1/users/{target}/roles", new { roles = new[] { RoleNames.Auditor }, spoof.actorUserId, spoof.actorRole, spoof.authorizedByPermission }, CancellationToken)),
+            (IdentityAuditActions.SessionRevoked, "auth-sessions.revoke", () => admin.PostAsJsonAsync($"/api/v1/auth-sessions/{SessionOf(targetToken)}/revoke", spoof, CancellationToken)),
+            (IdentityAuditActions.PasswordReset, "users.manage", () => admin.PostAsJsonAsync($"/api/v1/users/{target}/password-reset", new { newPassword = "shwe.dagon.2026", spoof.actorUserId, spoof.actorRole, spoof.authorizedByPermission }, CancellationToken)),
+            (IdentityAuditActions.UserDisabled, "users.manage", () => admin.PostAsJsonAsync($"/api/v1/users/{target}/disable", spoof, CancellationToken)),
+            (IdentityAuditActions.UserEnabled, "users.manage", () => admin.PostAsJsonAsync($"/api/v1/users/{target}/enable", spoof, CancellationToken)),
+        };
+
+        foreach (var (action, permission, call) in calls)
+        {
+            Assert.True((await call()).IsSuccessStatusCode, action);
+            var row = Assert.Single(await AuditRowsAsync(action));
+            Assert.Equal(adminId, row.ActorUserId);
+            Assert.Equal([RoleNames.SystemAdministrator], JsonSerializer.Deserialize<string[]>(row.ActorRole!)!);
+            Assert.Equal(permission, row.AuthorizedByPermission);
+        }
     }
 }

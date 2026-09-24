@@ -106,6 +106,15 @@ public abstract class RealAuthApiTestBase(SqlServerFixture fixture) : ApiTestBas
         return (await AccessTokenOf(response), RefreshCookieOf(response) ?? throw new InvalidOperationException("No refresh cookie."));
     }
 
+    /// <summary>Seeds a user holding <paramref name="roles"/>, signs them in over HTTP and returns a bearer client.</summary>
+    protected static async Task<(Guid UserId, HttpClient Client)> SignedInAsync(YcrApiFactory api, string userName, params string[] roles)
+    {
+        var userId = await StaffUserSeeder.SeedAsync(api, userName, roles, cancellationToken: CancellationToken);
+        using var anonymous = Client(api);
+        var (accessToken, _) = await SignInAsync(anonymous, userName);
+        return (userId, Client(api, accessToken: accessToken));
+    }
+
     protected static async Task<string> AccessTokenOf(HttpResponseMessage response)
     {
         using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync(CancellationToken));

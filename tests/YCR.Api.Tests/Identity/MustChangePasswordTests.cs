@@ -92,6 +92,32 @@ public sealed class MustChangePasswordTests(SqlServerFixture fixture) : RealAuth
         Assert.Equal(HttpStatusCode.OK, (await bearer.GetAsync("/health/live", CancellationToken)).StatusCode);
     }
 
+    /// <summary>R26 / U2: every password an administrator sets — on create and on reset — is must-change.</summary>
+    [Fact]
+    public async Task AdministratorCreatedAndResetPasswords_AreMustChange()
+    {
+        await using var api = RealApi();
+        var (_, admin) = await SignedInAsync(api, "admin.user", RoleNames.SystemAdministrator);
+        var created = await admin.PostAsJsonAsync("/api/v1/users", new { userName = "new.clerk", password = NewPassword, roles = new[] { RoleNames.StationManager } }, CancellationToken);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var userId = (await created.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>(CancellationToken)).GetProperty("id").GetGuid();
+        using var client = Client(api);
+
+        var (createdToken, _) = await SignInAsync(client, "new.clerk", NewPassword);
+        using (var bearer = Client(api, accessToken: createdToken))
+        {
+            Assert.Equal("Auth.PasswordChangeRequired", await ErrorCodeOf(await bearer.GetAsync("/api/v1/stations", CancellationToken)));
+            Assert.Equal(HttpStatusCode.NoContent, (await bearer.PostAsJsonAsync("/api/v1/auth/password", new { currentPassword = NewPassword, newPassword = "kyaik.htee.yoe.1" }, CancellationToken)).StatusCode);
+            Assert.Equal(HttpStatusCode.OK, (await bearer.GetAsync("/api/v1/stations", CancellationToken)).StatusCode);
+        }
+
+        Assert.Equal(HttpStatusCode.NoContent, (await admin.PostAsJsonAsync($"/api/v1/users/{userId}/password-reset", new { newPassword = "mandalay.hill.9" }, CancellationToken)).StatusCode);
+
+        var (resetToken, _) = await SignInAsync(client, "new.clerk", "mandalay.hill.9");
+        using var afterReset = Client(api, accessToken: resetToken);
+        Assert.Equal("Auth.PasswordChangeRequired", await ErrorCodeOf(await afterReset.GetAsync("/api/v1/stations", CancellationToken)));
+    }
+
     private static List<string> ProtectedRoutes(YcrApiFactory api) =>
         [.. api.Services.GetRequiredService<EndpointDataSource>().Endpoints
             .OfType<RouteEndpoint>()
