@@ -538,3 +538,25 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** S-1/S-3 are pre-production release gates; no Critical/High blocker.
 
 **State of the branch:** review report and checkpoint are uncommitted; production code unchanged.
+
+---
+
+## 2026-09-24 16:40 Asia/Yangon — claude — T-030
+
+**Stage:** 8 (remediation and DOCUMENT)
+**Commit:** `18f1e35` (remediation, tests and docs); this checkpoint and the `review-codex.md` status update follow it
+**Done this session:**
+- **C-1:** `AuthSettings` replaced by the constants `AuthLifetimes.AccessToken` (15 min), `.Session` (12 h), `.RefreshGraceWindow` (20 s); removed from `appsettings.json` and from DI. `AuthOptions` keeps the three as nullable, bound only so `AuthOptionsValidator` refuses a configured value that differs (one test per setting; a value equal to the constant still starts).
+- **S-1:** `PrivilegedRoleGate` (Application) refuses creating or granting `SystemAdministrator`, `RailwayAdministrator`, `FinanceOfficer` in `Production` with `422 Identity.PrivilegedRoleRequiresMfa`, in `CreateUserHandler`, `ReplaceUserRolesHandler` (newly granted roles only) and `BootstrapAdministratorHandler`. The API registers the gate from `builder.Environment`, the Worker from `DOTNET_ENVIRONMENT` (Production when unset); `AddApplication`'s fallback gate blocks. ADR-0023 item 4 amended inline ("Amended 2026-09-24 (hein; T-030, S-1)").
+- **S-1, CI smoke job:** it ran the bootstrap with no `DOTNET_ENVIRONMENT`, which is Production and is now refused. Both bootstrap calls in the smoke job now set `DOTNET_ENVIRONMENT=Testing`; the API still runs as Production. `ProductionCompositionTests` bootstraps in Testing for the same reason.
+- **S-4:** `JwtBearerSetup` sets `IssuerSigningKeyResolver` (only by `kid`; none for a missing/empty `kid`) and `TryAllIssuerSigningKeys = false`. Test: a correctly signed hand-built token without `kid`, and with `"kid":""`, gets 401; the same token with the real `kid` gets 200.
+- **C-2:** `docs/07` (identity tables, constraints, grants; "five" → "four `audit.AuditEvents`" check constraints), `docs/08` (all `/auth/*`, `/users/*`, `/auth-sessions/*`, `/roles` endpoints with permission and error codes), `docs/09` (implemented controls, T-026 gates), `docs/15` (runtime ≥ 10.0.12, signing key, allowed origins, other `Auth` settings, bootstrap CLI), `docs/17` (event ids 2001–2004, meter `YCR.Identity` instruments; no exporter configured), glossary (role identifiers, OQ12 wording, Role row), spec review-history note. Also `README.md`'s bootstrap example now sets `DOTNET_ENVIRONMENT=Development` (it would otherwise be refused).
+- `CreateUser` endpoint metadata gained `ProducesProblem(422)`.
+
+**Evidence:** `dotnet test YCR.sln` (Docker running) → **643 passed, 0 failed, 0 skipped** (614 + 29 new). GitHub Actions on `18f1e35`: **success** — build-and-test, API smoke test, secret scan: https://github.com/heinmindev/ycr/actions/runs/35982532893
+
+**Next step (exact):** T-031 — codex re-reviews `18f1e35` (C-1, C-2, S-1, S-4) and adds §Re-review to `review-codex.md`.
+
+**Blockers / open questions:** none new. S-2 and S-3 remain T-026 release gates. Points for hein: (1) with S-1, a Production deployment cannot bootstrap any `SystemAdministrator`, and only `SystemAdministrator` holds the identity permissions, so no account can be provisioned in Production at all until MFA ships — this follows from the ruling as written; (2) a replace that keeps a privileged role the user already holds is treated as not a grant (my reading of "assigning").
+
+**State of the branch:** committed and pushed; builds; tests green.
