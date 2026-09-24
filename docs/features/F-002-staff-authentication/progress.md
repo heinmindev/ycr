@@ -369,3 +369,32 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** none.
 
 **State of the branch:** committed and pushed; build green; tests green (CI `api-smoke` red until step 12, as accepted).
+
+---
+
+## 2026-09-24 12:00 Asia/Yangon — claude — T-025 step 9
+
+**Stage:** 4 (IMPLEMENT), plan step 9 of 12
+**Commit:** `0f82c68` on `feature/F-002`
+**Done this session:**
+- `YCR.Api/Endpoints/Identity/UserEndpoints.cs`: `GET /users`, `GET /users/{id}` (`users.read`), `POST /users` (`users.manage`), `POST /users/{id}/disable|enable|unlock` (`users.manage`), `PUT /users/{id}/roles` (`users.roles.manage`), `POST /users/{id}/password-reset` (`users.manage`), `GET /users/{id}/auth-sessions` (`users.read`), `POST /auth-sessions/{id}/revoke` (`auth-sessions.revoke`), `GET /roles` (`users.read`). Thin translations; every rule stays in the handlers and the domain.
+- Contracts (`Contracts/Identity/UserContracts.cs`): `CreateUserRequest`, `ReplaceUserRolesRequest`, `ResetUserPasswordRequest` (+ validators), `CreateUserResponse`, `UserResponse`, `AuthSessionResponse`, `RoleResponse`; the lists reuse the `PagedResponse<T>` envelope.
+- `YCR.Application/Identity/RoleCatalogue`: the R19 identifiers for API validation, because the Api may not reference `YCR.Domain.Identity` (plan P11 allowlist).
+- Tests: `UserAdministrationEndpointTests` (43 incl. theories: create 201/must-change/audit, six invalid usernames, policy, duplicate, five invalid bodies; disable/enable with both sessions revoked and G2 repeats; self-disable 422; unknown id ×7 → 404; roles with before/after audit; self roles ×3 → 422; roles invalid ×3; reset; self reset; reset policy; list paging and `Identity.InvalidPageRequest`; revoke + already-revoked; unknown session; roles catalogue; every endpoint anonymous → 401 ×11, without permission → 403 ×11, invalid body → 400 ×3), `RevocationLatencyTests` (4; the revoked-session case uses a second host over the same database as "another instance", so only the TTL bounds it), `LastAdministratorEndpointTests` (2), `WrongPermissionTests` (12), `AuditActorTests` + administration events (1), `LockoutEndpointTests` + unlock (3), `MustChangePasswordTests` + `AdministratorCreatedAndResetPasswords_AreMustChange` (1). The step-8 route-table test now covers the eleven new routes without edits.
+- **Mutation check:** unlock's permission weakened to `stations.read`, and the cache's age test made inclusive (`<=`): 7 tests failed (3 unlock-permission cases, all 4 latency tests); restored.
+
+**Deviations from the plan / decisions inside its latitude:**
+- Unknown role names are refused by the request validator (`400 Common.ValidationFailed`, as the plan says) **before** the handler's self-target check, so an administrator PUTting their own roles with an unknown role name gets `400`, not `422`. S19b's "any value" is tested with valid values (`[]`, the held set, a superset). Ruling: validation precedes business rules on every endpoint (docs/20 §3); cost if wrong: one validator rule moved into the handler.
+- Role names are matched ordinally (`systemadministrator` is refused) — they are identifiers, not free text.
+- The username format is not checked by the validator (presence only); an invalid name gets `400 Identity.InvalidUserName` from the domain, the `Station` pattern (one home for R20).
+- One endpoint file (`UserEndpoints.cs`) holds `/users`, `/auth-sessions` and `/roles`; the plan listed `UserEndpoints`, `AuthSessionEndpoints`, `RoleEndpoints`. One contracts file likewise.
+- `POST /auth-sessions/{id}/revoke` evicts that session from this instance's principal cache, as logout does (step 8).
+- `RealAuthApiTestBase.SignedInAsync` helper added.
+
+**Evidence:** `dotnet test YCR.sln` → **596/596 passed, 0 skipped** (+85). `dotnet build YCR.sln` 0 warnings.
+
+**Next step (exact):** plan step 10 — `YCR.Worker` `bootstrap-administrator` subcommand (stdin password, exit codes, no host start), `SystemCurrentUser`, `YCR.IntegrationTests` wired to TestSupport with the bootstrap CLI rows, and `ProductionCompositionTests` (S25).
+
+**Blockers / open questions:** none.
+
+**State of the branch:** committed and pushed; build green; tests green (CI `api-smoke` red until step 12, as accepted).
