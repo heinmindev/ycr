@@ -359,6 +359,30 @@ jobs:
           check "GET /api/v1/users with a real token is 200" 200 \
             "$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $token" "$api/api/v1/users")"
 
+          # F-003: routes in the deployed shape, through the seeded routes.* grants
+          # (Identity_SeedRoutePermissionGrants) and the Security_NetworkRouteGrants grants under
+          # ycr_app, with the same administrator token.
+          reply="$RUNNER_TEMP/reply.json"
+          send() { curl -s -o "$reply" -w '%{http_code}' -H "Authorization: Bearer $token" "$@"; }
+          body=$(curl -s "$api/api/v1/routes")
+          check "anonymous GET /api/v1/routes is Auth.Unauthenticated" "Auth.Unauthenticated" "$(echo "$body" | jq -r .errorCode)"
+          check "anonymous GET /api/v1/routes is 401" 401 "$(curl -s -o /dev/null -w '%{http_code}' "$api/api/v1/routes")"
+          check "POST /api/v1/stations SMA is 201" 201 "$(send -X POST "$api/api/v1/stations" -H "Content-Type: application/json" \
+            -d '{"code":"SMA","nameEn":"Smoke A","nameMy":"ဘူတာ"}')"
+          sma=$(jq -r .id "$reply")
+          check "POST /api/v1/stations SMB is 201" 201 "$(send -X POST "$api/api/v1/stations" -H "Content-Type: application/json" \
+            -d '{"code":"SMB","nameEn":"Smoke B","nameMy":"ဘူတာ"}')"
+          smb=$(jq -r .id "$reply")
+          check "POST /api/v1/routes is 201" 201 "$(send -X POST "$api/api/v1/routes" -H "Content-Type: application/json" \
+            -d "{\"code\":\"SMOKE1\",\"nameEn\":\"Smoke route\",\"nameMy\":\"လမ်းကြောင်း\",\"isClosed\":false,\"stationIds\":[\"$sma\",\"$smb\"]}")"
+          route=$(jq -r .id "$reply")
+          check "GET /api/v1/routes/{id} is 200" 200 "$(send "$api/api/v1/routes/$route")"
+          check "the route reads back with two stations" 2 "$(jq '.stations | length' "$reply")"
+          check "GET /api/v1/routes is 200" 200 "$(send "$api/api/v1/routes")"
+          check "POST /api/v1/routes/{id}/deactivate is 204" 204 "$(send -X POST "$api/api/v1/routes/$route/deactivate")"
+          check "deactivating it again is 422" 422 "$(send -X POST "$api/api/v1/routes/$route/deactivate")"
+          check "and says Network.RouteAlreadyInactive" "Network.RouteAlreadyInactive" "$(jq -r .errorCode "$reply")"
+
           # D10: a second bootstrap is refused (exit 1) and creates nothing.
           printf '%s\n' "$YCR_SMOKE_ADMIN_INITIAL_PASSWORD" | \
             DOTNET_ENVIRONMENT=Testing \

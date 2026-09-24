@@ -1,4 +1,5 @@
-### YCR API — the F-001 station endpoints and the F-002 sign-in and administration endpoints.
+### YCR API — the F-001 station endpoints, the F-002 sign-in and administration endpoints, and the
+### F-003 route endpoints.
 ###
 ### Setup (README "Developer setup"): a dev signing key and Auth:AllowedOrigins:0 in user-secrets,
 ### and a first administrator from `YCR.Worker bootstrap-administrator`.
@@ -19,6 +20,9 @@
 @token = paste-the-access-token-here
 @refresh = paste-the-ycr_refresh-cookie-value-here
 @stationId = 00000000-0000-0000-0000-000000000000
+@stationId2 = 00000000-0000-0000-0000-000000000000
+@stationId3 = 00000000-0000-0000-0000-000000000000
+@routeId = 00000000-0000-0000-0000-000000000000
 @userId = 00000000-0000-0000-0000-000000000000
 @sessionId = 00000000-0000-0000-0000-000000000000
 
@@ -179,4 +183,74 @@ Authorization: Bearer {{token}}
 ### Deactivate a station — stations.manage. 204, 404 Network.StationNotFound, or
 ### 422 Network.StationAlreadyInactive. The row is retained, so the code is never reused (R3).
 POST {{host}}/api/v1/stations/{{stationId}}/deactivate
+Authorization: Bearer {{token}}
+
+# ---- Routes (F-003) ---------------------------------------------------------------------------
+#
+# A route is an ordered, immutable sequence of existing, active stations (OQ37/OQ38 provisional
+# rulings). It is created whole, read, and deactivated; nothing else. There is no
+# PUT /routes/{id}/stations and no PATCH: to change the network, create a new route and
+# deactivate the old one. Set @stationId, @stationId2 and @stationId3 to three active stations.
+
+### Create an open route with three stations — routes.manage. 201 + Location and { id }.
+### Errors: 400 Common.ValidationFailed (missing field, missing isClosed, a stationId that is not a
+### GUID, more than 200 stationIds); 400 Network.InvalidRouteCode / Network.InvalidRouteName;
+### 409 Network.RouteCodeAlreadyExists (codes are never reused, inactive routes included);
+### 422 Network.RouteStationNotFound / RouteStationInactive / RouteStationRepeated / RouteTooFewStations.
+POST {{host}}/api/v1/routes
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "code": "LOOP1",
+  "nameEn": "Yangon Circular",
+  "nameMy": "ရန်ကုန်မြို့ပတ်",
+  "isClosed": false,
+  "stationIds": ["{{stationId}}", "{{stationId2}}", "{{stationId3}}"]
+}
+
+### A closed route needs at least 3 stations — 422 Network.RouteTooFewStations. A closed route runs
+### from its last station back to its first because isClosed says so; never repeat the first station.
+POST {{host}}/api/v1/routes
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "code": "LOOP2",
+  "nameEn": "Too short",
+  "nameMy": "တိုလွန်း",
+  "isClosed": true,
+  "stationIds": ["{{stationId}}", "{{stationId2}}"]
+}
+
+### A station twice in one sequence — 422 Network.RouteStationRepeated.
+POST {{host}}/api/v1/routes
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "code": "LOOP3",
+  "nameEn": "Repeated",
+  "nameMy": "ထပ်နေ",
+  "isClosed": true,
+  "stationIds": ["{{stationId}}", "{{stationId2}}", "{{stationId3}}", "{{stationId}}"]
+}
+
+### List routes — routes.read. 200 with { items, page, pageSize, totalCount }, ordered by code,
+### inactive routes included; each item has stationCount. 400 Network.InvalidPageRequest over 200.
+GET {{host}}/api/v1/routes?page=1&pageSize=50
+Authorization: Bearer {{token}}
+
+### Read one route — routes.read. 200 with stations in position order, each showing the station's
+### current code, names and isActive; or 404 Network.RouteNotFound.
+GET {{host}}/api/v1/routes/{{routeId}}
+Authorization: Bearer {{token}}
+
+### Deactivate a route — routes.manage. 204, 404 Network.RouteNotFound. The row and its sequence are
+### kept; deactivatedAtUtc is set.
+POST {{host}}/api/v1/routes/{{routeId}}/deactivate
+Authorization: Bearer {{token}}
+
+### Deactivate it again — 422 Network.RouteAlreadyInactive; deactivatedAtUtc keeps its first value.
+POST {{host}}/api/v1/routes/{{routeId}}/deactivate
 Authorization: Bearer {{token}}
