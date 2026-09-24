@@ -1,6 +1,6 @@
 # Review: F-002 Staff Authentication
 
-Reviewer: codex  
+Reviewer: codex
 Reviewed implementation commit: `b3464b6` (feature branch tip includes the documentation checkpoint `d6c176b`)
 
 ## Stage 5 — scenario and required-test coverage (T-027)
@@ -139,3 +139,31 @@ Threat categories reviewed from `docs/18-threat-model.md`: account takeover, API
 ### Security verdict
 
 **READY for the security-stage exit criterion: no open Critical or High findings.** Security review of `b3464b6` records Medium release gates S-1 through S-3 and Low hardening item S-4. These do not override the stage-6 NOT READY verdict: C-1/C-2 and the T-026 production gates must be resolved before production approval.
+
+## Re-review of 18f1e35 (T-031)
+
+Reviewer: codex
+Reviewed stage-8 fix commit: `18f1e35` (`18f1e35018760ba11d98eedcf41c13023c71a0d7`). The branch head is `7fb4856`; that later commit only records progress and finding statuses. Scope: `73f5892..18f1e35`, the stage-8 changes for C-1, S-1, S-4 and C-2.
+
+### Evidence
+
+| Check | Result |
+|---|---|
+| `dotnet test YCR.sln` | **643 passed, 0 failed, 0 skipped.** Docker-backed integration tests passed. |
+| CI smoke environment | The only behavior changes to `.github/workflows/ci.yml` set `DOTNET_ENVIRONMENT=Testing` for both Worker bootstrap invocations. The API still runs with `ASPNETCORE_ENVIRONMENT=Production`; the existing smoke checks and deployed-shape journey remain in the job. |
+| Documentation spot-check | The 15 documented Identity routes match the five `AuthEndpoints` routes and ten `UserEndpoints` routes. The privileged-role 422 codes map to the domain business-rule error through `ResultExtensions`. Identity grants match `Security_IdentityGrants`; seeded role/grant documentation remains checked against the migration by `IdentitySeedTests.Seed_MatchesDocs10GrantTables`. The `YCR.Identity` meter, four counters, cache-age histogram, EventIds 2001–2004 and event names in `docs/17` match `IdentityTelemetry`. |
+
+### Finding status
+
+| # | Status | Re-review evidence |
+|---|---|---|
+| C-1 | **Closed** | `AuthLifetimes` fixes the values at 15 minutes, 12 hours and 20 seconds (`src/YCR.Application/Identity/AuthLifetimes.cs:17-23`). Issuance/session rotation consume those values; `AuthOptionsValidator` rejects any configured difference during startup (`src/YCR.Api/Common/Authentication/AuthOptionsValidator.cs:34-36,68`). `SigningKeyStartupTests` rejects each differing setting and accepts an explicitly configured matching value (lines 89-119). The three settings are removed from `appsettings.json`. |
+| S-1 | **Closed** | `PrivilegedRoleGate.ForEnvironment` blocks only the case-insensitive `Production` environment, and `Check` rejects only the three named roles (`src/YCR.Application/Identity/PrivilegedRoleGate.cs:24-47`). Create and role replacement call the gate before writes; role replacement checks `(command.Roles ?? []).Except(before, StringComparer.Ordinal)` (`src/YCR.Application/Identity/ReplaceUserRoles/ReplaceUserRolesHandler.cs:72`), so retaining an already-held role is not treated as a grant. In Production, endpoint tests cover each privileged role returning `422 Identity.PrivilegedRoleRequiresMfa` without writes; ordinary roles succeed. Development and Testing tests allow each privileged role. Bootstrap tests cover Production refusal with no writes, Production-by-default when `DOTNET_ENVIRONMENT` is unset, and successful Development/Testing use. The fallback registration fails closed. This matches hein’s rulings: Production bootstrap remains blocked until MFA ships, and only newly granted roles are checked. |
+| S-4 | **Closed** | `JwtBearerSetup` resolves signing keys only by a non-empty `kid` and sets `TryAllIssuerSigningKeys = false` (`src/YCR.Api/Common/Authentication/JwtBearerSetup.cs:58-61,83-89`). `AccessTokenTests.Token_CorrectlySignedWithoutKid_Returns401` proves both an omitted and empty `kid` fail with 401 while the same correctly signed token with the configured `kid` succeeds (`tests/YCR.Api.Tests/Identity/AccessTokenTests.cs:95-116`). |
+| C-2 | **Closed** | `docs/07` now describes the six Identity tables, constraints, indexes and `ycr_app` grants; its grant list matches the `Security_IdentityGrants` migration. `docs/08` lists every mapped Identity endpoint and its request, success, errors and permission, including the new 422 code on create/role replacement. `docs/09` describes implemented controls and production gates; `docs/15` describes runtime, signing-key/origin configuration and bootstrap environment behavior; `docs/17` matches telemetry declarations; the glossary records the implemented role identifiers and keeps OQ12 explicitly open for an official answer. The smoke job continues to prove its prior journey with only the bootstrap environment changed to Testing; the API remains Production. |
+
+S-2 (trusted-proxy/shared rate limiting) and S-3 (production signing-key storage) remain **open release gates**, as tracked in T-026. No stage-8 finding was reopened.
+
+### Re-review verdict
+
+**READY FOR HUMAN APPROVAL; NOT READY FOR PRODUCTION.** C-1, C-2, S-1 and S-4 are closed at `18f1e35`. The requested full solution test run passed. S-2 and S-3 remain explicit pre-production gates and are not represented as resolved by this re-review.
