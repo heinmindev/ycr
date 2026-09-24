@@ -214,3 +214,31 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** none.
 
 **State of the branch:** builds; tests green; committed and pushed.
+
+---
+
+## 2026-09-24 23:40 Asia/Yangon — claude — T-035
+
+**Stage:** 4 (IMPLEMENT), plan step 5 of 7 (Application) — done.
+**Commit:** step 5 code and this entry are one commit on `feature/F-003`.
+
+**Done:**
+- `RouteAuditSnapshot` + `RouteStationAuditSnapshot` (records; stations in position order with their codes); `CreateRoute` (command, handler: P5 order, one station query, `Route.Create`, `409` pre-check, one save; `UX_Routes_Code` → `409`, `UX_RouteStations_StationId_RouteId` → `RouteStationRepeated`); `DeactivateRoute` (loads the route with its stations and the station codes, `Route.Deactivate(clock.GetUtcNow())`, audit before/after, one save, `DbUpdateConcurrencyException` → `RouteAlreadyInactive`); `GetRoute` (`RouteDto`, `RouteStationDto`, `RouteProjection`; two `AsNoTracking` projections); `ListRoutes` (`RouteSummaryDto`; `COUNT`, then a page with a correlated `stationCount`).
+- **plan-V1 passed:** deactivation emits exactly one `UPDATE [network].[Routes] SET [DeactivatedAtUtc] = @p, [IsActive] = @p … WHERE [Id] = @p AND [IsActive] = @p`, and no `INSERT`/`UPDATE`/`DELETE` on `RouteStations` (only the audit `INSERT` beside it). No fallback needed.
+- **plan-V2 passed:** a route read is two statements; the stations are one `SELECT … JOIN [network].[Stations] … ORDER BY`.
+- **plan-V3 passed:** the list is two round trips: a `COUNT(*)` with no `RouteStations`, then `ORDER BY … OFFSET … FETCH NEXT` with `stationCount` as a `COUNT(*)` subquery over `RouteStations`.
+- Tests written in this step (RED seen first: the build failed on the missing `CreateRoute`/`DeactivateRoute`/`GetRoute`/`ListRoutes` namespaces): `CreateRouteHandlerTests` (13, incl. parallel S21 and the S24 loser test), `DeactivateRouteHandlerTests` (5, incl. parallel S23), `RouteQueryHandlerTests` (7), `ListRoutesSqlTests.ListRoutesSql_PagesCountsAndStationCountsInSql`, `DeactivateStationHandlerTests.DeactivateStation_WhenStationIsInActiveRoute_DeactivatesAndLeavesRouteStationsUnchanged` (S17), the DI test with the four route handlers (22 → 26 handlers).
+
+**Deviations:**
+- **V4 — the DI test the plan names does not exist under that name.** The plan says `DependencyInjection_ResolvesEveryHandler`; the existing test that names each handler is `DependencyInjectionTests.HandlerTypes_IncludesEveryHandlerDefined`. The four route handlers were added there and its exact count went 22 → 26. `AddApplication_RegistersEveryHandlerInTheAssembly` covers resolution unchanged.
+- **V5 — two extra SQL tests make plan-V1 and plan-V2 assertions, not notes.** `ListRoutesSqlTests` also holds `GetRouteSql_ReadsTheRouteAndItsStationsInTwoStatements` (plan-V2) and `DeactivateRouteSql_UpdatesOnlyIsActiveAndDeactivatedAtAndNoRouteStations` (plan-V1). They capture SQL through `services.ConfigureDbContext<YcrDbContext>(… LogTo …)` on the real composition. The plan asked for these verifications, not for tests; tests keep them from regressing.
+- **V6 — `RouteTestData.cs` holds a base class.** The plan describes it as "a helper that inserts stations through `CreateStationHandler`". It is `RouteHandlerTestBase : NetworkHandlerTestBase`: the same helpers, plus a `TestClock` registered before `AddInfrastructure` (which uses `TryAddSingleton(TimeProvider.System)`), so the S23 tests can assert "the clock's UTC now". `NetworkHandlerTestBase` itself is unchanged.
+- Note (inside the plan): the station-index catch in `CreateRouteHandler` is unreachable through `Route.Create`, which refuses repeats first. It returns `RouteStationRepeated` naming the first repeated id in the command, or the first id if there is none. No test reaches it.
+
+**Evidence:** targeted Application run 50/50. `dotnet build YCR.sln` 0 warnings, 0 errors. `dotnet test YCR.sln` **736 passed, 0 failed, 0 skipped**.
+
+**Next step (exact):** plan step 6 (API: `RouteContracts` + validator with the 200 cap, `RouteEndpoints`, `Program.cs`; `RouteEndpointsTests`, `RoutePermissionGrantTests`, `DeployedShapeTests` rows; plan-V5).
+
+**Blockers / open questions:** none.
+
+**State of the branch:** builds; tests green; committed and pushed.
