@@ -1,4 +1,5 @@
 using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 using YCR.Infrastructure.Tests.Identity;
 using YCR.TestSupport;
 
@@ -97,6 +98,162 @@ public sealed class RouteMigrationTests(SqlServerFixture fixture) : IAsyncLifeti
 
         Assert.Equal(0, await ScalarAsync("SELECT COUNT(*) FROM [network].[RouteStations];"));
     }
+
+    /// <summary>
+    /// <c>docs/21</c> §Data: the three F-003 migrations applied on top of a database exactly as
+    /// F-002 left it, with station rows in it.
+    /// </summary>
+    [Fact]
+    public async Task Migrate_FromF002Schema_CreatesRouteTablesConstraintsIndexesAndGrants()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var upgraded = await fixture.Container.CreateEmptyDatabaseAsync("route_upgrade", cancellationToken);
+
+        await using (var context = IdentitySql.Context(upgraded.MigratorConnectionString))
+        {
+            await context.Database.MigrateAsync(LastF002Migration, cancellationToken);
+        }
+
+        await IdentitySql.ExecuteAsync(
+            upgraded.MigratorConnectionString,
+            """
+            INSERT INTO [network].[Stations] ([Id], [Code], [NameEn], [NameMy], [IsActive], [CreatedAtUtc])
+            VALUES (NEWID(), N'YGN', N'Yangon', N'ရန်ကုန်', 1, SYSUTCDATETIME() AT TIME ZONE 'UTC');
+            """);
+
+        await using (var context = IdentitySql.Context(upgraded.MigratorConnectionString))
+        {
+            await context.Database.MigrateAsync(cancellationToken);
+            Assert.Empty(await context.Database.GetPendingMigrationsAsync(cancellationToken));
+        }
+
+        // F-001's data survives the upgrade untouched, and no route data ships (R23).
+        Assert.Equal(1, await ScalarOnAsync(upgraded, "SELECT COUNT(*) FROM [network].[Stations] WHERE [Code] = N'YGN';"));
+        Assert.Equal(0, await ScalarOnAsync(upgraded, "SELECT COUNT(*) FROM [network].[Routes];"));
+
+        Assert.Equal(
+            ["RouteStations", "Routes", "Stations"],
+            (await StringsOnAsync(upgraded, "SELECT name FROM sys.tables WHERE schema_id = SCHEMA_ID(N'network')"))
+                .Order(StringComparer.Ordinal));
+
+        Assert.Equal(
+            ["CK_RouteStations_Position", "CK_Routes_CreatedAtUtc_Utc", "CK_Routes_DeactivatedAtUtc_Utc"],
+            (await StringsOnAsync(
+                upgraded,
+                "SELECT name FROM sys.check_constraints WHERE parent_object_id IN (OBJECT_ID(N'network.Routes'), OBJECT_ID(N'network.RouteStations'))"))
+                .Order(StringComparer.Ordinal));
+
+        // Exactly these indexes: in particular no IX_RouteStations_StationId (spec Amendment 1).
+        Assert.Equal(
+            ["PK_RouteStations", "PK_Routes", "UX_RouteStations_StationId_RouteId", "UX_Routes_Code"],
+            (await StringsOnAsync(
+                upgraded,
+                "SELECT name FROM sys.indexes WHERE name IS NOT NULL AND object_id IN (OBJECT_ID(N'network.Routes'), OBJECT_ID(N'network.RouteStations'))"))
+                .Order(StringComparer.Ordinal));
+        Assert.Equal(
+            ["1:StationId", "2:RouteId"],
+            (await StringsOnAsync(
+                upgraded,
+                """
+                SELECT CONCAT(ic.key_ordinal, N':', c.name COLLATE DATABASE_DEFAULT) FROM sys.index_columns AS ic
+                JOIN sys.indexes AS i ON i.object_id = ic.object_id AND i.index_id = ic.index_id
+                JOIN sys.columns AS c ON c.object_id = ic.object_id AND c.column_id = ic.column_id
+                WHERE i.name = N'UX_RouteStations_StationId_RouteId'
+                """)).Order(StringComparer.Ordinal));
+
+        // Both foreign keys NO ACTION on delete and update.
+        Assert.Equal(
+            ["FK_RouteStations_Routes_RouteId:NO_ACTION:NO_ACTION", "FK_RouteStations_Stations_StationId:NO_ACTION:NO_ACTION"],
+            (await StringsOnAsync(
+                upgraded,
+                "SELECT CONCAT(name COLLATE DATABASE_DEFAULT, N':', delete_referential_action_desc COLLATE DATABASE_DEFAULT, N':', update_referential_action_desc COLLATE DATABASE_DEFAULT) FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID(N'network.RouteStations')"))
+                .Order(StringComparer.Ordinal));
+
+        // R10: the role's grants on the two tables, exactly.
+        Assert.Equal(
+            [
+                "INSERT:RouteStations:",
+                "INSERT:Routes:",
+                "SELECT:RouteStations:",
+                "SELECT:Routes:",
+                "UPDATE:Routes:DeactivatedAtUtc",
+                "UPDATE:Routes:IsActive",
+            ],
+            (await RouteGrantsAsync(upgraded)).Order(StringComparer.Ordinal));
+
+        // OQ40: the ten route grants, on top of F-002's fourteen.
+        Assert.Equal(10, await ScalarOnAsync(upgraded, "SELECT COUNT(*) FROM [identity].[RolePermissions] WHERE [Permission] LIKE N'routes.%';"));
+        Assert.Equal(24, await ScalarOnAsync(upgraded, "SELECT COUNT(*) FROM [identity].[RolePermissions];"));
+    }
+
+    /// <summary>
+    /// Rollback (plan §DB changes): down to F-002's last migration removes the route tables, their
+    /// grants and the ten seeded grants, and keeps the <c>network</c> schema and its stations.
+    /// </summary>
+    [Fact]
+    public async Task Migrate_DownToF002_RemovesRouteObjectsGrantsAndSeedRowsAndKeepsStations()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var stationId = await InsertStationAsync("DNA");
+        var routeId = Guid.NewGuid();
+        await ExecuteAsync(InsertRouteSql(routeId, "DN1", "'2026-09-24T00:00:00+00:00'", "NULL"));
+        await ExecuteAsync(InsertRouteStationSql(routeId, 1, stationId));
+
+        await using (var context = IdentitySql.Context(database.MigratorConnectionString))
+        {
+            await context.Database.MigrateAsync(LastF002Migration, cancellationToken);
+            Assert.Equal(LastF002Migration, (await context.Database.GetAppliedMigrationsAsync(cancellationToken)).Last());
+        }
+
+        Assert.Equal(0, await ScalarAsync(
+            "SELECT COUNT(*) FROM sys.tables WHERE schema_id = SCHEMA_ID(N'network') AND name IN (N'Routes', N'RouteStations');"));
+        Assert.Equal(1, await ScalarAsync("SELECT COUNT(*) FROM sys.schemas WHERE name = N'network';"));
+        Assert.Equal(1, await ScalarAsync($"SELECT COUNT(*) FROM [network].[Stations] WHERE [Id] = '{stationId}';"));
+
+        Assert.Empty(await RouteGrantsAsync(database));
+        Assert.Equal(0, await ScalarAsync("SELECT COUNT(*) FROM [identity].[RolePermissions] WHERE [Permission] LIKE N'routes.%';"));
+        Assert.Equal(14, await ScalarAsync("SELECT COUNT(*) FROM [identity].[RolePermissions];"));
+
+        // F-001's station grants are not touched by the route grant revocation.
+        Assert.Equal(1, await ScalarAsync(
+            """
+            SELECT COUNT(*) FROM sys.database_permissions
+            WHERE grantee_principal_id = DATABASE_PRINCIPAL_ID(N'ycr_app') AND state = 'G'
+              AND major_id = OBJECT_ID(N'network.Stations') AND permission_name = N'UPDATE'
+              AND minor_id = COLUMNPROPERTY(OBJECT_ID(N'network.Stations'), N'IsActive', 'ColumnId');
+            """));
+
+        // And forward again, so the rollback is repeatable.
+        await using (var context = IdentitySql.Context(database.MigratorConnectionString))
+        {
+            await context.Database.MigrateAsync(cancellationToken);
+        }
+
+        Assert.Equal(6, (await RouteGrantsAsync(database)).Count);
+        Assert.Equal(24, await ScalarAsync("SELECT COUNT(*) FROM [identity].[RolePermissions];"));
+    }
+
+    private const string LastF002Migration = "20260923133743_Security_IdentityGrants";
+
+    /// <summary>The <c>ycr_app</c> role's grants on the two route tables, as <c>PERMISSION:Table:Column</c>.</summary>
+    private static Task<List<string>> RouteGrantsAsync(TestDatabase target) =>
+        IdentitySql.StringsAsync(
+            target.MigratorConnectionString,
+            """
+            SELECT CONCAT(p.permission_name COLLATE DATABASE_DEFAULT, N':', OBJECT_NAME(p.major_id) COLLATE DATABASE_DEFAULT, N':', c.name COLLATE DATABASE_DEFAULT)
+            FROM sys.database_permissions AS p
+            LEFT JOIN sys.columns AS c ON c.object_id = p.major_id AND c.column_id = p.minor_id
+            WHERE p.grantee_principal_id = DATABASE_PRINCIPAL_ID(N'ycr_app')
+              AND p.class = 1 AND p.state = 'G'
+              AND OBJECT_SCHEMA_NAME(p.major_id) = N'network'
+              AND OBJECT_NAME(p.major_id) IN (N'Routes', N'RouteStations')
+            """);
+
+    private static Task<int> ScalarOnAsync(TestDatabase target, string sql) =>
+        IdentitySql.ScalarAsync<int>(target.MigratorConnectionString, sql);
+
+    private static Task<List<string>> StringsOnAsync(TestDatabase target, string sql) =>
+        IdentitySql.StringsAsync(target.MigratorConnectionString, sql);
 
     private async Task<Guid> InsertStationAsync(string code)
     {

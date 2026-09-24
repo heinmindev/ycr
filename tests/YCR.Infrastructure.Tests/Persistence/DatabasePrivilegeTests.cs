@@ -35,6 +35,9 @@ public sealed class DatabasePrivilegeTests(SqlServerFixture fixture) : IAsyncLif
     [InlineData("DROP TABLE [network].[Stations];")]
     [InlineData("CREATE INDEX [IX_Smuggled] ON [network].[Stations] ([NameEn]);")]
     [InlineData("CREATE SCHEMA [smuggled];")]
+    // F-003 S25: no DDL on the route tables either.
+    [InlineData("ALTER TABLE [network].[Routes] ADD [Smuggled] int NULL;")]
+    [InlineData("DROP TABLE [network].[RouteStations];")]
     public async Task ApplicationCredential_AttemptingDdl_IsDenied(string ddl)
     {
         var failure = await Assert.ThrowsAsync<SqlException>(() => ExecuteAsApplicationAsync(ddl));
@@ -140,6 +143,97 @@ public sealed class DatabasePrivilegeTests(SqlServerFixture fixture) : IAsyncLif
         Assert.Equal(1, await ColumnPermissionAsApplicationAsync("identity.RefreshTokens", "UPDATE", "ReplacedByTokenId"));
         Assert.Equal(0, await ColumnPermissionAsApplicationAsync("identity.RefreshTokens", "UPDATE", "TokenHash"));
         Assert.Equal(0, await ColumnPermissionAsApplicationAsync("identity.RefreshTokens", "UPDATE", "SessionId"));
+    }
+
+    /// <summary>
+    /// F-003 S25 / R10 (<c>Security_NetworkRouteGrants</c>): the presences and, which is the point,
+    /// the absences. The grant set is the database-level statement that a stored sequence never
+    /// changes (R9).
+    /// </summary>
+    [Fact]
+    public async Task ApplicationCredential_HasExactlyTheRouteGrants()
+    {
+        Assert.Equal(1, await PermissionAsApplicationAsync("network.Routes", "SELECT"));
+        Assert.Equal(1, await PermissionAsApplicationAsync("network.Routes", "INSERT"));
+        Assert.Equal(1, await ColumnPermissionAsApplicationAsync("network.Routes", "UPDATE", "IsActive"));
+        Assert.Equal(1, await ColumnPermissionAsApplicationAsync("network.Routes", "UPDATE", "DeactivatedAtUtc"));
+        Assert.Equal(1, await PermissionAsApplicationAsync("network.RouteStations", "SELECT"));
+        Assert.Equal(1, await PermissionAsApplicationAsync("network.RouteStations", "INSERT"));
+
+        foreach (var table in new[] { "network.Routes", "network.RouteStations" })
+        {
+            Assert.Equal(0, await PermissionAsApplicationAsync(table, "DELETE"));
+            Assert.Equal(0, await PermissionAsApplicationAsync(table, "ALTER"));
+            Assert.Equal(0, await PermissionAsApplicationAsync(table, "CONTROL"));
+        }
+
+        foreach (var column in new[] { "Id", "Code", "NameEn", "NameMy", "IsClosed", "CreatedAtUtc" })
+        {
+            Assert.Equal(0, await ColumnPermissionAsApplicationAsync("network.Routes", "UPDATE", column));
+        }
+
+        // Table-level UPDATE on Routes would mean every column; it is column-scoped instead.
+        Assert.Equal(0, await PermissionAsApplicationAsync("network.Routes", "UPDATE"));
+
+        Assert.Equal(0, await PermissionAsApplicationAsync("network.RouteStations", "UPDATE"));
+        foreach (var column in new[] { "RouteId", "Position", "StationId" })
+        {
+            Assert.Equal(0, await ColumnPermissionAsApplicationAsync("network.RouteStations", "UPDATE", column));
+        }
+    }
+
+    /// <summary>
+    /// F-003 S25 / R9, executed rather than inferred: the application can deactivate a route and
+    /// can do nothing else to it or its sequence, and the rows are unchanged afterwards.
+    /// </summary>
+    [Fact]
+    public async Task ApplicationCredential_CanDeactivateARouteButNotRewriteIt()
+    {
+        var stationId = Guid.NewGuid();
+        var otherStationId = Guid.NewGuid();
+        var routeId = Guid.NewGuid();
+        await ExecuteAsApplicationAsync(
+            $"""
+            INSERT INTO [network].[Stations] ([Id], [Code], [NameEn], [NameMy], [IsActive], [CreatedAtUtc])
+            VALUES ('{stationId}', N'RGA', N'Route Grant A', N'ဘူတာ', 1, SYSUTCDATETIME() AT TIME ZONE 'UTC'),
+                   ('{otherStationId}', N'RGB', N'Route Grant B', N'ဘူတာ', 1, SYSUTCDATETIME() AT TIME ZONE 'UTC');
+            INSERT INTO [network].[Routes] ([Id], [Code], [NameEn], [NameMy], [IsClosed], [IsActive], [CreatedAtUtc], [DeactivatedAtUtc])
+            VALUES ('{routeId}', N'RG1', N'Route Grant', N'လမ်းကြောင်း', 0, 1, SYSUTCDATETIME() AT TIME ZONE 'UTC', NULL);
+            INSERT INTO [network].[RouteStations] ([RouteId], [Position], [StationId])
+            VALUES ('{routeId}', 1, '{stationId}'), ('{routeId}', 2, '{otherStationId}');
+            """);
+
+        // DeactivateRoute, which is the only update F-003 performs: both columns in one UPDATE.
+        await ExecuteAsApplicationAsync(
+            "UPDATE [network].[Routes] SET [IsActive] = 0, [DeactivatedAtUtc] = SYSUTCDATETIME() AT TIME ZONE 'UTC';");
+
+        string[] denied =
+        [
+            "UPDATE [network].[Routes] SET [Code] = N'XX1';",
+            "UPDATE [network].[Routes] SET [NameEn] = N'Renamed';",
+            "UPDATE [network].[Routes] SET [IsClosed] = 1;",
+            "UPDATE [network].[RouteStations] SET [Position] = [Position] + 10;",
+            $"UPDATE [network].[RouteStations] SET [StationId] = '{stationId}' WHERE [Position] = 2;",
+            "DELETE FROM [network].[RouteStations];",
+            "DELETE FROM [network].[Routes];",
+        ];
+        foreach (var sql in denied)
+        {
+            var failure = await Assert.ThrowsAsync<SqlException>(() => ExecuteAsApplicationAsync(sql));
+            Assert.Contains("permission", failure.Message, StringComparison.OrdinalIgnoreCase);
+        }
+
+        Assert.Equal(1, await ScalarAsMigratorAsync(
+            $"""
+            SELECT COUNT(*) FROM [network].[Routes]
+            WHERE [Id] = '{routeId}' AND [Code] = N'RG1' AND [NameEn] = N'Route Grant' AND [IsClosed] = 0
+              AND [IsActive] = 0 AND [DeactivatedAtUtc] IS NOT NULL;
+            """));
+        Assert.Equal(2, await ScalarAsMigratorAsync(
+            $"""
+            SELECT COUNT(*) FROM [network].[RouteStations]
+            WHERE ([Position] = 1 AND [StationId] = '{stationId}') OR ([Position] = 2 AND [StationId] = '{otherStationId}');
+            """));
     }
 
     /// <summary>D18 / plan P7: F-002 deletes no session or token row.</summary>

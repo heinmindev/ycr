@@ -192,3 +192,25 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** none. V3 is for hein's review.
 
 **State of the branch:** builds; tests green; committed and pushed.
+
+---
+
+## 2026-09-24 23:00 Asia/Yangon — claude — T-035
+
+**Stage:** 4 (IMPLEMENT), plan step 4 of 7 (Grants) — done.
+**Commit:** step 4 code and this entry are one commit on `feature/F-003`.
+
+**Done:**
+- Migration **`20260924152836_Security_NetworkRouteGrants`**, scaffolded by `dotnet ef migrations add` (snapshot unchanged), SQL by hand, exactly spec R10 / S25: `GRANT SELECT, INSERT ON [network].[Routes]`; `GRANT UPDATE ON [network].[Routes]([IsActive], [DeactivatedAtUtc])`; `GRANT SELECT, INSERT ON [network].[RouteStations]`, all to `[ycr_app]`. `Down()` revokes exactly these, in reverse order. The XML comment states R9 and lists the absences.
+- Tests written in this step (RED seen first: the grant tests returned 0 for the presences, and the migration tests found no grants): `DatabasePrivilegeTests.ApplicationCredential_HasExactlyTheRouteGrants` (every presence and absence the plan lists, plus table-level `UPDATE` on `Routes` = 0), `ApplicationCredential_CanDeactivateARouteButNotRewriteIt` (executed as `ycr_app`: the two-column deactivation succeeds; seven rewrites and deletes are denied; rows unchanged afterwards), `ApplicationCredential_AttemptingDdl_IsDenied` +2 rows (`ALTER TABLE [network].[Routes] ADD …`, `DROP TABLE [network].[RouteStations]`); `RouteMigrationTests.Migrate_FromF002Schema_CreatesRouteTablesConstraintsIndexesAndGrants` (from `20260923133743_Security_IdentityGrants` with a station row: tables, the three checks, exactly four indexes incl. `UX_RouteStations_StationId_RouteId` key order `StationId, RouteId` and **no `IX_RouteStations_StationId`**, both FKs `NO_ACTION`, the role's six grants, 10 route + 24 total grant rows) and `Migrate_DownToF002_RemovesRouteObjectsGrantsAndSeedRowsAndKeepsStations` (with a route in it: tables and grants gone, 14 grant rows, `network` schema, the station and its `UPDATE(IsActive)` grant kept, then forward again).
+- plan-V4 re-checked: no pending model changes.
+
+**Deviations:** none new. (Two SQL mistakes in my own new test queries — a catalog collation clash and an `ORDER BY` inside `IdentitySql.StringsAsync`'s derived table — were fixed before the tests were run green; they were test-authoring errors, not plan issues.)
+
+**Evidence:** targeted 11/11 (the 7 DDL cases passed before the migration too, as absences should). `dotnet build YCR.sln` 0 warnings, 0 errors. `dotnet test YCR.sln` **697 passed, 0 failed, 0 skipped**.
+
+**Next step (exact):** plan step 5 (Application: `RouteAuditSnapshot`, `CreateRoute`, `DeactivateRoute`, `GetRoute`, `ListRoutes`; plan-V1, plan-V2, plan-V3).
+
+**Blockers / open questions:** none.
+
+**State of the branch:** builds; tests green; committed and pushed.
