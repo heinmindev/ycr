@@ -453,3 +453,30 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** none.
 
 **State of the branch:** committed and pushed; build green; tests green (CI `api-smoke` red until step 12, as accepted).
+
+---
+
+## 2026-09-24 14:10 Asia/Yangon — claude — T-025 step 12 (tech-lead checkpoint 3; implementation complete)
+
+**Stage:** 4 (IMPLEMENT), plan step 12 of 12 — **stopped for hein's third checkpoint; T-025 → `review`**
+**Commit:** `b3464b6` on `feature/F-002` (CI proven green on this SHA; this entry is docs-only on top)
+**Done this session:**
+- `.github/workflows/ci.yml` `api-smoke`: a per-run ES256 P-256 key (`openssl genpkey`), every base64 line `::add-mask::`ed in the step that generates it, passed to the API only through the environment (`Auth__Signing__*`, kid `ci-<run id>`, `DevelopmentOnly: false`); `Auth__AllowedOrigins__0`; the Worker is built too. Checks: `401` with `errorCode` `Auth.Unauthenticated`, `traceId` and `WWW-Authenticate: Bearer`; the four security headers on the challenge and on `/health/live`; no `Access-Control-*` on a foreign preflight; login without `Origin` → `Auth.OriginRejected`; unknown user → `Auth.InvalidCredentials`; **deployed-shape bootstrap journey** — the built Worker's `bootstrap-administrator` (password on stdin) exits 0, sign-in sets the hardened cookie with `no-store`, the must-change session gets `Auth.PasswordChangeRequired`, `/auth/password` → 204, sign-in again → `GET /stations` and `GET /users` 200, a second bootstrap exits 1. The F-001 comment about the API suite being blind to the shipped shape is updated.
+- **gitleaks:** no custom rule added. Verified with gitleaks **v8.30.1** (the version `gitleaks-action` v2 pulls) over a throwaway directory: the default `private-key` rule flags both a raw PKCS#8 PEM file and the same key embedded in a JSON settings file. `.gitleaks.toml` unchanged, as the plan's condition allows.
+- `actionlint` 1.7.12: clean.
+
+**Evidence:**
+- GitHub Actions run **https://github.com/heinmindev/ycr/actions/runs/35955113706** on `b3464b6`: **Build and test ✅, API smoke test ✅ (26/26 checks PASS), Secret scan ✅**; Trunk-only tests skipped (runs on PRs and `main` only, by design). The key's body lines appear as `***` wherever the runner echoes the step environment.
+- `dotnet test YCR.sln` (local, `b3464b6`'s code) → **614/614 passed, 0 skipped**; `dotnet build YCR.sln` 0 warnings.
+
+**Deviations from the plan (step 12):**
+- The smoke job goes beyond the plan's list (key, origin, `Auth.Unauthenticated`, headers) with the bootstrap → must-change → password change → sign-in → `200` journey on the built artifacts, the Origin and uniform-401 checks, and the no-CORS preflight. Cost: about a minute of CI.
+- Cosmetic: the runner's masking rewrites the `PASS … WWW-Authenticate` line's "(got" as `***`; the check itself passed (compared value `Bearer`). Not investigated further.
+
+**Deviations across steps 8–12, for review** (details in each step's entry): principal-cache eviction on this instance after logout, own password change and administrator session revocation (step 8, 9); login limit order address-then-username and one shared partition for overlong usernames (8); validators check presence only — username format and password policy stay in the domain/validator, empty `newPassword` is `Common.ValidationFailed` (8); unknown role names refused by the validator before the self-target check, so self + unknown role is `400` not `422` (9, ruling); contracts and endpoints consolidated into fewer files than the plan listed (8, 9); `RoleCatalogue` in Application for API validation (9); must-change coverage by a route-table test instead of a hand-written theory (8); Worker `Program` as an explicit namespaced class, CLI class `BootstrapAdministratorCli`, plain `ServiceCollection` composition, exit code 2 for usage (10); `YCR.Api.Tests` references the Worker for S25 (10); README key command `openssl genpkey`, `*.pem`/`*.key` git-ignored (11); extended smoke job (12).
+
+**Next step (exact):** hein's third checkpoint (after step 12). Then stage 5 (scenario tests), stage 6 (code review) and stage 7 (security review) by **a different agent** than this one (AGENTS.md; workflow 02); stage 8 documentation (`docs/07`, `08`, `09`, `15`, `17`, `20`, plan P13/R-9 history). No PR has been opened.
+
+**Blockers / open questions:** approval (tech-lead checkpoint after step 12).
+
+**State of the branch:** committed and pushed; build green; tests green; CI green on `b3464b6`.
