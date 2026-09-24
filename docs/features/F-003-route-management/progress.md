@@ -74,3 +74,24 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** none for F-003. OQ36–OQ41 still open with Myanma Railways (provisional rulings apply). OQ1, OQ17 unchanged.
 
 **State of the branch:** documentation only; all work committed on `feature/F-003` and pushed.
+
+---
+
+## 2026-09-24 20:52 Asia/Yangon — claude — T-034
+
+**Stage:** 3 (PLAN, `docs/workflows/02-feature-development.md`) — stopped at the stage-3 ⛔.
+**Commit:** plan at `00ce225` on `feature/F-003`; this entry is the commit after it.
+
+**Done this session:**
+- Claimed T-034 in the coordination checkout: `git branch claim/T-034 main`, row set to doing/claude (`39b3153`, pushed).
+- Read AGENTS.md, `TASKS.md` (Protocol, T-032, T-034), the Approved spec (`15d3709`) and this file, `docs/templates/plan.md`, workflows 02 and 04, `docs/07`, `08`, `10`, `18`, `20`, `21`, the glossary's Network section, the F-001 and F-002 plans, and the existing code: the Network domain/application/infrastructure/API slice, `Permissions`, `YcrDbContext`, the unique-constraint translator, the `Security_AppDatabaseRole`, `Security_IdentityGrants` and `Identity_SeedRolesAndPermissionGrants` migrations, `DatabasePrivilegeTests`, `IdentitySeedTests`, `StationModelTests`, `YCR.Api.http` and the `api-smoke` job.
+- Verified five EF Core 10.0.12 behaviours in a scratch console app outside the repository (plan §Verifications done at PLAN, O1–O5). The key finding: EF's FK-index convention adds `IX_RouteStations_StationId` and adds it back when it is removed; reversing the unique index to `(StationId, RouteId)` is the only local way to drop it → **Q1**.
+- Wrote `docs/features/F-003-route-management/plan.md` (Status: Draft): P1–P12 decisions, Q1–Q3 questions for hein, three migrations (`Network_CreateRoutes`, `Identity_SeedRoutePermissionGrants`, `Security_NetworkRouteGrants`) with rollback and roll-forward, the index decision (dropped; no named query uses it), the endpoint inventory, audit, security, a test plan mapping all 24 live scenarios to 93 named tests (86 new, 7 existing tests changed), and 7 steps ending with a green GitHub Actions run.
+
+**Evidence:** documentation only; no build or test was run because no repository code changed. Scratch verification: `dotnet run` of a throwaway project in the session scratchpad (EF Core SqlServer/Design 10.0.12, SDK 10.0.302). Commands: `git pull` (both checkouts), `git branch claim/T-034 main`, `git commit`/`git show --stat HEAD`/`git push origin main` (claim), `grep`/`sed`/`cat` reads, `git commit` (`00ce225`). Files changed: `docs/features/F-003-route-management/plan.md` (new), this file.
+
+**Next step (exact):** hein reviews `plan.md`: confirms or overturns P1–P12 and rules on **Q1** (index name/columns; blocks step 2), **Q2** (`stationIds` upper limit), **Q3** (stage-8 glossary edit vs spec §9). If Q1 is ruled (a), the spec's index name gets a recorded stage-2 amendment first. Then stage 4 (IMPLEMENT) starts as a new task, following the plan's steps.
+
+**Blockers / open questions:** `approval` (⛔ stage 3). Q1–Q3 for hein (not Myanma Railways questions; no new OQ in `docs/19`). OQ36–OQ41 still open with Myanma Railways (provisional rulings apply). OQ1, OQ17 unchanged.
+
+**State of the branch:** documentation only; all work committed on `feature/F-003` and pushed.
