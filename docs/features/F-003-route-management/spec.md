@@ -1,6 +1,6 @@
 # F-003: Route management
 
-Status: **Draft — all rulings applied, awaiting approval** (claude, T-032, 2026-09-24). Stages 1–2 of `docs/workflows/02-feature-development.md`. hein's rulings of 2026-09-24 on OQ36–OQ41 and E1–E8 are recorded in §0.8 and applied throughout. The business rulings are **provisional tech-lead rulings — not a Myanma Railways answer**.
+Status: **Approved (hein, 2026-09-24)**. Written by claude (T-032). Stages 1–2 of `docs/workflows/02-feature-development.md`. hein's rulings of 2026-09-24 on OQ36–OQ41 and E1–E8, and the approval-time decisions (A1, R25, `IX_RouteStations_StationId`, the creation/deactivation race), are recorded in §0.8 and applied throughout. The business rulings are **provisional tech-lead rulings — not a Myanma Railways answer**.
 
 Module(s): `Network` (routes only; station deactivation is unchanged); cross-cutting `Audit`, `Identity` (permission grants only)
 Related: FR-002, UC 2 "Manage routes" (`docs/03-use-cases.md` §Core use cases, item 2), FR-001 (stations), ADR-0004, ADR-0006, ADR-0012, ADR-0014, ADR-0017, ADR-0018, ADR-0021, `docs/20-coding-conventions.md` §3
@@ -128,8 +128,18 @@ The stage-2 ⛔ asked hein to rule on OQ36–OQ41 and E1–E8. hein ruled on all
 | **E4** | Accepted. `POST /routes` creates the route with its full sequence. | ENGINEERING DECISION (tech lead, hein, 2026-09-24) | S1; §6 |
 | **E5** | Accepted. `Route` is its own aggregate, owning its `RouteStation` rows, with an FK to `network.Stations` and no navigation property. | ENGINEERING DECISION (tech lead, hein, 2026-09-24; ADR-0012 item 6) | R16; §7 |
 | **E6** | Accepted. `Position` is `1..n` and contiguous. | ENGINEERING DECISION (tech lead, hein, 2026-09-24; ADR-0014) | R18; S24 |
-| **E7** | Accepted. Grants to `ycr_app` in a reviewed migration: `Routes` `SELECT`, `INSERT`, `UPDATE(IsActive)` only; `RouteStations` `SELECT`, `INSERT` only; no `DELETE`, no other `UPDATE`, no DDL. | ENGINEERING DECISION (tech lead, hein, 2026-09-24; ADR-0017 item 3 spirit) | R10; §7; S25 |
+| **E7** | Accepted. Grants to `ycr_app` in a reviewed migration: `Routes` `SELECT`, `INSERT`, `UPDATE(IsActive)` only; `RouteStations` `SELECT`, `INSERT` only; no `DELETE`, no other `UPDATE`, no DDL. **Amended by A1:** `Routes` `UPDATE(IsActive, DeactivatedAtUtc)`. | ENGINEERING DECISION (tech lead, hein, 2026-09-24; ADR-0017 item 3 spirit) | R10; §7; S25 |
 | **E8** | Accepted. Error codes follow ADR-0004. `Routes.IsActive` is the EF concurrency token for deactivation (F-001 Amendment 1 pattern); no `rowversion` on `Routes`. | ENGINEERING DECISION (tech lead, hein, 2026-09-24; ADR-0004) | R17; §6; §7; S23 |
+
+**Decisions at approval (hein, 2026-09-24):**
+
+| ID | Decision | Label | Applied in |
+|---|---|---|---|
+| **A1** | Add `DeactivatedAtUtc datetimeoffset(3) NULL` to `network.Routes`, with `CK_Routes_DeactivatedAtUtc_Utc` (NULL or offset 0). Deactivation sets `IsActive = 0` and `DeactivatedAtUtc` = now (UTC, from the clock) in the same `UPDATE`. `RouteResponse`, `RouteSummaryResponse` and the audit snapshot gain `deactivatedAtUtc` (null while active). Grant: `Routes` `SELECT`, `INSERT`, `UPDATE(IsActive, DeactivatedAtUtc)`. Reason: because sequences are immutable, the rows are the business history, and "which routes were active on date X" must be answerable without reading the audit ledger. | ENGINEERING DECISION (tech lead, hein, 2026-09-24) | R10, R15, R17; S23, S25; §6; §7; §8 |
+| **R25** | `isClosed` required on `POST /routes`, no default: accepted. | ENGINEERING DECISION (tech lead, hein, 2026-09-24) | R25; S5 |
+| **IX** | `IX_RouteStations_StationId` is left to PLAN: kept only if a named query uses it, otherwise dropped at stage 3. | ENGINEERING DECISION (tech lead, hein, 2026-09-24) | §7; Notes for the next stage |
+| **Race** | A route created while one of its stations is being deactivated: accepted, no serialisation required. | ENGINEERING DECISION (tech lead, hein, 2026-09-24) | §5 |
+| **ADR-0024** | Stays Proposed. Its Follow-up line naming F-003 as first user is replaced by "F-003 does not use this ADR (OQ38 ruling, immutable sequences; hein, 2026-09-24). The first user will be the first feature that edits a document composed from an earlier read." | ENGINEERING DECISION (tech lead, hein, 2026-09-24) | ADR-0024 Follow-up |
 
 ---
 
@@ -166,14 +176,14 @@ Provisional rulings are labelled "BUSINESS DECISION — provisional tech-lead ru
 | R7 | A station appears at most once in one route's sequence. `UX_RouteStations_RouteId_StationId` is the database authority; the handler's pre-check gives the error code (`422 Network.RouteStationRepeated`). | **PROVISIONAL RULING (OQ37)**; enforcement: ENGINEERING DECISION (tech lead, hein, 2026-09-24; ADR-0004) | `docs/19` OQ37 |
 | R8 | A route has at least 2 stations if open and at least 3 if closed; fewer is `422 Network.RouteTooFewStations`. | **PROVISIONAL RULING (OQ37)** | `docs/19` OQ37 |
 | R9 | A route's sequence, `IsClosed`, code and names never change after creation. To change the network, an administrator creates a new route and deactivates the old one. There is no sequence-replacement operation. | **PROVISIONAL RULING (OQ38 option (c), OQ41)** | `docs/19` OQ38, OQ41 |
-| R10 | Database grants to `ycr_app`, by a reviewed migration: `network.Routes` `SELECT`, `INSERT`, `UPDATE(IsActive)` only; `network.RouteStations` `SELECT`, `INSERT` only. No `DELETE`, no other `UPDATE`, no DDL. The grant set is the database-level statement of R9. | ENGINEERING DECISION (tech lead, hein, 2026-09-24, E7; ADR-0017 item 3 spirit) | `Security_AppDatabaseRole` precedent |
+| R10 | Database grants to `ycr_app`, by a reviewed migration: `network.Routes` `SELECT`, `INSERT`, `UPDATE(IsActive, DeactivatedAtUtc)` only; `network.RouteStations` `SELECT`, `INSERT` only. No `DELETE`, no other `UPDATE`, no DDL. The grant set is the database-level statement of R9. | ENGINEERING DECISION (tech lead, hein, 2026-09-24, E7 as amended by A1; ADR-0017 item 3 spirit) | `Security_AppDatabaseRole` precedent |
 | R11 | An inactive station cannot be placed in a route: `422 Network.RouteStationInactive`, nothing written. | **PROVISIONAL RULING (OQ39)** | `docs/19` OQ39 |
 | R12 | Deactivating a station that is in a route is allowed. The station stays in every sequence it is in, and route reads show it with `isActive = false`. F-001's `DeactivateStation` does not change. A station deactivated by mistake cannot be placed in a new route until station reactivation ships; this is accepted for now and no task is created. | **PROVISIONAL RULING (OQ39)** | `docs/19` OQ39; F-001 R1, R3, §9 |
 | R13 | A route has a code and a `BilingualName`. Code: 2–10 characters of `A`–`Z` and `0`–`9` (`400 Network.InvalidRouteCode`). `NameEn` and `NameMy`: both required, each 1–100 characters after trimming (`400 Network.InvalidRouteName`); neither is unique. These are exactly the station rules. | **PROVISIONAL RULING (OQ41)** | `docs/19` OQ41; F-001 R3/R4; OQ26/OQ27 |
 | R14 | A route code is unique across all routes, including inactive ones, and is never reused: `409 Network.RouteCodeAlreadyExists`. `UX_Routes_Code` is the concurrency authority. | **PROVISIONAL RULING (OQ41)** | `docs/19` OQ41; F-001 R3 |
-| R15 | A route can be deactivated only; the row and its sequence are kept. There is no reactivation, no delete and no `PATCH /routes/{id}`. Deactivating an inactive route is `422 Network.RouteAlreadyInactive`. | **PROVISIONAL RULING (OQ41)** | `docs/19` OQ41 |
+| R15 | A route can be deactivated only; the row and its sequence are kept. There is no reactivation, no delete and no `PATCH /routes/{id}`. Deactivating an inactive route is `422 Network.RouteAlreadyInactive`. Deactivation sets `IsActive = 0` and `DeactivatedAtUtc` = now (UTC, from the clock, `TimeProvider.GetUtcNow()`) in the same `UPDATE`; `DeactivatedAtUtc` is null while the route is active. | Deactivate only: **PROVISIONAL RULING (OQ41)**. `DeactivatedAtUtc`: ENGINEERING DECISION (tech lead, hein, 2026-09-24, A1) | `docs/19` OQ41; §0.8 A1 |
 | R16 | Every station in a sequence exists in `network.Stations`. The database foreign key is the authority; the handler's pre-check gives the error code (`422 Network.RouteStationNotFound`). | ENGINEERING DECISION (tech lead, hein, 2026-09-24, E5; ADR-0012 item 6) | `docs/07` §Rules ("Use foreign keys"); AGENTS.md rule 5 |
-| R17 | Concurrent deactivations of one route: `Routes.IsActive` is the EF concurrency token, so exactly one succeeds and the other gets `422 Network.RouteAlreadyInactive` with no audit event. `Routes` has no `rowversion`, and no request or response carries a version. | ENGINEERING DECISION (tech lead, hein, 2026-09-24, E1/E8; F-001 Amendment 1 pattern) | F-001 §7; `DeactivateStationHandler` |
+| R17 | Concurrent deactivations of one route: `Routes.IsActive` is the EF concurrency token, so exactly one succeeds and the other gets `422 Network.RouteAlreadyInactive` with no audit event and changes neither `IsActive` nor `DeactivatedAtUtc` (the winner's timestamp stands). `Routes` has no `rowversion`, and no request or response carries a version. | ENGINEERING DECISION (tech lead, hein, 2026-09-24, E1/E8; F-001 Amendment 1 pattern) | F-001 §7; `DeactivateStationHandler` |
 | R18 | A station's position in a route is a 1-based contiguous ordinal within that route. It is not the ADR-0014 station short index and not the station code, and F-003 neither reads nor allocates the short index. | ENGINEERING DECISION (tech lead, hein, 2026-09-24, E6; ADR-0014) | ADR-0014 §Decision; `docs/glossary.md` (`Station index`) |
 | R19 | Route identifiers are application-generated GUIDs through `IIdGenerator`, mapped `ValueGeneratedNever()`. | ENGINEERING DECISION | ADR-0006 §Decision item 1 and 2026-09-19 amendment |
 | R20 | Creating a route and deactivating a route are audited, with actor fields from the authenticated server-side context only. | ENGINEERING DECISION | ADR-0017 §Decision items 1–2; ADR-0021; F-001 R10 precedent |
@@ -181,7 +191,7 @@ Provisional rulings are labelled "BUSINESS DECISION — provisional tech-lead ru
 | R22 | Instants are `DateTimeOffset` / `datetimeoffset(3)` UTC. Routes own no `BusinessDate` and no effective dates. | ENGINEERING DECISION | ADR-0018 §Time; ADR-0019 |
 | R23 | No real route data ships: no seed migration and no fixture of the YCR loop. Tests build their own stations and routes. The real loop is entered later as one route (R5). | FACT (consequence of OQ1, open) | `docs/19` OQ1; F-001 §Blocked behaviour precedent |
 | R24 | Route responses show each station's **current** code, names and active flag, read at query time; a route row stores only `StationId`. | ENGINEERING DECISION | E5; G8 |
-| R25 | `isClosed` is a required boolean on `POST /routes`; a missing value is `400 Common.ValidationFailed`. There is no default, so the API never picks a topology on the caller's behalf. | ENGINEERING DECISION (proposed in this revision; hein confirms at approval) | R6; AGENTS.md rule 1 |
+| R25 | `isClosed` is a required boolean on `POST /routes`; a missing value is `400 Common.ValidationFailed`. There is no default, so the API never picks a topology on the caller's behalf. | ENGINEERING DECISION (tech lead, hein, 2026-09-24) | R6; AGENTS.md rule 1 |
 
 **Blocking open questions:** none. OQ36–OQ41 are resolved for F-003 by provisional tech-lead rulings and remain open with Myanma Railways. OQ1 (real station and route data) and OQ17 (fare direction) stay open and do not block this spec (R23, §9).
 
@@ -226,9 +236,9 @@ Status codes follow ADR-0004. Every error response is ProblemDetails with `error
 - **S20.** *Removed (OQ38 ruling and E1, 2026-09-24).*
 - **S21.** Two parallel POSTs with the same route code → one `201`, one `409 Network.RouteCodeAlreadyExists` through the unique-index violation (ADR-0004); exactly one route row and one `Network.RouteCreated` event.
 - **S22.** An audit event's actor fields come from the authenticated context; actor fields supplied in the request body are ignored (ADR-0017 §2; F-001 S20).
-- **S23.** Route deactivation (R15, R17): `POST /routes/{id}/deactivate` on an active route → `204` and one `Network.RouteDeactivated` event; the route row and its `RouteStations` rows are kept, and S2 shows `isActive = false` with the unchanged sequence. Again → `422 Network.RouteAlreadyInactive`, no event. **Two in parallel on the same active route → exactly one `204`, one `422 Network.RouteAlreadyInactive`, and exactly one `Network.RouteDeactivated` event** (F-001 S27 pattern).
+- **S23.** Route deactivation (R15, R17): `POST /routes/{id}/deactivate` on an active route → `204` and one `Network.RouteDeactivated` event; the row has `IsActive = 0` and `DeactivatedAtUtc` set to the clock's UTC now, both written by the same `UPDATE`; the route row and its `RouteStations` rows are kept, and S2 shows `isActive = false`, `deactivatedAtUtc` set and the unchanged sequence. Again → `422 Network.RouteAlreadyInactive`, no event, and `DeactivatedAtUtc` keeps its first value. **Two in parallel on the same active route → exactly one `204`, one `422 Network.RouteAlreadyInactive`, and exactly one `Network.RouteDeactivated` event; the losing request changes neither `IsActive` nor `DeactivatedAtUtc`** (F-001 S27 pattern). An active route reads back with `deactivatedAtUtc = null` (S2, S3).
 - **S24.** After a successful create the sequence is contiguous `1..n`; a failed create writes neither the route nor any `RouteStations` row (one `SaveChangesAsync`, ADR-0004).
-- **S25.** Database privileges (R10): `ycr_app` holds `SELECT`, `INSERT` and `UPDATE(IsActive)` on `network.Routes` and `SELECT`, `INSERT` on `network.RouteStations`. A test asserts the absences as well: no `DELETE` on either table; no `UPDATE` of `Routes.Code`, `NameEn`, `NameMy`, `IsClosed` or `CreatedAtUtc`; no `UPDATE` on `RouteStations`; no DDL (F-001 S22 pattern).
+- **S25.** Database privileges (R10): `ycr_app` holds `SELECT`, `INSERT` and `UPDATE(IsActive, DeactivatedAtUtc)` on `network.Routes` and `SELECT`, `INSERT` on `network.RouteStations`. A test asserts the absences as well: no `DELETE` on either table; no `UPDATE` of `Routes.Id`, `Code`, `NameEn`, `NameMy`, `IsClosed` or `CreatedAtUtc`; no `UPDATE` on `RouteStations`; no DDL (F-001 S22 pattern).
 - **S26.** A route's Myanmar name round-trips unchanged, using real Myanmar Unicode text (F-001 S14 pattern).
 - **S27.** *Removed (OQ38 ruling, 2026-09-24): no sequence versions.*
 - **S28.** Closed route read-back: given a closed route created from `[A, B, C]`, GET returns `isClosed = true` and exactly three stations, positions 1–3, with A only at position 1 (R6).
@@ -242,13 +252,13 @@ Status codes follow ADR-0004. Every error response is ProblemDetails with `error
 | Entity | From | Event | Guard | To |
 |---|---|---|---|---|
 | Route | (none) | `CreateRoute` | `routes.manage`; code and names valid (R13) and code unused by any route (R14); every station exists (R16) and is active (R11); no repeated station (R7); minimum length for its `IsClosed` value (R8) | Active |
-| Route | Active | `DeactivateRoute` | `routes.manage` | Inactive |
+| Route | Active | `DeactivateRoute` | `routes.manage` | Inactive, `DeactivatedAtUtc` set (A1) |
 | Route | Inactive | `DeactivateRoute` | — | rejected, `422 Network.RouteAlreadyInactive` |
 | Station | Active | `DeactivateStation` | `stations.manage` (unchanged from F-001) | Inactive; stays in every route sequence (R12) |
 
 A route has no other transition: its sequence, `IsClosed`, code and names never change (R9), and an inactive route stays inactive (R15).
 
-**Note for PLAN (not a rule).** A route creation can race a deactivation of one of its stations: the creation reads the station as active, the deactivation commits, then the creation commits. The end state is the same as the serial order "create, then deactivate", which the OQ39 ruling allows (the station stays in the sequence, shown inactive). PLAN decides whether that is enough or whether the active-station check must be serialised with station deactivation; the ruling dropped S18, so no scenario requires either.
+**Race between route creation and station deactivation — accepted, no serialisation (ENGINEERING DECISION, tech lead, hein, 2026-09-24).** A route creation can race a deactivation of one of its stations: the creation reads the station as active, the deactivation commits, then the creation commits. The end state is the same as the serial order "create, then deactivate", which the OQ39 ruling allows (the station stays in the sequence, shown inactive). The active-station check (R11) is therefore not serialised with station deactivation, and no scenario tests the interleaving.
 
 ---
 
@@ -259,8 +269,8 @@ Base path `/api/v1`, JSON camelCase, GUID ids, ProblemDetails with `errorCode` a
 | Method | Path | Request | Success | Error codes | Permission |
 |---|---|---|---|---|---|
 | POST | `/routes` | `CreateRouteRequest { code, nameEn, nameMy, isClosed, stationIds: Guid[] }` — the complete sequence, in order | `201` + `CreateRouteResponse { id }` and `Location` | `400 Common.ValidationFailed` · `400 Network.InvalidRouteCode` · `400 Network.InvalidRouteName` · `401` · `403` · `409 Network.RouteCodeAlreadyExists` · `422 Network.RouteStationNotFound` · `422 Network.RouteStationInactive` · `422 Network.RouteStationRepeated` · `422 Network.RouteTooFewStations` | `routes.manage` |
-| GET | `/routes/{id}` | — | `200` + `RouteResponse { id, code, nameEn, nameMy, isClosed, isActive, createdAtUtc, stations: [{ position, stationId, code, nameEn, nameMy, isActive }] }` | `401` · `403` · `404 Network.RouteNotFound` | `routes.read` |
-| GET | `/routes` | `?page=1&pageSize=50` (max 200); ordered by code; inactive routes included | `200` + `{ items: RouteSummaryResponse[], page, pageSize, totalCount }`; `RouteSummaryResponse { id, code, nameEn, nameMy, isClosed, isActive, stationCount, createdAtUtc }` | `400 Network.InvalidPageRequest` · `401` · `403` | `routes.read` |
+| GET | `/routes/{id}` | — | `200` + `RouteResponse { id, code, nameEn, nameMy, isClosed, isActive, createdAtUtc, deactivatedAtUtc, stations: [{ position, stationId, code, nameEn, nameMy, isActive }] }` | `401` · `403` · `404 Network.RouteNotFound` | `routes.read` |
+| GET | `/routes` | `?page=1&pageSize=50` (max 200); ordered by code; inactive routes included | `200` + `{ items: RouteSummaryResponse[], page, pageSize, totalCount }`; `RouteSummaryResponse { id, code, nameEn, nameMy, isClosed, isActive, stationCount, createdAtUtc, deactivatedAtUtc }` | `400 Network.InvalidPageRequest` · `401` · `403` | `routes.read` |
 | POST | `/routes/{id}/deactivate` | — | `204` | `401` · `403` · `404 Network.RouteNotFound` · `422 Network.RouteAlreadyInactive` | `routes.manage` |
 | POST | `/stations/{id}/deactivate` | unchanged | unchanged | unchanged — no new error code | `stations.manage` (existing F-001 endpoint, not modified) |
 
@@ -284,8 +294,9 @@ Schema `network` (ADR-0012; `docs/07` §Module schemas). Every `*Utc` column car
 | `NameEn` | `nvarchar(100)` | no | owned `BilingualName` (R13) |
 | `NameMy` | `nvarchar(100)` | no | Myanmar Unicode, never Zawgyi (`docs/20` §6; OQ29 ruling) |
 | `IsClosed` | `bit` | no | open (`0`) or closed (`1`), fixed at creation (R6, R9) |
-| `IsActive` | `bit` | no | EF concurrency token for deactivation (R17); the only column `ycr_app` may update (R10) |
+| `IsActive` | `bit` | no | EF concurrency token for deactivation (R17); `ycr_app` may update it and `DeactivatedAtUtc`, nothing else (R10) |
 | `CreatedAtUtc` | `datetimeoffset(3)` | no | UTC (ADR-0018) |
+| `DeactivatedAtUtc` | `datetimeoffset(3)` | yes | Null while active; set to the clock's UTC now in the same `UPDATE` that sets `IsActive = 0` (R15, A1). Because sequences are immutable, the rows are the business history, and "which routes were active on date X" must be answerable without reading the audit ledger |
 
 There is no `rowversion` and no direction column.
 
@@ -294,6 +305,7 @@ There is no `rowversion` and no direction column.
 | `PK_Routes` | clustered on `Id` | ADR-0006 |
 | `UX_Routes_Code` | unique on `Code` | Concurrency authority for duplicate codes, including inactive routes (R14, S21, S30); matched by name in `NetworkConstraints` |
 | `CK_Routes_CreatedAtUtc_Utc` | UTC check | ADR-0018 |
+| `CK_Routes_DeactivatedAtUtc_Utc` | `DeactivatedAtUtc IS NULL OR DATEPART(TZOFFSET, [DeactivatedAtUtc]) = 0` | ADR-0018; A1 |
 
 ### `network.RouteStations`
 
@@ -308,7 +320,7 @@ There is no `rowversion` and no direction column.
 | `PK_RouteStations` | on `(RouteId, Position)` | One station per position. Contiguity (`1..n`, no gaps) and the minimum length (R8) are enforced by the aggregate, since a check constraint cannot see other rows |
 | `CK_RouteStations_Position` | `Position >= 1` | Rejects zero and negatives from any writer |
 | `UX_RouteStations_RouteId_StationId` | unique on `(RouteId, StationId)` | A station never repeats in one sequence (R7, S8); matched by name in `NetworkConstraints` |
-| `IX_RouteStations_StationId` | nonclustered on `StationId` | Kept as proposed at discovery. Its original reason (the station-deactivation check) no longer applies after the OQ39 ruling; PLAN confirms or drops it |
+| `IX_RouteStations_StationId` | nonclustered on `StationId` | Left to PLAN (hein, 2026-09-24): kept only if a named query uses it, otherwise dropped at stage 3. Its original reason (the station-deactivation check) no longer applies after the OQ39 ruling |
 
 `RouteStations` is insert-only (R9, R10). The database, not only the application, therefore guarantees that a stored sequence never changes.
 
@@ -316,7 +328,7 @@ There is no `rowversion` and no direction column.
 
 | Table | Granted | Deliberately absent |
 |---|---|---|
-| `Routes` | `SELECT`, `INSERT`, `UPDATE(IsActive)` | `DELETE`; `UPDATE` of any other column |
+| `Routes` | `SELECT`, `INSERT`, `UPDATE(IsActive, DeactivatedAtUtc)` | `DELETE`; `UPDATE` of any other column |
 | `RouteStations` | `SELECT`, `INSERT` | `UPDATE`; `DELETE` |
 
 No DDL anywhere. `DatabasePrivilegeTests` asserts presences and absences (S25).
@@ -335,8 +347,8 @@ Migrations are named `yyyyMMddHHmmss_Network_<Change>` (`docs/20` §6) and revie
   | `Network.RouteDeactivated` | S23 | snapshot | snapshot |
   | `Network.StationDeactivated` | unchanged from F-001 (S17) | — | — |
 
-  `SubjectType` = `Network.Route`, a new constant in `NetworkAuditSubjects` (never a CLR name); `SubjectId` = route id; `AuthorizedByPermission` = `routes.manage`; `PayloadVersion` = 1. The snapshot is an explicit record, never the aggregate: `RouteAuditSnapshot { code, nameEn, nameMy, isClosed, isActive, stations: [{ position, stationId, stationCode }] }`. The station code is included so a ledger row is readable without a join, and it is stable because codes are never reused (F-001 R3). No personal data, token or key can appear (ADR-0021 rule 4).
-- **History.** Because sequences are immutable (R9), the stored rows are the history: a route that existed on a past date still has exactly the sequence it had then. No feature needs to read the audit ledger as business history.
+  `SubjectType` = `Network.Route`, a new constant in `NetworkAuditSubjects` (never a CLR name); `SubjectId` = route id; `AuthorizedByPermission` = `routes.manage`; `PayloadVersion` = 1. The snapshot is an explicit record, never the aggregate: `RouteAuditSnapshot { code, nameEn, nameMy, isClosed, isActive, deactivatedAtUtc, stations: [{ position, stationId, stationCode }] }`. The station code is included so a ledger row is readable without a join, and it is stable because codes are never reused (F-001 R3). No personal data, token or key can appear (ADR-0021 rule 4).
+- **History.** Because sequences are immutable (R9), the stored rows are the history: a route that existed on a past date still has exactly the sequence it had then, and `CreatedAtUtc` with `DeactivatedAtUtc` (A1) answers which routes were active on a given date. No feature needs to read the audit ledger as business history.
 - **Logging** (`docs/20` §7): message templates, no personal data.
 - **Metrics** (`docs/17`): none. No business event listed there belongs to routes; request metrics come from F-001's baseline.
 
@@ -373,8 +385,8 @@ No placeholder rule may be implemented for any of these (AGENTS.md §When a busi
 
 ## Notes for the next stage
 
-- Stage 3 (PLAN, `docs/templates/plan.md`) starts only after hein sets this spec to Approved.
+- Stage 3 (PLAN, `docs/templates/plan.md`) may start: this spec is Approved (hein, 2026-09-24). It is a separate task and is not started by T-032.
 - PLAN writes the route grants into a seed migration (F-002 R11 mechanism) matching `docs/10` §Route permission grants, and the `Security_NetworkRouteGrants` migration (R10). F-001's station scenarios, including S27, must still pass unchanged.
-- PLAN confirms or drops `IX_RouteStations_StationId` (§7).
+- PLAN keeps `IX_RouteStations_StationId` only if a named query uses it, otherwise drops it (§7).
 - `docs/08` gets the route endpoints and the note that `PATCH /routes` is not provided (stage 8).
 - Add OQ36–OQ41 to `docs/business/mr-questions-pack.md` (hein, listed in `progress.md`), marked as provisionally ruled.
