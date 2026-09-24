@@ -114,3 +114,29 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** none for F-003. OQ36–OQ41 are still open with Myanma Railways (the provisional rulings apply). OQ1 and OQ17 are unchanged.
 
 **State of the branch:** documentation only; all work committed on `feature/F-003` and pushed.
+
+---
+
+## 2026-09-24 21:40 Asia/Yangon — claude — T-035
+
+**Stage:** 4 (IMPLEMENT), plan step 1 of 7 (Domain) — done.
+**Commit:** step 1 code and this entry are one commit on `feature/F-003` (see `git log`).
+
+**Setup:** claimed T-035 (`git branch claim/T-035 main`; ledger commit "chore(tasks): claim T-035", pushed). Worktree at `999c392`; the spec (Approved, Amendments 1–2) and plan (Approved, revision 2 at `84f8ad8`) are the ones read. Baseline before any change: `dotnet test YCR.sln` **643 passed, 0 failed, 0 skipped**.
+
+**Naming used in this log:** the plan's own verification items are written **plan-V1…plan-V5**. Deviations from the plan are **V1, V2, …** (the F-002 convention).
+
+**Done:**
+- `NetworkCodeFormat` (the shared `^[A-Z0-9]{2,10}$`, P2); `StationCode` now calls it (behaviour unchanged); `RouteCode` (`Network.InvalidRouteCode`); `BilingualName.Create(en, my, whenInvalid)` with the two-argument overload delegating with `InvalidStationName` (P3); route errors in `NetworkErrors`; `RouteStation`; `Route` (`Create` with the P4 precedence R7 → R8 → R16 → R11, `Deactivate(nowUtc)`); `RouteDeactivated`.
+- Tests written in this step (RED seen first: the build failed on the missing `Route`/`RouteCode` types): `RouteCodeTests` (2 theories), `RouteTests` (16), `BilingualNameTests` +3. Existing `StationCodeTests`, `StationTests` and the existing `BilingualNameTests` cases are unmodified and pass.
+
+**Deviations:**
+- **V1 — one extra domain test.** `BilingualName_Create_WithRouteError_WhenValid_ReturnsTrimmedNames` is added beside the two the plan names, so the overload's success path is covered too. Domain count: 21 new, not 20. Nothing is removed or weakened.
+
+**Evidence:** `dotnet test tests/YCR.Domain.Tests` 126/126. `dotnet build YCR.sln` 0 warnings, 0 errors. `dotnet test YCR.sln` **681 passed, 0 failed, 0 skipped**.
+
+**Next step (exact):** plan step 2 (persistence: permissions, `INetworkDbContext.Routes`, constraints, audit subject, the two EF configurations, migration `Network_CreateRoutes`, plan-V4).
+
+**Blockers / open questions:** none.
+
+**State of the branch:** builds; tests green; committed and pushed.
