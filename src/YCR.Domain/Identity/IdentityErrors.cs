@@ -80,4 +80,19 @@ public static class IdentityErrors
     public static readonly Error LastAdministrator = Error.BusinessRule(
         "Identity.LastAdministrator",
         "At least one active SystemAdministrator must remain.");
+
+    /// <summary>A role name outside the catalogue (R19). The API's validator normally answers first.</summary>
+    public static readonly Error UnknownRole = Error.Validation(
+        "Identity.UnknownRole",
+        "One or more role names are not in the role catalogue.");
+
+    /// <summary>The <c>docs/20</c> §4 page limits, per module (the <c>Network.InvalidPageRequest</c> pattern).</summary>
+    public static readonly Error InvalidPageRequest = Error.Validation(
+        "Identity.InvalidPageRequest",
+        "Page must be 1 or greater and pageSize must be between 1 and 200.");
+
+    /// <summary>D10: the one-time bootstrap refuses once any <c>SystemAdministrator</c> exists (S32).</summary>
+    public static readonly Error AdministratorAlreadyExists = Error.BusinessRule(
+        "Identity.AdministratorAlreadyExists",
+        "A SystemAdministrator already exists; the bootstrap runs only once.");
 }

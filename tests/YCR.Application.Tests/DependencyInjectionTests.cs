@@ -46,7 +46,13 @@ public sealed class DependencyInjectionTests
         Assert.Contains(typeof(YCR.Application.Identity.ChangeOwnPassword.ChangeOwnPasswordHandler), handlers);
         Assert.Contains(typeof(YCR.Application.Identity.GetCurrentUser.GetCurrentUserHandler), handlers);
         Assert.Contains(typeof(YCR.Application.Identity.ResolveSessionPrincipal.ResolveSessionPrincipalHandler), handlers);
-        Assert.Equal(10, handlers.Count);
+        // F-002 step 6: administration and bootstrap.
+        foreach (var name in new[] { "ListUsers", "GetUser", "CreateUser", "DisableUser", "EnableUser", "UnlockUser", "ReplaceUserRoles", "ResetUserPassword", "ListUserSessions", "RevokeSession", "ListRoles", "BootstrapAdministrator" })
+        {
+            Assert.Contains(handlers, handler => handler.FullName == $"YCR.Application.Identity.{name}.{name}Handler");
+        }
+
+        Assert.Equal(22, handlers.Count);
     }
 
     [Fact]
