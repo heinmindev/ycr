@@ -519,3 +519,22 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** C-1 and C-2 are open review findings; no business blocker.
 
 **State of the branch:** review report and checkpoint are ready to commit; production code unchanged.
+
+---
+
+## 2026-09-24 19:05 Asia/Yangon — codex — T-029
+
+**Stage:** 7 (SECURITY REVIEW)
+**Commit:** reviewed `b3464b6`; security evidence committed in `review-codex.md`
+**Done this session:**
+- Reviewed token issuance/validation, refresh rotation and replay, principal cache bound, lockout and anti-enumeration, rate limits, Origin checks, must-change gating, privilege escalation/last-administrator rules, audit actors, signing keys and bootstrap CLI against `docs/18` and the security prompt.
+- Recorded S-1/S-3 Medium pre-production gates for MFA, trusted-proxy/shared rate limiting and production signing-key storage, plus S-4 Low `kid` validation hardening.
+- Confirmed no Critical or High security finding at reviewed commit `b3464b6`.
+
+**Evidence:** `review-codex.md` §Stage 7; full suite already proven **614 passed, 0 failed, 0 skipped** at stage 5.
+
+**Next step (exact):** update T-029 on `main` with the security verdict and this commit SHA, release the claim, then report all three stage SHAs and Critical/High/Medium findings.
+
+**Blockers / open questions:** S-1/S-3 are pre-production release gates; no Critical/High blocker.
+
+**State of the branch:** review report and checkpoint are uncommitted; production code unchanged.
