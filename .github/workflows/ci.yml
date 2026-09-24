@@ -171,10 +171,30 @@ jobs:
           echo "::add-mask::$app_password"
           echo "::add-mask::$migrator_password"
 
+          # F-002: an ephemeral ES256 (P-256) signing key for this run only (ADR-0023 item 7; R14).
+          # Its kid starts neither dev- nor test-, and it is not DevelopmentOnly, because the API
+          # runs as Production and refuses such keys (S26a). Every base64 line is masked before the
+          # key goes anywhere; the PEM header and footer are not secret.
+          signing_key="$(openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256)"
+          while IFS= read -r line; do
+            case "$line" in -----*) ;; *) echo "::add-mask::$line" ;; esac
+          done <<< "$signing_key"
+
+          # The first administrator's passwords for the bootstrap journey below (D10, R26).
+          admin_initial_password="In1!$(openssl rand -hex 16)"
+          admin_password="Ad1!$(openssl rand -hex 16)"
+          echo "::add-mask::$admin_initial_password"
+          echo "::add-mask::$admin_password"
+
           {
             echo "MSSQL_SA_PASSWORD=$sa_password"
             echo "YCR_APP_PASSWORD=$app_password"
             echo "YCR_MIGRATOR_PASSWORD=$migrator_password"
+            echo "YCR_SMOKE_ADMIN_INITIAL_PASSWORD=$admin_initial_password"
+            echo "YCR_SMOKE_ADMIN_PASSWORD=$admin_password"
+            echo "YCR_SMOKE_SIGNING_KEY<<YCR_SMOKE_SIGNING_KEY_EOF"
+            echo "$signing_key"
+            echo "YCR_SMOKE_SIGNING_KEY_EOF"
           } >> "$GITHUB_ENV"
 
       - name: Start the database
@@ -185,6 +205,7 @@ jobs:
           dotnet tool restore
           dotnet restore YCR.sln
           dotnet build src/YCR.Api/YCR.Api.csproj --no-restore --configuration Release
+          dotnet build src/YCR.Worker/YCR.Worker.csproj --no-restore --configuration Release
 
       # Applied under the migrator credential, then the app user is joined to the role the
       # migration created. The API itself never has DDL rights (spec E7, S22).
@@ -205,18 +226,28 @@ jobs:
           sleep 10
           docker logs ycr-sqlserver-init
 
-      # Against the built API and a real database — not the test host. Every API test registers
-      # the test authentication handler, so the suite is structurally blind to the shape that
-      # actually ships; that is how an unauthenticated request returning 500 instead of 401
-      # reached step 11 undetected. This job is the check that would have caught it.
+      # Against the built API and a real database — not the test host. In F-001 every API test
+      # registered the test authentication handler, so the suite was structurally blind to the
+      # shape that actually ships; that is how an unauthenticated request returning 500 instead of
+      # 401 reached step 11 undetected. F-002's real-token and Unmodified-host tests narrow that
+      # gap, and this job still checks the built artifacts as a deployment runs them.
       #
       # ASPNETCORE_ENVIRONMENT is deliberately NOT Development: the OpenAPI document must not be
       # served outside it, and that is asserted below.
+      #
+      # F-002: the deployed shape needs a signing key and an allowed origin, or startup refuses
+      # (S26a, R9). Both come from the environment, as they would from a deployment's secret
+      # store; the key never touches the disk.
       - name: Run the API
         env:
           ASPNETCORE_ENVIRONMENT: Production
           ASPNETCORE_URLS: http://127.0.0.1:5080
           ConnectionStrings__Application: Server=localhost,1433;Database=YCR;User Id=ycr_app;Password=${{ env.YCR_APP_PASSWORD }};TrustServerCertificate=True;Current Language=us_english
+          Auth__AllowedOrigins__0: https://ycr.smoke.invalid
+          Auth__Signing__ActiveKeyId: ci-${{ github.run_id }}
+          Auth__Signing__Keys__0__KeyId: ci-${{ github.run_id }}
+          Auth__Signing__Keys__0__DevelopmentOnly: 'false'
+          Auth__Signing__Keys__0__PrivateKeyPkcs8Pem: ${{ env.YCR_SMOKE_SIGNING_KEY }}
         run: |
           # The built assembly, run directly. `dotnet run` would background a launcher whose PID
           # is not the API's, leaving nothing reliable to stop afterwards.
@@ -257,15 +288,79 @@ jobs:
           check "/openapi/v1.json is not served outside Development" 404 \
             "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:5080/openapi/v1.json)"
 
-          check "GET /api/v1/stations is 401" 401 \
-            "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:5080/api/v1/stations)"
+          api=http://127.0.0.1:5080
+          origin=https://ycr.smoke.invalid
+          headers="$RUNNER_TEMP/headers.txt"
+          header() { grep -i "^$1:" "$headers" | head -1 | cut -d' ' -f2- | tr -d '\r'; }
 
-          body=$(curl -s http://127.0.0.1:5080/api/v1/stations)
+          # F-002 (D14, S22): the framework bearer challenge, customised to ProblemDetails.
+          body=$(curl -s -D "$headers" "$api/api/v1/stations")
           echo "401 body: $body"
+          check "GET /api/v1/stations is 401" "HTTP/1.1 401 Unauthorized" "$(head -1 "$headers" | tr -d '\r')"
           # Not merely a 401: ProblemDetails with a stable errorCode, which is what a caller
           # actually branches on (docs/20 §4).
-          check "401 carries errorCode Common.Unauthenticated" "Common.Unauthenticated" \
-            "$(echo "$body" | sed -n 's/.*"errorCode":"\([^"]*\)".*/\1/p')"
+          check "401 carries errorCode Auth.Unauthenticated" "Auth.Unauthenticated" "$(echo "$body" | jq -r .errorCode)"
+          check "401 carries a traceId" "true" "$(echo "$body" | jq 'has("traceId")')"
+          check "401 carries WWW-Authenticate: Bearer" "Bearer" "$(header WWW-Authenticate)"
+
+          # R24 / P10: security headers on the challenge and on an ordinary 200; no CORS (S26b, S26c).
+          for path in /api/v1/stations /health/live; do
+            curl -s -o /dev/null -D "$headers" "$api$path"
+            check "$path X-Content-Type-Options" "nosniff" "$(header X-Content-Type-Options)"
+            check "$path Content-Security-Policy" "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'" "$(header Content-Security-Policy)"
+            check "$path Referrer-Policy" "no-referrer" "$(header Referrer-Policy)"
+            check "$path X-Frame-Options" "DENY" "$(header X-Frame-Options)"
+          done
+          curl -s -o /dev/null -D "$headers" -X OPTIONS "$api/api/v1/auth/login" \
+            -H "Origin: https://evil.invalid" -H "Access-Control-Request-Method: POST"
+          check "preflight from a foreign origin has no CORS header" "0" "$(grep -ci '^access-control-' "$headers" || true)"
+
+          login() {
+            curl -s -D "$headers" -X POST "$api/api/v1/auth/login" -H "Content-Type: application/json" "$@"
+          }
+
+          # R9: login without Origin is refused before any credential is evaluated.
+          body=$(login -d '{"userName":"smoke.admin","password":"irrelevant.value"}')
+          check "login without Origin is Auth.OriginRejected" "Auth.OriginRejected" "$(echo "$body" | jq -r .errorCode)"
+
+          # Through the identity schema and grants under ycr_app: an unknown user gets the uniform 401.
+          body=$(login -H "Origin: $origin" -d '{"userName":"smoke.admin","password":"irrelevant.value"}')
+          check "unknown user is Auth.InvalidCredentials" "Auth.InvalidCredentials" "$(echo "$body" | jq -r .errorCode)"
+
+          # D10 / S25 in the deployed shape: bootstrap with the built Worker (password on stdin),
+          # sign in, change the must-change password, sign in again, call a protected endpoint.
+          printf '%s\n' "$YCR_SMOKE_ADMIN_INITIAL_PASSWORD" | \
+            ConnectionStrings__Application="Server=localhost,1433;Database=YCR;User Id=ycr_app;Password=${YCR_APP_PASSWORD};TrustServerCertificate=True;Current Language=us_english" \
+            dotnet src/YCR.Worker/bin/Release/net10.0/YCR.Worker.dll bootstrap-administrator --username smoke.admin \
+            && bootstrap=0 || bootstrap=$?
+          check "bootstrap-administrator exits 0" "0" "$bootstrap"
+
+          body=$(login -H "Origin: $origin" -d "{\"userName\":\"smoke.admin\",\"password\":\"$YCR_SMOKE_ADMIN_INITIAL_PASSWORD\"}")
+          token=$(echo "$body" | jq -r .accessToken)
+          echo "::add-mask::$token"
+          check "login sets the hardened refresh cookie" "1" \
+            "$(grep -ci '^set-cookie: ycr_refresh=.*path=/api/v1/auth/refresh.*secure.*samesite=strict.*httponly' "$headers" || true)"
+          check "login responses are no-store" "no-store" "$(header Cache-Control)"
+          body=$(curl -s -H "Authorization: Bearer $token" "$api/api/v1/stations")
+          check "must-change session is Auth.PasswordChangeRequired" "Auth.PasswordChangeRequired" "$(echo "$body" | jq -r .errorCode)"
+          check "POST /api/v1/auth/password is 204" 204 "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$api/api/v1/auth/password" \
+            -H "Authorization: Bearer $token" -H "Content-Type: application/json" \
+            -d "{\"currentPassword\":\"$YCR_SMOKE_ADMIN_INITIAL_PASSWORD\",\"newPassword\":\"$YCR_SMOKE_ADMIN_PASSWORD\"}")"
+
+          body=$(login -H "Origin: $origin" -d "{\"userName\":\"smoke.admin\",\"password\":\"$YCR_SMOKE_ADMIN_PASSWORD\"}")
+          token=$(echo "$body" | jq -r .accessToken)
+          echo "::add-mask::$token"
+          check "GET /api/v1/stations with a real token is 200" 200 \
+            "$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $token" "$api/api/v1/stations")"
+          check "GET /api/v1/users with a real token is 200" 200 \
+            "$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $token" "$api/api/v1/users")"
+
+          # D10: a second bootstrap is refused (exit 1) and creates nothing.
+          printf '%s\n' "$YCR_SMOKE_ADMIN_INITIAL_PASSWORD" | \
+            ConnectionStrings__Application="Server=localhost,1433;Database=YCR;User Id=ycr_app;Password=${YCR_APP_PASSWORD};TrustServerCertificate=True;Current Language=us_english" \
+            dotnet src/YCR.Worker/bin/Release/net10.0/YCR.Worker.dll bootstrap-administrator --username second.admin \
+            && bootstrap=0 || bootstrap=$?
+          check "a second bootstrap exits 1" "1" "$bootstrap"
 
           exit $fail
 
