@@ -31,6 +31,7 @@ public static class AuthenticationSetup
         services.AddSingleton<IAccessTokenIssuer, JwtAccessTokenIssuer>();
         services.AddMemoryCache();
         services.AddSingleton<SessionPrincipalCache>();
+        services.AddSingleton<AuthRateLimiters>();
 
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
         services.AddSingleton<IConfigureOptions<JwtBearerOptions>, JwtBearerSetup>();

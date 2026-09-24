@@ -39,6 +39,25 @@ public sealed class AuthOptions
     public string[] AllowedOrigins { get; set; } = [];
 
     public SigningOptions Signing { get; set; } = new();
+
+    /// <summary>R16 / U6: the in-process limits on the anonymous cookie endpoints.</summary>
+    public AuthRateLimitOptions RateLimits { get; set; } = new();
+}
+
+/// <summary>
+/// R16 (D5, U6; ADR-0023 item 5): per-minute limits, in process and per instance. The defaults
+/// are the shipped values; a test asserts them (S5, S12).
+/// </summary>
+public sealed class AuthRateLimitOptions
+{
+    /// <summary>Sign-in attempts per minute for one normalized username.</summary>
+    public int LoginPerUserNamePerMinute { get; set; } = 5;
+
+    /// <summary>Sign-in attempts per minute from one client address.</summary>
+    public int LoginPerClientAddressPerMinute { get; set; } = 20;
+
+    /// <summary>Refreshes per minute from one client address (a refresh carries no username).</summary>
+    public int RefreshPerClientAddressPerMinute { get; set; } = 30;
 }
 
 /// <summary>

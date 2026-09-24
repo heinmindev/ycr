@@ -5,6 +5,7 @@ using YCR.Api.Common;
 using YCR.Api.Common.Authentication;
 using YCR.Api.Common.Authorization;
 using YCR.Api.Endpoints.Health;
+using YCR.Api.Endpoints.Identity;
 using YCR.Api.Endpoints.Network;
 using YCR.Application;
 using YCR.Application.Common.Abstractions;
@@ -72,7 +73,9 @@ if (app.Environment.IsDevelopment())
     app.MapScalarApiReference();
 }
 
-app.MapGroup("/api/v1").MapStationEndpoints();
+var api = app.MapGroup("/api/v1");
+api.MapAuthEndpoints();
+api.MapStationEndpoints();
 app.MapHealthEndpoints();
 
 await app.RunAsync();

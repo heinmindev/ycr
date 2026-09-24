@@ -36,6 +36,15 @@ public sealed class AuthOptionsValidator(IHostEnvironment environment) : IValida
             failures.Add("Auth lifetimes must be positive and the refresh grace window must not be negative.");
         }
 
+        var limits = options.RateLimits;
+        if (limits is null
+            || limits.LoginPerUserNamePerMinute <= 0
+            || limits.LoginPerClientAddressPerMinute <= 0
+            || limits.RefreshPerClientAddressPerMinute <= 0)
+        {
+            failures.Add("Auth:RateLimits values must be positive (R16).");
+        }
+
         var relaxed = environment.IsDevelopment() || environment.IsEnvironment("Testing");
         if (!relaxed && options.AllowedOrigins.Length == 0)
         {

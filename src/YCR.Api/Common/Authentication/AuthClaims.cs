@@ -29,6 +29,29 @@ public static class AuthErrorCodes
 /// <summary>Writes a pipeline ProblemDetails with an <c>errorCode</c> (and, via ProblemDetailsSetup, a <c>traceId</c>).</summary>
 public static class AuthProblem
 {
+    /// <summary>The same ProblemDetails as an <see cref="IResult"/>, for endpoint filters and endpoints.</summary>
+    public static IResult Result(int statusCode, string title, string detail, string errorCode) =>
+        Results.Problem(
+            title: title,
+            detail: detail,
+            statusCode: statusCode,
+            extensions: new Dictionary<string, object?> { ["errorCode"] = errorCode });
+
+    /// <summary>
+    /// The <c>401 Auth.Unauthenticated</c> an endpoint returns when the authenticated principal no
+    /// longer resolves (same body and <c>WWW-Authenticate</c> as the bearer challenge, D14).
+    /// </summary>
+    public static IResult Unauthenticated(HttpContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        context.Response.Headers.WWWAuthenticate = "Bearer";
+        return Result(
+            StatusCodes.Status401Unauthorized,
+            "Unauthorized",
+            "This endpoint requires a valid access token.",
+            AuthErrorCodes.Unauthenticated);
+    }
+
     public static Task WriteAsync(HttpContext context, int statusCode, string title, string detail, string errorCode)
     {
         ArgumentNullException.ThrowIfNull(context);

@@ -47,5 +47,11 @@ public sealed class SessionPrincipalCache(IMemoryCache cache, TimeProvider clock
             : null;
     }
 
+    /// <summary>
+    /// Drops a session's entry on this instance, so the session's own logout takes effect here at
+    /// once. Other instances still converge within the TTL (R3).
+    /// </summary>
+    public void Evict(Guid sessionId) => cache.Remove((typeof(SessionPrincipalCache), sessionId));
+
     private sealed record Entry(SessionPrincipal? Principal, DateTimeOffset LoadedAtUtc);
 }

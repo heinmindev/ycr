@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -49,6 +50,13 @@ public sealed class YcrApiFactory : WebApplicationFactory<Program>
     private readonly AuthMode mode;
     private readonly IReadOnlyDictionary<string, string?> settings;
     private readonly TestSigningKey signingKey;
+    private readonly Action<IServiceCollection>? configureServices;
+
+    /// <summary>
+    /// Test-only request header naming the client address for the rate-limit partitions (S5);
+    /// <c>TestServer</c> connections have none. Honoured only outside <see cref="AuthMode.Unmodified"/>.
+    /// </summary>
+    public const string ClientAddressHeader = "X-Test-Client-Address";
 
     /// <param name="connectionString">The least-privilege <c>ycr_app</c> connection.</param>
     /// <param name="environment">The hosting environment; <c>Production</c> exercises the startup guards.</param>
@@ -62,8 +70,10 @@ public sealed class YcrApiFactory : WebApplicationFactory<Program>
         AuthMode mode = AuthMode.TestHandler,
         TestClock? clock = null,
         IReadOnlyDictionary<string, string?>? settings = null,
-        TestSigningKey? signingKey = null)
+        TestSigningKey? signingKey = null,
+        Action<IServiceCollection>? configureServices = null)
     {
+        this.configureServices = configureServices;
         this.connectionString = connectionString;
         this.environment = environment;
         this.mode = mode;
@@ -105,6 +115,9 @@ public sealed class YcrApiFactory : WebApplicationFactory<Program>
             {
                 services.AddSingleton<TimeProvider>(Clock);
             }
+
+            services.AddSingleton<IStartupFilter, ClientAddressStartupFilter>();
+            configureServices?.Invoke(services);
 
             if (mode == AuthMode.TestHandler)
             {
@@ -153,4 +166,25 @@ public sealed class YcrApiFactory : WebApplicationFactory<Program>
             signingKey.Dispose();
         }
     }
+}
+
+/// <summary>
+/// Sets <c>Connection.RemoteIpAddress</c> from <see cref="YcrApiFactory.ClientAddressHeader"/>, first
+/// in the pipeline, so a test can speak "from" several addresses (S5). Test hosts only.
+/// </summary>
+internal sealed class ClientAddressStartupFilter : IStartupFilter
+{
+    public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next) => app =>
+    {
+        app.Use((context, nextMiddleware) =>
+        {
+            if (System.Net.IPAddress.TryParse(context.Request.Headers[YcrApiFactory.ClientAddressHeader], out var address))
+            {
+                context.Connection.RemoteIpAddress = address;
+            }
+
+            return nextMiddleware(context);
+        });
+        next(app);
+    };
 }
