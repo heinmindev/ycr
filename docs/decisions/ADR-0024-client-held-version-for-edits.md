@@ -48,3 +48,4 @@ Negative:
 Follow-up work:
 - If Accepted, add an "Edits and concurrency" rule to `docs/20` §4 and a note to `docs/08`.
 - F-003 is the first user (`docs/features/F-003-route-management/spec.md` R17).
+- **Proposed-stage note.** Before acceptance: a change that touches only child rows does not advance the parent's rowversion, and EF emits no WHERE RowVersion check unless the parent row is updated; the ADR must name how the parent row is forced to update (hein review, 2026-09-24).
