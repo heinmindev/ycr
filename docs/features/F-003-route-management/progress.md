@@ -34,7 +34,7 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 
 ---
 
-## 2026-09-24 20:40 Asia/Yangon — claude — T-032
+## 2026-09-24 20:12 Asia/Yangon — claude — T-032
 
 **Stage:** 2 (SPECIFY), revision applying hein's rulings — stopped at the stage-2 ⛔ again, for approval.
 **Commit:** spec at `bee71fe` on `feature/F-003`; this entry is the commit after it.
