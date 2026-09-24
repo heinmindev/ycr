@@ -337,3 +337,35 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 - The decisions and deviations recorded for steps 5–7 are **accepted as written**, including: case-insensitive username matching at sign-in; `IdentityRetry` limit 10 with jitter; the current password checked before the new password's policy on own password change, with no lockout count; a locked account's existing sessions stay valid; `/auth/me` answering `401` rather than an `Identity.*` code; the new codes `Identity.UnknownRole`, `Identity.InvalidPageRequest`, `Identity.AdministratorAlreadyExists`; the bootstrap refusing when any user (even disabled) holds `SystemAdministrator`; auditing every accepted role change (same set included); an administrator reset leaving the lockout state unchanged.
 - The CI `api-smoke` job staying red from step 7 until step 12 is accepted. **No PR before step 12 is green on GitHub Actions.**
 - Continue with steps 8–12 under the same rules (green `dotnet test` after each step; commit, push and a `progress.md` checkpoint after each). V8 at step 8. Stop after step 12 with the final SHA, the green Actions run URL, the final test totals and every deviation; then set T-025 to `review` as the plan says.
+
+---
+
+## 2026-09-24 10:30 Asia/Yangon — claude — T-025 step 8
+
+**Stage:** 4 (IMPLEMENT), plan step 8 of 12
+**Commit:** `3626cfb` on `feature/F-002`
+**Done this session:**
+- `YCR.Api/Endpoints/Identity/AuthEndpoints.cs`: `POST /auth/login` (anonymous), `POST /auth/refresh` (anonymous, cookie read inside the endpoint), `POST /auth/logout`, `GET /auth/me`, `POST /auth/password` (self-service `.RequireAuthorization()` with reason comments, all three marked `AllowedWhilePasswordChangeRequired`). Filter order on the cookie endpoints: Origin → rate limit → validation → handler (P6).
+- `OriginCheckFilter` (R9; exact scheme/host/port against `Auth:AllowedOrigins`, host case-insensitive; missing, repeated, `null`, other port/scheme, trailing path, look-alike host → `403 Auth.OriginRejected`).
+- `AuthRateLimiters` + `AuthRateLimitFilter` (`LoginRateLimitFilter`: per client address, then per normalized username; `RefreshRateLimitFilter`: per client address). Sliding window 1 min / 6 segments, no queue; `Auth:RateLimits:*` with U6 defaults 5 / 20 / 30, validated positive at start → `429 Auth.TooManyRequests`.
+- `RefreshCookie` (`ycr_refresh`; `HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth/refresh`; `Expires` = session expiry; logout expires it).
+- Contracts `LoginRequest` (+validator), `AccessTokenResponse`, `CurrentUserResponse`, `ChangePasswordRequest` (+validator); `AuthProblem.Result` / `AuthProblem.Unauthenticated` helpers.
+- Tests (`YCR.Api.Tests`): `RealAuthApiTestBase`; `LoginEndpointTests` (7), `LockoutEndpointTests` (3), `OriginTests` (22), `RefreshEndpointTests` (11), `LogoutEndpointTests` (3), `PasswordEndpointTests` (8), `RateLimitTests` (6), `MustChangePasswordTests` (3), `AuditActorTests` (2, sign-in half), `SecretLeakTests` (1), `BrowserControlsTests` (3). `YcrApiFactory` gains a `configureServices` hook and a test-only startup filter that sets the client address from `X-Test-Client-Address` (S5); both are absent in `Unmodified` mode.
+- **V8 passed:** a `WebApplicationFactory` cookie-container client on `https://localhost` stores the `Secure; SameSite=Strict; Path=/api/v1/auth/refresh` cookie and sends it back to `/auth/refresh` twice in a row (`Login_CookieContainerClient_SendsRefreshCookieBackToRefresh`). The container checks `Expires` against wall-clock time, so `RealAuthApiTestBase` starts its `TestClock` at the current second; tests that move the clock send the cookie explicitly.
+- **Mutation check:** with the login `OriginCheckFilter`, the `LoginRateLimitFilter` and the password-change cache eviction removed, exactly the 12 expected tests failed (7 origin cases, 4 login-limit tests, the must-change release test); restored.
+
+**Deviations from the plan / decisions inside its latitude:**
+- **Cache eviction on this instance:** a successful logout or own password change calls `SessionPrincipalCache.Evict(sid)` for the caller's session. Logout then answers `401` at once on the serving instance (spec §6.1 "a second call on a revoked session gets `401`"), and a must-change session is released at once after `POST /auth/password` (S19d). Other instances still converge within the TTL (R3); other sessions revoked by a password change are not evicted (their ids are not in hand) and follow the TTL.
+- Login limit order: the per-address partition is tried first; a request refused per address consumes no per-username permit, one refused per username has consumed a per-address permit. Usernames longer than 50 characters share one partition (R-10).
+- Validators check presence only. The login's username format is not validated, so a malformed name gets the same `401` as an unknown one (R23). An empty `newPassword` on `/auth/password` is `400 Common.ValidationFailed`; a present but non-conforming one is `400 Auth.PasswordRejected` (one home for the policy).
+- The four contracts are in one file, `Contracts/Identity/AuthContracts.cs` (plan listed one file each); `AuthRateLimitFilter` is an abstract base with `LoginRateLimitFilter` and `RefreshRateLimitFilter`.
+- `MustChangeSession_MayCallOnlyMeRefreshLogoutAndPassword` is a single test that enumerates every authorization-requiring route from the running endpoint table rather than a hand-written theory, so step 9's endpoints are covered without editing it. `AdministratorCreatedAndResetPasswords_AreMustChange`, the unlock half of `LockoutEndpointTests` and the administration half of `AuditActorTests` need the step-9 endpoints and land there.
+- Added beyond the plan's rows: `Login_AllowedOriginInOtherCase_IsAccepted`, `Login_NineFailuresThenSuccess_ResetsTheCount`, `Login_UnknownUserTenTimes_LocksNothingAndStoresNoTypedValue`, `ChangePassword_WithInvalidBody_Returns400`, `MustChangeSession_AnonymousEndpoints_AreUnaffected`.
+
+**Evidence:** `dotnet test YCR.sln` → **511/511 passed, 0 skipped** (+69). `dotnet build YCR.sln` 0 warnings.
+
+**Next step (exact):** plan step 9 — administration endpoints and contracts (`/users`, `/users/{id}`, disable, enable, unlock, roles, password-reset, auth-sessions, `/auth-sessions/{id}/revoke`, `/roles`) with the administration, revocation-latency, last-administrator, wrong-permission and remaining audit-actor rows.
+
+**Blockers / open questions:** none.
+
+**State of the branch:** committed and pushed; build green; tests green (CI `api-smoke` red until step 12, as accepted).
