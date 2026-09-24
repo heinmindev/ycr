@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk.Worker">
 
-  <!-- Listed by docs/06. Empty host in F-001; nothing uses it (spec section 9). -->
+  <!-- Listed by docs/06. F-002 adds the bootstrap-administrator command (plan P8); otherwise a bare host. -->
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting" />
   </ItemGroup>

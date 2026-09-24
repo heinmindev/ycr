@@ -12,8 +12,10 @@ namespace YCR.Api.Tests.Authentication;
 /// carry tokens the production issuer produced for sessions the production handler started.
 /// </summary>
 /// <remarks>
-/// The administration endpoints arrive in plan step 9; until then users are created through the
-/// domain and <see cref="IPasswordService"/>, exactly as <c>CreateUserHandler</c> does.
+/// Users are created through the domain and <see cref="IPasswordService"/>, exactly as
+/// <c>CreateUserHandler</c> does, so a test that is not about administration needs no
+/// administrator; with the must-change flag cleared by default, as spec §4 assumes. The
+/// administration endpoints themselves are tested through HTTP.
 /// </remarks>
 public static class StaffUserSeeder
 {

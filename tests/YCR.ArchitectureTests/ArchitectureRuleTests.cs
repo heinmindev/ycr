@@ -196,7 +196,9 @@ public sealed class ArchitectureRuleTests
             typeof(YCR.Domain.Common.Result).Assembly,
             typeof(YCR.Application.Network.INetworkDbContext).Assembly,
             typeof(YCR.Infrastructure.Persistence.YcrDbContext).Assembly,
-            ReflectionAssembly.Load("YCR.Api")
+            ReflectionAssembly.Load("YCR.Api"),
+            // F-002 (plan step 10): the Worker now composes the application too (bootstrap command).
+            typeof(YCR.Worker.SystemCurrentUser).Assembly,
         };
 
         var sourceViolations = sourceAssemblies

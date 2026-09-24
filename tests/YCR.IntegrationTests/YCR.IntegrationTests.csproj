@@ -1,23 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!--
-    Intentionally empty for all of F-001 (plan C4): docs/06 lists the project, but no end-to-end
-    journey exists yet. This waiver stays until a feature adds one.
-    Microsoft.Testing.Platform exits 8 when a run discovers no tests, which is a signal worth
-    keeping. This waiver is per project so an empty suite cannot hide once it should have tests.
-
-    Skipped in trunk-only mode, where tests/Directory.Build.props already adds the same option
-    for every project. Specifying it twice is not additive — Microsoft.Testing.Platform rejects
-    the duplicate and exits 5 without running anything, which is how this project failed the
-    trunk-only job the first time it ran.
+    End-to-end journeys across deployables (docs/06). F-002 adds the first: the Worker's
+    bootstrap-administrator command against a real database (plan step 10). The F-001 exit-code-8
+    waiver ("no tests discovered") is removed with it, as its note said it would be.
   -->
-  <PropertyGroup Condition="'$(YCR_RUN_TRUNK_ONLY_TESTS)' == ''">
-    <TestingPlatformCommandLineArguments>$(TestingPlatformCommandLineArguments) --ignore-exit-code 8</TestingPlatformCommandLineArguments>
-  </PropertyGroup>
-
-  <!-- Listed by docs/06. Empty in F-001: no end-to-end journey exists yet (plan C4). -->
   <ItemGroup>
     <ProjectReference Include="../../src/YCR.Api/YCR.Api.csproj" />
+    <ProjectReference Include="../../src/YCR.Worker/YCR.Worker.csproj" />
     <ProjectReference Include="../YCR.TestSupport/YCR.TestSupport.csproj" />
   </ItemGroup>
 
