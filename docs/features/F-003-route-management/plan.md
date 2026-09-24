@@ -1,10 +1,10 @@
 # Plan: F-003 Route management — the `Route` aggregate, its immutable station sequence, and route permissions
 
-Spec: `spec.md` — **Approved (hein, 2026-09-24)** at `15d3709`; every ruling is in spec §0.8.
+Spec: `spec.md` — **Approved (hein, 2026-09-24)** at `15d3709`; every ruling is in spec §0.8. Amended by Amendments 1–2 (hein, 2026-09-24, T-034; spec §0.9) at `bcbba09`.
 Stage: 3 (PLAN), `docs/workflows/02-feature-development.md`. Task T-034.
 Binding inputs: ADR-0004, ADR-0006, ADR-0012, ADR-0014, ADR-0017, ADR-0018, ADR-0021, ADR-0022; `docs/07`, `docs/08`, `docs/10` §Route permission grants; `docs/20-coding-conventions.md`; `docs/21-definition-of-done.md`. Worked examples: the F-001 and F-002 plans, and the existing `Network` slice (`CreateStation`, `DeactivateStation`, `GetStation`, `ListStations`).
 
-**Status: Draft — awaiting hein's approval.** Three questions for hein are in §Questions for hein (Q1–Q3). Q1 decides how `IX_RouteStations_StationId` is dropped, and it touches one index name in the Approved spec, so it is asked, not patched. Twelve plan decisions (P1–P12) are listed in §Decisions for hein to confirm or overturn. Stop at the ⛔: nothing is implemented until hein approves.
+**Status: Approved (hein, 2026-09-24).** Revision 2. hein ruled on Q1–Q3 on 2026-09-24 (§Rulings on the plan questions), and the resulting spec amendments are recorded as spec §0.9 Amendments 1–2. P1–P12 are approved as written. T-035 (stage 4) may proceed.
 
 ---
 
@@ -43,7 +43,7 @@ Run in a scratch console app outside the repository (`net10.0`, SDK 10.0.302, `M
 | O4 | Can both FKs be `NO ACTION`? | **Yes**, for a child entity (`OnDelete(DeleteBehavior.NoAction)` on both) and for an owned collection (by setting the ownership's `DeleteBehavior`). EF's default for the route FK would be `Cascade`, so it must be set explicitly. |
 | O5 | How does EF 10 translate `stationIds.Contains(s.Id)` with 3 000 ids, the handler's station lookup? | As **one** `nvarchar(max)` JSON parameter (`OPENJSON`), not one parameter per id. The SQL Server 2 100-parameter limit is therefore not a failure mode (see Q2). |
 
-O1–O3 are why **Q1** exists.
+O1–O3 are why **Q1** was asked. Its ruling, Amendment 1, follows O3.
 
 ### Verifications left to implementation, each with a step and a fallback
 
@@ -57,21 +57,19 @@ O1–O3 are why **Q1** exists.
 
 **ASSUMPTION:** none. Every business rule used is a spec rule (R1–R25) or one of hein's rulings in spec §0.8.
 
-**OPEN QUESTION:** none new in `docs/19`. Q1–Q3 are questions to hein about the spec and the task. They are not Myanma Railways questions.
+**OPEN QUESTION:** none new in `docs/19`. Q1–Q3 were questions to hein about the spec and the task, not Myanma Railways questions. All three are ruled (below).
 
 ---
 
-## Questions for hein
+## Rulings on the plan questions (hein, 2026-09-24)
 
-Found while planning. None is patched. The plan rows that depend on one are marked **Q1**, **Q2** or **Q3**.
+Revision 1 asked three questions (Q1–Q3). hein ruled on all three on 2026-09-24. The spec changes are recorded as spec §0.9 **Amendment 1** (Q1) and **Amendment 2** (Q2, Q3), and the plan rows below follow them.
 
-| # | Question | Why it is asked | Options | Blocks |
+| # | Question asked | Ruling | Label | Where applied |
 |---|---|---|---|---|
-| **Q1** | **How is `IX_RouteStations_StationId` dropped?** | This plan drops the index: no query in F-003 filters `RouteStations` by `StationId` alone (§DB changes, "Index decision"). But EF adds it by convention and puts it back if removed (O1, O2). The only local way to drop it is to reverse the unique index's columns (O3). That changes the index name spec §7 and R7 give: `UX_RouteStations_RouteId_StationId`, "unique on `(RouteId, StationId)`". | **(a) Recommended:** the unique index becomes `UX_RouteStations_StationId_RouteId` on `(StationId, RouteId)`. It enforces the same rule, EF adds no extra index, and a later "routes through station X" query gets its index for free. This needs a stage-2 amendment to the index name in spec §7 and R7. (b) Keep the spec's name and column order, and keep `IX_RouteStations_StationId` as EF's convention index. This overturns the approval decision, "kept only if a named query uses it". (c) Remove EF's FK-index convention for the whole model. **Not recommended:** it changes how every module is modelled, to save one index. | Step 2 (EF configuration, `Network_CreateRoutes`, `NetworkConstraints`). Steps 5–6 only use the constant's name. |
-| **Q2** | **Is there an upper limit on `stationIds`?** | The spec sets none. O5 shows there is no hard technical failure below the request-size limit (Kestrel's 30 MB default, about 750 000 ids). A limit would still be the first defence against API abuse (`docs/18`). But the number is also a business fact (the longest possible route), and AGENTS.md rule 1 forbids inventing it. | **(a) Recommended for F-003:** no limit. Only `routes.manage` holders (two administrator roles) can send the request, and every row is audited. Record the question for when real route data arrives (OQ1). (b) An engineering cap, which hein names, enforced by the validator as `400 Common.ValidationFailed`. That needs a new scenario, so it is a spec amendment. | Nothing, if (a). With (b), step 6 and one API test. |
-| **Q3** | **May stage 8 edit `docs/glossary.md`?** | T-034 asks for glossary entries at stage 8 (Route code, `IsClosed`, `RouteStation`/position). The Approved spec §9 lists "Editing … `docs/glossary.md`" as **out of scope**. | (a) Stage 8 adds the three entries, and spec §9's line is read as a stage-2 restriction only. (b) No glossary edit in F-003. The entries go to a separate task. | Stage 8 only. Does not block stage 4. |
-
-**Spec housekeeping, not edited (the spec is Approved):** spec §7 still describes `IX_RouteStations_StationId` as "left to PLAN". Stage 8 records the outcome in `docs/07`, and a Q1 (a) amendment would update §7 itself.
+| **Q1** | How is `IX_RouteStations_StationId` dropped, since EF adds it back by convention (O1–O3)? | **(a).** `UX_RouteStations_RouteId_StationId` on `(RouteId, StationId)` is replaced by **`UX_RouteStations_StationId_RouteId` on `(StationId, RouteId)`**. It enforces the same rule, and EF then adds no `IX_RouteStations_StationId`. | ENGINEERING DECISION (tech lead, hein, 2026-09-24); spec Amendment 1 | P7; §DB changes; `NetworkConstraints`; `RouteStationConfiguration`; `RouteModelTests`; step 2 |
+| **Q2** | Is there an upper limit on `stationIds`? | **(b).** At most **200** elements; more is `400 Common.ValidationFailed` (spec R26, S5). | ENGINEERING DECISION / REQUIRED CONTROL (tech lead, hein, 2026-09-24); spec Amendment 2 | P6 validator; §Security impact; §Test plan (S5); R-7; step 6 |
+| **Q3** | May stage 8 edit `docs/glossary.md`, which spec §9 listed as out of scope? | **(a).** Stage 8 adds the three entries. Spec §9 now reads: "Editing `docs/glossary.md` is out of scope for stages 1–2; stage 8 updates it per `docs/21`." `docs/business/mr-questions-pack.md` stays out of scope. | ENGINEERING DECISION (tech lead, hein, 2026-09-24); spec Amendment 2 | §Steps, Stage 8 documentation |
 
 ---
 
@@ -86,8 +84,8 @@ ENGINEERING DECISION (plan, T-034) unless stated. Each one cites the ruling it i
 | **P3** | **`BilingualName` gains `Create(string? en, string? my, Error whenInvalid)`.** The existing two-argument `Create` delegates to it with `NetworkErrors.InvalidStationName`, so its behaviour is unchanged. `CreateRouteHandler` passes `NetworkErrors.InvalidRouteName`. The XML comment is extended to route names (OQ41). | Reuses the value object and its 1–100 rule (R13) without mapping error codes in a handler. | A handler mapping `InvalidStationName` to `InvalidRouteName` |
 | **P4** | **All four sequence rules live in `Route.Create`.** Signature: `Result<Route> Create(Guid id, RouteCode code, BilingualName name, bool isClosed, IReadOnlyList<Guid> stationIds, IReadOnlyDictionary<Guid, bool> knownStationIsActive, DateTimeOffset nowUtc)`. The handler only loads the map (id → `IsActive` for each requested id that exists). **Fixed precedence** when several rules fail: R7 repeated → R8 too few → R16 not found (the first unknown id in sequence order) → R11 inactive (the first inactive id in sequence order). Checking R7 before R8 means R8 counts distinct stations. `Position` is assigned `1..n` inside the factory, so contiguity (R18, S24) holds by construction. | AGENTS.md rule 3: every rule can be tested without a database. Station existence and activity are facts the aggregate is *given*, and deciding what they mean stays with the aggregate. A fixed precedence makes the error a caller sees deterministic, and a domain test pins it. | Checks in the handler; a separate domain service (for one call site) |
 | **P5** | **Handler order in `CreateRouteHandler`:** `400` (validation filter) → `400 Network.InvalidRouteCode` → `400 Network.InvalidRouteName` → load station states → `Route.Create` (the four `422`s) → `409` code pre-check → one `SaveChangesAsync` (a `409` from `UX_Routes_Code`). | Checks run from cheapest and most local to most global: a request is judged valid in itself before it is checked against other routes. The `409` is always last, whether it comes from the pre-check or the index, so one rule describes both. | `409` first (the F-001 order, which had no `422`s) |
-| **P6** | **`stationIds` is `IReadOnlyList<string?>?` in `CreateRouteRequest`, not `Guid[]`.** The validator requires the list to be present and non-empty, and every element to be a `D`-format GUID (`Guid.TryParseExact(value, "D", …)`), giving `400 Common.ValidationFailed`. `isClosed` is `bool?` with `NotNull()` (R25). `code`, `nameEn` and `nameMy` are `NotEmpty()`, as in `CreateStationRequestValidator`. `ToCommand()` parses the ids after validation. | S5 requires a non-GUID id to return **`Common.ValidationFailed`**. A `Guid[]` would fail JSON binding before the validation filter runs, and the response would lack that `errorCode` (V5). Changing the global binding-failure response would alter every existing endpoint, which is out of scope (AGENTS.md rule 11). `CreateUserRequest.Roles` (`IReadOnlyList<string>?`) is the precedent. The OpenAPI document shows the items as strings, which is what the wire carries. The endpoint summary says they are station ids in GUID `D` format. | `Guid[]` with a global binding-error customisation |
-| **P7** | **Index: drop `IX_RouteStations_StationId` (Q1 (a)).** See §DB changes, "Index decision". | No F-003 query uses it (named-query table). | — |
+| **P6** | **`stationIds` is `IReadOnlyList<string?>?` in `CreateRouteRequest`, not `Guid[]`.** The validator requires the list to be present, non-empty and **at most 200 elements long** (R26, spec Amendment 2; the constant `CreateRouteRequestValidator.MaxStationIds = 200`, with a REQUIRED CONTROL comment), and every element to be a `D`-format GUID (`Guid.TryParseExact(value, "D", …)`), giving `400 Common.ValidationFailed`. `isClosed` is `bool?` with `NotNull()` (R25). `code`, `nameEn` and `nameMy` are `NotEmpty()`, as in `CreateStationRequestValidator`. `ToCommand()` parses the ids after validation. | S5 requires a non-GUID id to return **`Common.ValidationFailed`**. A `Guid[]` would fail JSON binding before the validation filter runs, and the response would lack that `errorCode` (V5). Changing the global binding-failure response would alter every existing endpoint, which is out of scope (AGENTS.md rule 11). `CreateUserRequest.Roles` (`IReadOnlyList<string>?`) is the precedent. The OpenAPI document shows the items as strings, which is what the wire carries. The endpoint summary says they are station ids in GUID `D` format. | `Guid[]` with a global binding-error customisation |
+| **P7** | **Index: drop `IX_RouteStations_StationId`**, by declaring the unique index as `UX_RouteStations_StationId_RouteId` on `(StationId, RouteId)` (Q1 (a), spec Amendment 1). See §DB changes, "Index decision". | No F-003 query uses it (named-query table). | Keeping EF's convention index; removing the FK-index convention for the whole model |
 | **P8** | **Three migrations, kept separate** as in F-002: `Network_CreateRoutes` → `Identity_SeedRoutePermissionGrants` → `Security_NetworkRouteGrants`. | F-002 kept schema, seed and grants apart (`Identity_CreateIdentitySchema`, `Identity_SeedRolesAndPermissionGrants`, `Security_IdentityGrants`). Each has its own reviewer concern and its own `Down()`. The seed writes `identity.RolePermissions`, so it is an `Identity_` migration. The grant name is spec §7's. | One migration (mixes three review concerns and three rollbacks) |
 | **P9** | **Audit.** The actions are the literals `"Network.RouteCreated"` and `"Network.RouteDeactivated"`, as the Network slice writes `"Network.StationCreated"`. The subject is `NetworkAuditSubjects.Route = "Network.Route"`. `RouteAuditSnapshot.From(Route route, IReadOnlyDictionary<Guid, string> stationCodes)` is built in the handler, which already has the codes: from the station lookup on create, and from one `Stations` query on deactivate. `AuthorizedByPermission` comes from the endpoint through `ICurrentUser`, as today, so it is `routes.manage` without any handler code. | Follows the surrounding Network code (`docs/20` §1 puts snapshots in Application). Snapshots never carry the aggregate (ADR-0021). | A `NetworkAuditActions` class (a refactor of the station slice, out of scope) |
 | **P10** | **Deactivation** follows F-001's pattern. `Route.Deactivate(DateTimeOffset nowUtc)` refuses a second call (`RouteAlreadyInactive`) and a non-UTC time (throws, as `Station.Create` does), sets `IsActive = false` and `DeactivatedAtUtc = nowUtc`, and raises `RouteDeactivated(Guid RouteId)`. The event is collected and not dispatched (F-001 P6). The handler takes `TimeProvider`, writes the audit row, and calls `SaveChangesAsync` **once**. `DbUpdateConcurrencyException` becomes `RouteAlreadyInactive`. Only `IsActive` is a concurrency token (R17). | The loser's `UPDATE … WHERE IsActive = 1` matches no row, so its `DeactivatedAtUtc` and audit row roll back with it. The winner's timestamp stands (S23). | A `rowversion` (ruled out by E1/E8) |
@@ -120,7 +118,7 @@ Modules touched: **`Network`** (routes), **`Identity`** (a data-only seed migrat
 |---|---|---|
 | `Common/Authorization/Permissions.cs` | Changed | `RoutesManage = "routes.manage"`, `RoutesRead = "routes.read"`, with the OQ40 provisional-ruling comment |
 | `Network/INetworkDbContext.cs` | Changed | `DbSet<Route> Routes` |
-| `Network/NetworkConstraints.cs` | Changed | `RouteCodeUniqueIndex = "UX_Routes_Code"`; `RouteStationUniqueIndex` = the Q1 name |
+| `Network/NetworkConstraints.cs` | Changed | `RouteCodeUniqueIndex = "UX_Routes_Code"`; `RouteStationUniqueIndex = "UX_RouteStations_StationId_RouteId"` (spec Amendment 1) |
 | `Network/NetworkAuditSubjects.cs` | Changed | `Route = "Network.Route"` |
 | `Network/RouteAuditSnapshot.cs` | New | `RouteAuditSnapshot(Code, NameEn, NameMy, IsClosed, IsActive, DeactivatedAtUtc, Stations)` plus `RouteStationAuditSnapshot(Position, StationId, StationCode)`, both records (§Audit) |
 | `Network/CreateRoute/CreateRouteCommand.cs`, `CreateRouteHandler.cs` | New | P4, P5 |
@@ -134,7 +132,7 @@ Modules touched: **`Network`** (routes), **`Identity`** (a data-only seed migrat
 | File | New / Changed | Why |
 |---|---|---|
 | `Persistence/Configurations/Network/RouteConfiguration.cs` | New | Table, check constraints in the model, `UX_Routes_Code`, `IsActive` concurrency token, the `HasMany` to `RouteStation` (P1) |
-| `Persistence/Configurations/Network/RouteStationConfiguration.cs` | New | Composite PK, `CK_RouteStations_Position`, the unique index (Q1), the FK to `Station` with `NO ACTION` and no navigation |
+| `Persistence/Configurations/Network/RouteStationConfiguration.cs` | New | Composite PK, `CK_RouteStations_Position`, `UX_RouteStations_StationId_RouteId` on `(StationId, RouteId)` (Amendment 1), the FK to `Station` with `NO ACTION` and no navigation |
 | `Persistence/YcrDbContext.cs` | Changed | `public DbSet<Route> Routes => Set<Route>();` |
 | `Persistence/Migrations/<ts>_Network_CreateRoutes.cs` (+ `.Designer.cs`) | New | §DB changes |
 | `Persistence/Migrations/<ts>_Identity_SeedRoutePermissionGrants.cs` (+ `.Designer.cs`) | New | ″ |
@@ -188,7 +186,7 @@ State: `Id`, `Code` (`RouteCode`), `Name` (`BilingualName`), `IsClosed`, `IsActi
 
 | Rule | Domain (authority for the error code) | Database (authority for integrity) |
 |---|---|---|
-| R7 repeated station | `Route.Create` | The unique index on the station pair (Q1). A violation is mapped by constraint name to `RouteStationRepeated`. This is defence in depth: one validated aggregate insert cannot trigger it. |
+| R7 repeated station | `Route.Create` | `UX_RouteStations_StationId_RouteId` (Amendment 1). A violation is mapped by constraint name to `RouteStationRepeated`. This is defence in depth: one validated aggregate insert cannot trigger it. |
 | R8 minimum length | `Route.Create` | none: a check constraint cannot count rows (spec §7) |
 | R11 inactive station | `Route.Create`, with the handler's loaded map | none. The race with a station deactivation is **accepted** (spec §5, hein 2026-09-24): no lock and no serialisation, because the end state equals the serial order "create, then deactivate", which R12 allows. **Not reopened here.** |
 | R16 station exists | `Route.Create`, with the loaded map | `FK_RouteStations_Stations_StationId`. Stations are never deleted (no `DELETE` grant; F-001 R3), so the pre-check cannot go stale. |
@@ -229,7 +227,7 @@ Objects: `PK_Routes` · `UX_Routes_Code` (unique on `Code`) · `CK_Routes_Create
 | `Position` | `int` | no |
 | `StationId` | `uniqueidentifier` | no |
 
-Objects: `PK_RouteStations` on `(RouteId, Position)` · `CK_RouteStations_Position` = `[Position] >= 1` · the unique station index (**Q1**: `UX_RouteStations_StationId_RouteId` on `(StationId, RouteId)` recommended, or the spec's `UX_RouteStations_RouteId_StationId` on `(RouteId, StationId)`) · `FK_RouteStations_Routes_RouteId` → `network.Routes(Id)` **NO ACTION** · `FK_RouteStations_Stations_StationId` → `network.Stations(Id)` **NO ACTION** (O4: EF's default for the route FK is `Cascade`, so `OnDelete(NoAction)` is explicit, and `RouteModelTests` pins both).
+Objects: `PK_RouteStations` on `(RouteId, Position)` · `CK_RouteStations_Position` = `[Position] >= 1` · `UX_RouteStations_StationId_RouteId` unique on `(StationId, RouteId)` (spec Amendment 1; it also covers the station FK, so EF adds no `IX_RouteStations_StationId`) · `FK_RouteStations_Routes_RouteId` → `network.Routes(Id)` **NO ACTION** · `FK_RouteStations_Stations_StationId` → `network.Stations(Id)` **NO ACTION** (O4: EF's default for the route FK is `Cascade`, so `OnDelete(NoAction)` is explicit, and `RouteModelTests` pins both).
 
 `network.Stations` is not altered. No existing column changes. Data impact: none (new, empty tables). **No seed or fixture route** (R23, OQ1).
 
@@ -246,7 +244,7 @@ Objects: `PK_RouteStations` on `(RouteId, Position)` · `CK_RouteStations_Positi
 | Reverse FK check on `DELETE FROM Stations` | **never runs**: `ycr_app` has no `DELETE` on `Stations`, and codes are never reused (F-001 R3) |
 | "Which routes contain station X?" | **no such query in F-003.** OQ39 removed the station-deactivation check it was designed for (spec §7) |
 
-No query filters `RouteStations` by `StationId`, so the index is dropped. EF adds it back by convention unless another index leads with `StationId` (O1–O3). The recommended way to drop it is Q1 (a). If a later feature adds a "routes through station X" read, it gets its index from the Q1 (a) unique index, or from its own reviewed migration under Q1 (b).
+No query filters `RouteStations` by `StationId`, so the index is dropped. EF adds it back by convention unless another index leads with `StationId` (O1–O3), so it is dropped by making `StationId` the leading column of the unique index (Q1 (a), spec Amendment 1). If a later feature adds a "routes through station X" read, that unique index serves it.
 
 **Rollback.** `Down()` drops `RouteStations`, then `Routes`. It **does not** drop the `network` schema, which `Network_CreateStations` owns (FACT above). After real routes exist, a down-migration destroys route history, so the recovery path in production is restoring a backup, not `Down()` (as in F-002). **Roll-forward:** any correction is a new migration. An applied migration is never edited (`docs/20` §6).
 
@@ -375,10 +373,10 @@ Both are records in `YCR.Application.Network`, so the existing `AuditSnapshots_W
 | Grants | Data, seeded by the reviewed `Identity_SeedRoutePermissionGrants` (OQ40 provisional ruling). No API edits them. `RoutePermissionGrantTests` proves the seed end to end with **real tokens** (a `TicketOperator` can read but not manage; a `RailwayAdministrator` can manage). |
 | Database least privilege | `Security_NetworkRouteGrants` (R10). `ycr_app` cannot rewrite or delete a sequence even with arbitrary SQL. `DatabasePrivilegeTests` asserts presences **and** absences (S25), and every Application and API test runs as `ycr_app`, so a missing grant fails a test. |
 | Audit integrity | Actor fields come from `ICurrentUser`, never from the body (S22). The ledger is append-only (ADR-0017), and snapshots are explicit records. |
-| Input handling | Codes and names are validated by value objects. Station ids must be `D`-format GUIDs (P6). Pagination is capped at 200. The `stationIds` count has no limit (Q2). EF parameterises all SQL, and the id list is one JSON parameter (O5). |
+| Input handling | Codes and names are validated by value objects. Station ids must be `D`-format GUIDs (P6). Pagination is capped at 200. **REQUIRED CONTROL (R26, spec Amendment 2):** `stationIds` has at most 200 elements; the validator rejects a longer list with `400 Common.ValidationFailed` before the handler runs, so nothing is read or written. EF parameterises all SQL, and the id list is one JSON parameter (O5). |
 | Error disclosure | Error messages name only the caller's own input (a code, or a station id). A `500` carries no internals (F-001 S25 handler). |
 
-**`docs/18` threats this feature touches:** *Unauthorized configuration* (route definitions are railway operational configuration; `routes.manage` held by two roles; every change audited). *Privilege escalation* (seeded grants only, no grant API, `DatabasePrivilegeTests`). *Insider manipulation* (immutable sequences enforced by the grants as well as the domain; deactivation audited with before and after). *Data disclosure* (reads need `routes.read`; responses carry no personal data). *API abuse* (pagination cap; Q2 for the sequence length). *Audit tampering* (unchanged ledger controls). Cookie, CSP and XSS controls are not touched: F-003 adds no cookie-bearing endpoint and no SPA.
+**`docs/18` threats this feature touches:** *Unauthorized configuration* (route definitions are railway operational configuration; `routes.manage` held by two roles; every change audited). *Privilege escalation* (seeded grants only, no grant API, `DatabasePrivilegeTests`). *Insider manipulation* (immutable sequences enforced by the grants as well as the domain; deactivation audited with before and after). *Data disclosure* (reads need `routes.read`; responses carry no personal data). *API abuse* (pagination cap; `stationIds` capped at 200, R26). *Audit tampering* (unchanged ledger controls). Cookie, CSP and XSS controls are not touched: F-003 adds no cookie-bearing endpoint and no SPA.
 
 ---
 
@@ -447,7 +445,7 @@ Names follow `docs/20` §2. "TH" = F-001's test authentication handler; "Real" =
 | Test | Credential | Spec |
 |---|---|---|
 | `RouteModel_MapsTablesKeysAndConstraintNames` (unique index names equal `NetworkConstraints` constants; PKs; no `rowversion`; `IsActive` concurrency token) | — | §7, R14, R17 |
-| `RouteModel_RouteStationsHasNoStationIdOnlyIndex` (the index decision) | — | P7, Q1 |
+| `RouteModel_RouteStationsHasNoStationIdOnlyIndex` (the index decision: only `PK_RouteStations` and `UX_RouteStations_StationId_RouteId` exist) | — | P7, Amendment 1 |
 | `RouteModel_ForeignKeys_AreNoActionWithoutStationNavigation` | — | §7, E5 |
 | `Model_WithUtcColumn_DeclaresItsCheckConstraint` (existing theory, plus `CK_Routes_CreatedAtUtc_Utc` and `CK_Routes_DeactivatedAtUtc_Utc`) · `RouteModel_DeclaresPositionCheck` | — | ADR-0018, §7 |
 | `DownMigration_NetworkCreateRoutes_DropsTablesButNotNetworkSchema` | — | Rollback |
@@ -469,7 +467,8 @@ Names follow `docs/20` §2. "TH" = F-001's test authentication handler; "Real" =
 | `Post_WithValidRequest_Returns201WithLocationAndId` | TH | S1 |
 | `Get_WithKnownId_ReturnsRouteResponseRecordNotEntity` (exact JSON property set, including the nested stations) | TH | S2 |
 | `List_WithThreeRoutesOneInactive_ReturnsPagedEnvelopeOrderedByCode` | TH | S3 |
-| `Post_WithInvalidBody_Returns400CommonValidationFailed` (theory: missing `stationIds`; empty; a non-GUID id; a null element; missing `code`, `nameEn`, `nameMy`; missing `isClosed`) | TH | **S5** |
+| `Post_WithInvalidBody_Returns400CommonValidationFailed` (theory: missing `stationIds`; empty; a non-GUID id; a null element; missing `code`, `nameEn`, `nameMy`; missing `isClosed`; **201 ids**) | TH | **S5**, R26 |
+| `Post_WithExactly200StationIds_PassesValidationAndReachesTheHandler` (200 well-formed unknown ids → `422 Network.RouteStationNotFound`, not `400`) | TH | S5, R26 |
 | `Post_WithUnknownStation_Returns422RouteStationNotFound` | TH | S6 |
 | `Post_WithInactiveStation_Returns422RouteStationInactive` | TH | S7 |
 | `Post_WithRepeatedStation_Returns422RouteStationRepeated` (incl. closed `[A,B,C,A]`) | TH | S8 |
@@ -508,7 +507,7 @@ Live scenarios: **24**, which is S1–S30 minus the six removed (S4, S16, S18, S
 | S1 | Domain, Application, Api |
 | S2 | Application, Api |
 | S3 | Application (×2), Api |
-| S5 | Api |
+| S5 | Api (×2) |
 | S6, S7, S8, S9 | Domain, Application, Api |
 | S10 | Application, Api |
 | S11 | Domain (×3), Application, Api (×2) |
@@ -527,7 +526,7 @@ Live scenarios: **24**, which is S1–S30 minus the six removed (S4, S16, S18, S
 | S29 | Application, Api |
 | S30 | Application, Api |
 
-**Counts:** 24 scenarios; **93 named tests** (a theory counts once). **86 are new:** Domain 20, Application 27, Infrastructure 12, Api 27 (including the two real-token tests). **7 are existing tests changed to cover F-003:** `DependencyInjection_ResolvesEveryHandler`, `Model_WithUtcColumn_DeclaresItsCheckConstraint`, `ApplicationCredential_AttemptingDdl_IsDenied`, `ApplicationCredential_CannotWriteRolesOrGrants`, `Seed_ProducesExactlyEightRolesAndTwentyFourGrants` (renamed), `Seed_MatchesDocs10GrantTables` and `ProtectedEndpoint_Anonymous_Returns401BearerChallengeWithProblemDetails`. `Seed_EveryPermissionIsAPermissionsConstant` covers the new rows without a code change. The "existing … regression" rows are not counted. No test is disabled, skipped or deleted.
+**Counts:** 24 scenarios; **94 named tests** (a theory counts once). **87 are new:** Domain 20, Application 27, Infrastructure 12, Api 28 (including the two real-token tests). **7 are existing tests changed to cover F-003:** `DependencyInjection_ResolvesEveryHandler`, `Model_WithUtcColumn_DeclaresItsCheckConstraint`, `ApplicationCredential_AttemptingDdl_IsDenied`, `ApplicationCredential_CannotWriteRolesOrGrants`, `Seed_ProducesExactlyEightRolesAndTwentyFourGrants` (renamed), `Seed_MatchesDocs10GrantTables` and `ProtectedEndpoint_Anonymous_Returns401BearerChallengeWithProblemDetails`. `Seed_EveryPermissionIsAPermissionsConstant` covers the new rows without a code change. The "existing … regression" rows are not counted. No test is disabled, skipped or deleted.
 
 ### Whole suite
 
@@ -544,13 +543,13 @@ Live scenarios: **24**, which is S1–S30 minus the six removed (S4, S16, S18, S
 
 | # | Risk | Likelihood | Mitigation |
 |---|---|---|---|
-| R-1 | Q1 is ruled (b), and an index that no query uses stays | Low impact | Its cost is one small nonclustered index on an insert-only table. `docs/07` records why it exists. |
+| R-1 | *Retired (Q1 ruled (a), 2026-09-24):* an unused `IX_RouteStations_StationId` would have stayed | — | Amendment 1 drops it; `RouteModel_RouteStationsHasNoStationIdOnlyIndex` keeps it dropped |
 | R-2 | EF writes more than the two granted columns on deactivation, or touches `RouteStations` | Medium | V1. The test fails under `ycr_app` rather than in production. The fix is in the mapping, never in the grant. |
 | R-3 | The seed's count changes break F-002 tests that pinned 14 | Certain, planned | Those tests are updated to the exact new set in step 3, each with its reason (§Facts). Their assertions are extended, not loosened. |
 | R-4 | `Seed_MatchesDocs10GrantTables` depends on `docs/10`'s route section format | Medium | The route section already uses the station bullet format. The parser reuses that code path. A formatting change fails the test by name (F-002 R-6). |
 | R-5 | A handler starts checking sequence rules itself, instead of `Route.Create` | Medium | P4 puts every rule in one factory with domain tests. Stage 6 checks that `CreateRouteHandler` only loads data and maps results. |
 | R-6 | A JSON type mismatch (for example `"isClosed": "yes"`) returns the framework's `400`, which may have no `errorCode` | Low | V5 records the behaviour. It predates F-003 and applies to every endpoint, and S5 does not list it, so F-003 does not change it. If hein wants it, it is a cross-cutting follow-up task. |
-| R-7 | A very long `stationIds` list | Low | Only two administrator roles can call the endpoint, and each call is audited. O5 shows no parameter-limit failure. Q2. |
+| R-7 | A very long `stationIds` list | Low | **Capped at 200 (R26, REQUIRED CONTROL, spec Amendment 2)**, enforced by the validator before the handler, and tested at 201 (rejected) and 200 (accepted). Only two administrator roles can call the endpoint, each call is audited, and O5 shows no parameter-limit failure below the cap. |
 | R-8 | The provisional route rulings (OQ36–OQ41) change when Myanma Railways answers | Medium | Each is in one place: `RouteCode`/`NetworkCodeFormat` (OQ41), `Route.Create` (OQ37, OQ39), the seed migration (OQ40). An official answer needs its own follow-up task (spec §0.8). |
 | R-9 | Parallel tests are flaky on slow runners | Low | Same pattern as F-001 S13/S27 and F-002 S21: two scopes, `Task.WhenAll`, and assertions on outcome counts, never on which request wins. |
 
@@ -564,22 +563,22 @@ Live scenarios: **24**, which is S1–S30 minus the six removed (S4, S16, S18, S
 
 **Partially deployed instances.** Deployment order is migrations first, as in F-001 and F-002. New code on an old database: the route endpoints fail with `500` until the migrations run (missing table), while station and identity endpoints keep working. Old code on a new database: unaffected, since the tables and grants are additive and the seeded `routes.*` permissions name endpoints the old code does not have.
 
-**Forward compatibility.** `PayloadVersion` 1 on route snapshots. The Q1 (a) index already serves a future "routes through station X" read. `DeactivatedAtUtc` answers "which routes were active on date X" without the ledger (A1).
+**Forward compatibility.** `PayloadVersion` 1 on route snapshots. The `UX_RouteStations_StationId_RouteId` index (Amendment 1) already serves a future "routes through station X" read. `DeactivatedAtUtc` answers "which routes were active on date X" without the ledger (A1).
 
 ---
 
 ## Steps
 
-Each step ends with `dotnet test YCR.sln` green. No step leaves the branch red. Step 2 needs **Q1** ruled. Step 6's validator needs **Q2** only if Q2 is ruled (b).
+Each step ends with `dotnet test YCR.sln` green. No step leaves the branch red. Q1–Q3 are ruled, so no step waits on a decision.
 
 | # | Step | Ends green with |
 |---|---|---|
 | 1 | **Domain:** `NetworkCodeFormat` (and `StationCode` switched to it), `RouteCode`, the `BilingualName` overload, the route errors in `NetworkErrors`, `RouteStation`, `Route`, `RouteDeactivated` | Every `YCR.Domain.Tests` row above, plus the existing `StationCodeTests`, `BilingualNameTests` and `StationTests` unchanged |
-| 2 | **Persistence (Q1):** `Permissions.RoutesManage`/`RoutesRead`; `INetworkDbContext.Routes`; `NetworkConstraints`, `NetworkAuditSubjects.Route`; `RouteConfiguration`, `RouteStationConfiguration`, `YcrDbContext.Routes`; migration `Network_CreateRoutes`. **V4** | `RouteModel_*`, the extended UTC theory, `DownMigration_NetworkCreateRoutes_…`, `RouteConstraints_…`, `RouteStations_…` (migrator); all existing tests |
+| 2 | **Persistence (Amendment 1 index):** `Permissions.RoutesManage`/`RoutesRead`; `INetworkDbContext.Routes`; `NetworkConstraints`, `NetworkAuditSubjects.Route`; `RouteConfiguration`, `RouteStationConfiguration`, `YcrDbContext.Routes`; migration `Network_CreateRoutes`. **V4** | `RouteModel_*`, the extended UTC theory, `DownMigration_NetworkCreateRoutes_…`, `RouteConstraints_…`, `RouteStations_…` (migrator); all existing tests |
 | 3 | **Seed:** migration `Identity_SeedRoutePermissionGrants`; update `IdentitySeedTests` (24 rows, docs/10 route section) and `ApplicationCredential_CannotWriteRolesOrGrants` (24) | The three `Seed_*` tests; the extended privilege test |
 | 4 | **Grants:** migration `Security_NetworkRouteGrants`; the new `DatabasePrivilegeTests` cases and the two DDL rows; `RouteMigrationTests` upgrade and down tests | `ApplicationCredential_HasExactlyTheRouteGrants`, `…CanDeactivateARouteButNotRewriteIt`, `Migrate_FromF002Schema_…`, `Migrate_DownToF002_…` |
 | 5 | **Application:** `RouteAuditSnapshot`; `CreateRoute`, `DeactivateRoute`, `GetRoute`, `ListRoutes` with DTOs and projections. **V1, V2, V3** | Every `YCR.Application.Tests` row above, including the parallel S21 and S23 tests and the S17 station case |
-| 6 | **API:** `RouteContracts` (+ validator, P6; Q2 if (b)), `RouteEndpoints`, `Program.cs` mapping. **V5** | Every `YCR.Api.Tests` row above, including `DeployedShapeTests` (Unmodified) and `RoutePermissionGrantTests` (Real); all F-001/F-002 API suites |
+| 6 | **API:** `RouteContracts` (+ validator, P6, including the 200-element cap, R26), `RouteEndpoints`, `Program.cs` mapping. **V5** | Every `YCR.Api.Tests` row above, including `DeployedShapeTests` (Unmodified) and `RoutePermissionGrantTests` (Real); all F-001/F-002 API suites |
 | 7 | **`YCR.Api.http` and CI:** the Routes section; the `api-smoke` route checks. Push `feature/F-003` and **prove the GitHub Actions run green** (build, tests, `has-pending-model-changes`, `api-smoke`, trunk-only filter untouched, gitleaks). Record the run URL in `progress.md` | A green GitHub Actions run on `origin` for `feature/F-003` |
 
 ### Stage 8 documentation (not stage 4)
@@ -587,18 +586,20 @@ Each step ends with `dotnet test YCR.sln` green. No step leaves the branch red. 
 - **`docs/07`:** a new "F-003 route tables, constraints, indexes and grants" section, with both tables, every object in §DB changes, both FKs `NO ACTION`, the UTC checks declared in the model, **the index decision and why** (the named-query table), and the `Security_NetworkRouteGrants` grant table with its absences.
 - **`docs/08`:** "Implemented in F-003 — routes" with the endpoint table, contracts and error codes as implemented. In "Initial resources", `GET/POST/PATCH /routes` is replaced with a note that `PATCH /routes` is **not provided** (OQ41 ruling) and that there is **no `PUT /routes/{id}/stations`** (OQ38 ruling). The OpenAPI/Scalar paragraph stays as it is.
 - **`docs/10`:** no change expected, since §Route permission grants already matches the seed. Stage 8 confirms it and records the migration name there.
-- **`docs/glossary.md`** (**Q3**): entries for *Route code* (`RouteCode`, OQ41 provisional), *IsClosed* (closed/open route; last → first connection from the flag, first station never repeated; OQ37), and *RouteStation / position* (1-based contiguous ordinal within one route; not the station index, not the station code; R18).
-- **`docs/features/F-003-route-management/spec.md`:** only if Q1 is ruled (a), as a recorded stage-2 amendment to the index name (hein's approval).
+- **`docs/glossary.md`** (Q3 (a), spec Amendment 2): entries for *Route code* (`RouteCode`, OQ41 provisional), *IsClosed* (closed/open route; last → first connection from the flag, first station never repeated; OQ37), and *RouteStation / position* (1-based contiguous ordinal within one route; not the station index, not the station code; R18).
+- **`docs/features/F-003-route-management/spec.md`:** no stage-8 change expected. Amendments 1–2 were recorded at T-034 (spec §0.9).
 - **README:** no change (it lists no endpoints).
 
 ---
 
 ## Stop point
 
-⛔ **Plan needs hein's approval before implementation.** T-034 is `blocked` (`approval`). No code, tests or migrations exist for F-003. Stage 4 starts only after approval and after **Q1** is ruled (it blocks step 2). Q2 and Q3 can be ruled later, as marked.
+**Passed 2026-09-24.** The plan is **Approved (hein, 2026-09-24)**, with Q1–Q3 ruled and recorded as spec Amendments 1–2. T-034 is done. Stage 4 is T-035, a separate task, and is not started by T-034.
 
 ---
 
 ## Review history
+
+**Revision 2 — 2026-09-24, hein: approved.** Q1 (a): the unique index becomes `UX_RouteStations_StationId_RouteId` on `(StationId, RouteId)` and `IX_RouteStations_StationId` is dropped (spec Amendment 1). Q2 (b): `stationIds` capped at 200, a REQUIRED CONTROL (spec R26, S5; Amendment 2); validator, S5 tests, security section and R-7 updated. Q3 (a): stage 8 adds the three glossary entries (spec §9, Amendment 2). R-1 retired. P1–P12 approved as written.
 
 **Revision 1 — 2026-09-24, claude (T-034).** First draft.
