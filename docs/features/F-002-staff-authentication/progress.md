@@ -296,3 +296,33 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** none.
 
 **State of the branch:** committed and pushed; build green; tests green.
+
+---
+
+## 2026-09-24 01:30 Asia/Yangon — claude — T-025 step 7 (tech-lead checkpoint 2)
+
+**Stage:** 4 (IMPLEMENT), plan step 7 of 12 — **stopped for hein's second checkpoint (after steps 5–7)**
+**Commit:** `8c4d449` on `feature/F-002`
+**Done this session:**
+- `YCR.Api/Common/Authentication/`: `AuthOptions` (+ `SigningOptions`, `SigningKeyEntry`) and `AuthOptionsValidator` (`ValidateOnStart`: cache TTL 1–30 s, issuer/audience set, positive lifetimes, ≥1 absolute `https` origin outside Development/Testing); `ISigningKeyProvider` / `ConfigurationSigningKeyProvider` (P-256 PKCS#8 PEM only; active `kid` must exist; outside Development/Testing refuses `DevelopmentOnly` and `dev-`/`test-` kids; messages name the kid, never key material); `JwtAccessTokenIssuer` (`sub`, `sid`, `jti`, `iss`, `aud`, `iat`, `nbf`, `exp` from `TimeProvider`); `JwtBearerSetup` (P3 principal rebuild, P11 validation, D14 challenge); `SessionPrincipalCache` (P4); `PasswordChangeRequiredMiddleware` + `AllowedWhilePasswordChangeRequiredAttribute` (R26, N1); `AuthClaims`, `AuthErrorCodes` (the four pipeline `Auth.*` codes), `AuthProblem`; `AuthenticationSetup.AddYcrAuthentication` / `ValidateSigningKeys`.
+- `SecurityHeadersMiddleware` (P10; via `OnStarting`, first in the pipeline; `/scalar` and `/openapi` exempt from the CSP in Development only; `no-store` on `/api/v1/auth/*`).
+- `Program.cs`: pipeline = security headers → exception handler → status pages → authentication → must-change gate → authorization; no `AddCors`. `AuthenticationSchemeGuard` allowlist = `{ JwtBearerHandler }`. **`AuthorizationResultHandler` deleted.** Doc comments of `PermissionAuthorizationHandler` / `HttpContextCurrentUser` updated.
+- Tests: `YcrApiFactory` modes `TestHandler` (default; every F-001 test unchanged and green) / `RealTokens` / `Unmodified`; `StaffUserSeeder`; `DeployedShapeTests` (replaces `MissingSchemeTests`: the four station routes → `401` + `WWW-Authenticate: Bearer` + ProblemDetails `Auth.Unauthenticated` + `traceId` + security headers; garbage bearer → bare `Bearer` challenge; health stays anonymous; `Common.Unauthenticated` nowhere in `src/`; no `IAuthorizationMiddlewareResultHandler` type left); `AuthenticationSchemeGuardTests` + `Startup_WithOnlyJwtBearerOutsideTesting_Succeeds`; `SigningKeyStartupTests` (dev-only key, `dev-`/`test-` kids, no active key, P-384/RSA/garbage PEM, cache TTL 31 and 0, http origin in Production); `AccessTokenTests` (S20 exact claims, valid token grants exactly the role's permissions, S21 ten invalid-token cases, S13 expiry on the fake clock, S13 session past lifetime, R-2 forged claims grant nothing, R26 must-change → `403 Auth.PasswordChangeRequired` while `/health/live` stays `200`).
+- **V3 passed:** the `TimeProvider`-driven `LifetimeValidator` is honoured by `JwtBearerHandler` (JsonWebTokenHandler path). Evidence beyond `Token_PastExp_Returns401`: the test clock sits at 2026-09-23 03:00Z while the machine clock is a day later, so with wall-clock validation every fake-clock token would already be expired and every `200` assertion would fail.
+
+**Deviations from the plan:**
+- `TestSigningKey` gained a `developmentOnly` constructor parameter (the key, not its `kid`, carries the flag); `ToConfiguration()` lost its parameter.
+- The "principal cache TTL above 30 s fails startup" test moved from step 9's `RevocationLatencyTests` into step 7's `SigningKeyStartupTests` (as `PrincipalCacheTtlOutsideOneToThirtySeconds_FailsStartup`), because the validation it tests landed here. Step 9 keeps the latency tests.
+- The must-change gate got a first test here (`MustChangeSession_ProtectedEndpoint_Returns403PasswordChangeRequired`); step 8 adds the full theory over every endpoint.
+- `AuthOptions` carries the non-secret defaults in code (issuer/audience `YCR.Api`, 15 min, 12 h, 20 s, cache 15 s); `appsettings.json` repeats them at step 11.
+- `JwtBearerOptions.RequireHttpsMetadata = true` (no metadata endpoint is used; set for clarity).
+
+**Known consequence (as planned):** from this commit until step 12 the **CI `api-smoke` job fails**: it starts the API in `Production` with no signing key and no allowed origin (startup refuses, S26a/R9) and still expects `Common.Unauthenticated`. Plan step 12 rewrites that job (ephemeral key, origin, `Auth.Unauthenticated`, headers). `dotnet test YCR.sln` is green at every step. Recorded here so the red smoke job on steps 7–11 is not mistaken for a regression.
+
+**Evidence:** `dotnet test YCR.sln` → **442/442 passed, 0 skipped** (+30). GitHub Actions on `feature/F-002` green for every checkpoint through step 6 (`0d58fab`).
+
+**Next step (exact):** wait for hein's review of steps 5–7. On approval: plan step 8 — auth endpoints (`/auth/login`, `/auth/refresh`, `/auth/logout`, `/auth/me`, `/auth/password`), contracts and validators, `OriginCheckFilter`, `AuthRateLimitFilter` / `AuthRateLimiters` (U6 defaults), `RefreshCookie`; V8.
+
+**Blockers / open questions:** approval (tech-lead checkpoint after step 7).
+
+**State of the branch:** committed and pushed; build green; tests green.
