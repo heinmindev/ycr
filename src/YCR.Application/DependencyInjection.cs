@@ -26,9 +26,9 @@ public static class DependencyInjection
             services.AddScoped(handler);
         }
 
-        // Session lifetime and grace window (D12). The defaults are ADR-0023's; YCR.Api registers
-        // the values bound from configuration first, which this does not replace.
-        services.TryAddSingleton(new AuthSettings());
+        // ADR-0023 item 4 (amended; S-1): each host registers the gate for its environment first.
+        // This fallback blocks privileged roles, so a host that forgets fails closed.
+        services.TryAddSingleton(new PrivilegedRoleGate(blocksPrivilegedRoles: true));
 
         return services;
     }

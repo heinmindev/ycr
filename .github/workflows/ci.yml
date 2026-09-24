@@ -329,7 +329,11 @@ jobs:
 
           # D10 / S25 in the deployed shape: bootstrap with the built Worker (password on stdin),
           # sign in, change the must-change password, sign in again, call a protected endpoint.
+          # The bootstrap runs with DOTNET_ENVIRONMENT=Testing: in Production (the Worker's default)
+          # it refuses a SystemAdministrator until MFA ships (ADR-0023 item 4 as amended; S-1,
+          # T-030). The API itself still runs as Production.
           printf '%s\n' "$YCR_SMOKE_ADMIN_INITIAL_PASSWORD" | \
+            DOTNET_ENVIRONMENT=Testing \
             ConnectionStrings__Application="Server=localhost,1433;Database=YCR;User Id=ycr_app;Password=${YCR_APP_PASSWORD};TrustServerCertificate=True;Current Language=us_english" \
             dotnet src/YCR.Worker/bin/Release/net10.0/YCR.Worker.dll bootstrap-administrator --username smoke.admin \
             && bootstrap=0 || bootstrap=$?
@@ -357,6 +361,7 @@ jobs:
 
           # D10: a second bootstrap is refused (exit 1) and creates nothing.
           printf '%s\n' "$YCR_SMOKE_ADMIN_INITIAL_PASSWORD" | \
+            DOTNET_ENVIRONMENT=Testing \
             ConnectionStrings__Application="Server=localhost,1433;Database=YCR;User Id=ycr_app;Password=${YCR_APP_PASSWORD};TrustServerCertificate=True;Current Language=us_english" \
             dotnet src/YCR.Worker/bin/Release/net10.0/YCR.Worker.dll bootstrap-administrator --username second.admin \
             && bootstrap=0 || bootstrap=$?

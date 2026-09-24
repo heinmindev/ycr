@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Options;
-using YCR.Application.Identity;
 using YCR.Application.Identity.Abstractions;
 
 namespace YCR.Api.Common.Authentication;
@@ -10,22 +9,15 @@ public static class AuthenticationSetup
 {
     /// <summary>
     /// Registers the <c>Auth</c> options (validated at start), the signing keys, the access-token
-    /// issuer, the principal cache, the session settings the handlers use, and the framework
-    /// <see cref="JwtBearerHandler"/> as the default scheme.
+    /// issuer, the principal cache, and the framework <see cref="JwtBearerHandler"/> as the
+    /// default scheme.
     /// </summary>
-    /// <remarks>Call before <c>AddApplication</c>, whose <c>AuthSettings</c> default this replaces.</remarks>
     public static IServiceCollection AddYcrAuthentication(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddOptions<AuthOptions>()
             .Bind(configuration.GetSection(AuthOptions.SectionName))
             .ValidateOnStart();
         services.AddSingleton<IValidateOptions<AuthOptions>, AuthOptionsValidator>();
-
-        services.AddSingleton<AuthSettings>(provider =>
-        {
-            var options = provider.GetRequiredService<IOptions<AuthOptions>>().Value;
-            return new AuthSettings { SessionLifetime = options.SessionLifetime, RefreshGraceWindow = options.RefreshGraceWindow };
-        });
 
         services.AddSingleton<ISigningKeyProvider, ConfigurationSigningKeyProvider>();
         services.AddSingleton<IAccessTokenIssuer, JwtAccessTokenIssuer>();

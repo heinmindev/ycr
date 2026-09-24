@@ -44,7 +44,6 @@ public sealed class LoginHandler(
     IAccessTokenIssuer accessTokens,
     IIdGenerator ids,
     IAuditWriter audit,
-    AuthSettings settings,
     TimeProvider clock,
     ILogger<LoginHandler> logger)
 {
@@ -115,7 +114,7 @@ public sealed class LoginHandler(
 
         user.RecordSuccessfulSignIn();
         var refreshToken = refreshTokens.Generate();
-        var session = AuthSession.Start(ids.New(), user.Id, ids.New(), refreshToken.TokenHash, now, settings.SessionLifetime);
+        var session = AuthSession.Start(ids.New(), user.Id, ids.New(), refreshToken.TokenHash, now, AuthLifetimes.Session);
         db.AuthSessions.Add(session);
 
         var roles = await IdentityQueries.RoleGrantsAsync(db, user.Roles.Select(role => role.RoleId), cancellationToken);

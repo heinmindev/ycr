@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
+using YCR.Application.Identity;
 using YCR.Application.Identity.Abstractions;
 
 namespace YCR.Api.Common.Authentication;
@@ -26,7 +27,7 @@ public sealed class JwtAccessTokenIssuer(
     {
         var settings = options.Value;
         var now = clock.GetUtcNow();
-        var expires = now + settings.AccessTokenLifetime;
+        var expires = now + AuthLifetimes.AccessToken;
 
         var token = handler.CreateToken(new SecurityTokenDescriptor
         {

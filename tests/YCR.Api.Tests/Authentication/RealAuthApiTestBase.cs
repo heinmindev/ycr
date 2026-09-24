@@ -36,7 +36,8 @@ public abstract class RealAuthApiTestBase(SqlServerFixture fixture) : ApiTestBas
         IReadOnlyDictionary<string, string?>? settings = null,
         bool shippedRateLimits = false,
         Action<IServiceCollection>? configureServices = null,
-        AuthMode mode = AuthMode.RealTokens)
+        AuthMode mode = AuthMode.RealTokens,
+        string environment = "Testing")
     {
         var merged = new Dictionary<string, string?> { ["Auth:PrincipalCacheSeconds"] = "30" };
         if (!shippedRateLimits)
@@ -51,7 +52,9 @@ public abstract class RealAuthApiTestBase(SqlServerFixture fixture) : ApiTestBas
             merged[key] = value;
         }
 
-        return new YcrApiFactory(Database.ApplicationConnectionString, mode: mode, clock: Clock, settings: merged, configureServices: configureServices);
+        // Outside Development and Testing, startup refuses a test- or development key (S26a).
+        var signingKey = environment is "Development" or "Testing" ? null : new TestSigningKey($"prod-{Guid.NewGuid():N}", developmentOnly: false);
+        return new YcrApiFactory(Database.ApplicationConnectionString, environment, mode, Clock, merged, signingKey, configureServices);
     }
 
     /// <summary>

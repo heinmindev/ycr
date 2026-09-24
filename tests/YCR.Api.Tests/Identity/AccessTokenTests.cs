@@ -92,6 +92,29 @@ public sealed class AccessTokenTests(SqlServerFixture fixture) : ApiTestBase(fix
         await AssertUnauthenticatedAsync(api, token);
     }
 
+    /// <summary>
+    /// Review S-4: a token signed by the configured key is still refused when its header has no
+    /// <c>kid</c> or an empty one — the key is resolved only by <c>kid</c>, never by trying each key.
+    /// The same hand-signed token with the real <c>kid</c> is accepted, so the signature is sound.
+    /// </summary>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public async Task Token_CorrectlySignedWithoutKid_Returns401(string? kid)
+    {
+        await using var api = RealApi();
+        var userId = await StaffUserSeeder.SeedAsync(api, "hein.min", [RoleNames.StationManager], cancellationToken: CancellationToken);
+        var signIn = await StaffUserSeeder.SignInAsync(api, "hein.min", CancellationToken);
+        var sessionId = SessionOf(signIn.AccessToken);
+
+        using (var control = api.CreateBearerClient(SignWithHeaderKid(api, userId, sessionId, api.SigningKey.KeyId)))
+        {
+            Assert.Equal(HttpStatusCode.OK, (await control.GetAsync("/api/v1/stations", CancellationToken)).StatusCode);
+        }
+
+        await AssertUnauthenticatedAsync(api, SignWithHeaderKid(api, userId, sessionId, kid));
+    }
+
     /// <summary>S13 / V3: expiry is judged on the injected clock, with P11's 30-second skew.</summary>
     [Fact]
     public async Task Token_PastExp_Returns401()
@@ -223,6 +246,22 @@ public sealed class AccessTokenTests(SqlServerFixture fixture) : ApiTestBase(fix
         var payload = Base64Url.EncodeToString(Encoding.UTF8.GetBytes(
             $$"""{"sub":"{{userId}}","sid":"{{sessionId}}","iss":"YCR.Api","aud":"YCR.Api","iat":{{now}},"nbf":{{now}},"exp":{{now + 900}}}"""));
         return $"{header}.{payload}.";
+    }
+
+    /// <summary>
+    /// An ES256 token signed by the API's own key with a hand-written header: <paramref name="kid"/>
+    /// null omits the <c>kid</c> member, any other value is written as given.
+    /// </summary>
+    private string SignWithHeaderKid(YcrApiFactory api, Guid userId, Guid sessionId, string? kid)
+    {
+        var now = clock.GetUtcNow().ToUnixTimeSeconds();
+        var header = kid is null
+            ? """{"alg":"ES256","typ":"JWT"}"""
+            : $$"""{"alg":"ES256","typ":"JWT","kid":"{{kid}}"}""";
+        var payload = $$"""{"sub":"{{userId}}","sid":"{{sessionId}}","jti":"{{Guid.NewGuid():N}}","iss":"YCR.Api","aud":"YCR.Api","iat":{{now}},"nbf":{{now}},"exp":{{now + 900}}}""";
+        var signingInput = $"{Base64Url.EncodeToString(Encoding.UTF8.GetBytes(header))}.{Base64Url.EncodeToString(Encoding.UTF8.GetBytes(payload))}";
+        var signature = api.SigningKey.Key.SignData(Encoding.ASCII.GetBytes(signingInput), HashAlgorithmName.SHA256, DSASignatureFormat.IeeeP1363FixedFieldConcatenation);
+        return $"{signingInput}.{Base64Url.EncodeToString(signature)}";
     }
 
     private static string Tamper(string token)

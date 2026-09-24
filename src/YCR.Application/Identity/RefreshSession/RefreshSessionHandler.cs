@@ -39,7 +39,6 @@ public sealed class RefreshSessionHandler(
     IAccessTokenIssuer accessTokens,
     IIdGenerator ids,
     IAuditWriter audit,
-    AuthSettings settings,
     TimeProvider clock,
     ILogger<RefreshSessionHandler> logger)
 {
@@ -73,7 +72,7 @@ public sealed class RefreshSessionHandler(
 
         var now = clock.GetUtcNow();
         var successor = refreshTokens.Generate();
-        var outcome = session.Rotate(presentedHash, ids.New(), successor.TokenHash, now, settings.RefreshGraceWindow);
+        var outcome = session.Rotate(presentedHash, ids.New(), successor.TokenHash, now, AuthLifetimes.RefreshGraceWindow);
 
         switch (outcome)
         {

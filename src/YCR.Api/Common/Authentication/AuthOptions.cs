@@ -1,3 +1,5 @@
+using YCR.Application.Identity;
+
 namespace YCR.Api.Common.Authentication;
 
 /// <summary>
@@ -17,14 +19,17 @@ public sealed class AuthOptions
     /// <summary>The access token's <c>aud</c>, and the only audience accepted.</summary>
     public string Audience { get; set; } = "YCR.Api";
 
-    /// <summary>D12: 15 minutes.</summary>
-    public TimeSpan AccessTokenLifetime { get; set; } = TimeSpan.FromMinutes(15);
+    /// <summary>
+    /// Not a setting: the lifetime is fixed at <see cref="AuthLifetimes.AccessToken"/> (ADR-0023
+    /// item 8; review C-1). Bound only so that startup refuses a configured value that differs.
+    /// </summary>
+    public TimeSpan? AccessTokenLifetime { get; set; }
 
-    /// <summary>D12: 12 hours, absolute (see <c>AuthSettings</c>).</summary>
-    public TimeSpan SessionLifetime { get; set; } = TimeSpan.FromHours(12);
+    /// <summary>Not a setting: fixed at <see cref="AuthLifetimes.Session"/>; bound only to refuse a different value.</summary>
+    public TimeSpan? SessionLifetime { get; set; }
 
-    /// <summary>D12 / ADR-0016: about 20 seconds.</summary>
-    public TimeSpan RefreshGraceWindow { get; set; } = TimeSpan.FromSeconds(20);
+    /// <summary>Not a setting: fixed at <see cref="AuthLifetimes.RefreshGraceWindow"/>; bound only to refuse a different value.</summary>
+    public TimeSpan? RefreshGraceWindow { get; set; }
 
     /// <summary>
     /// Plan P4: how long a resolved principal is reused. Must be above 0 and at most

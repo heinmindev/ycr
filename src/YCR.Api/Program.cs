@@ -9,6 +9,7 @@ using YCR.Api.Endpoints.Identity;
 using YCR.Api.Endpoints.Network;
 using YCR.Application;
 using YCR.Application.Common.Abstractions;
+using YCR.Application.Identity;
 using YCR.Infrastructure;
 using YCR.Infrastructure.Persistence;
 
@@ -26,9 +27,12 @@ var connectionString = builder.Configuration.GetConnectionString("Application")
 builder.Services.AddInfrastructure(connectionString);
 
 // F-002 (ADR-0016, ADR-0023): the framework JwtBearerHandler is the one scheme; the principal is
-// rebuilt from the database on every (uncached) request. Before AddApplication, so the session
-// settings bound from Auth replace AddApplication's defaults.
+// rebuilt from the database on every (uncached) request.
 builder.Services.AddYcrAuthentication(builder.Configuration);
+
+// ADR-0023 item 4 as amended (S-1): privileged roles cannot be granted in Production until MFA
+// ships. Before AddApplication, whose fallback gate blocks.
+builder.Services.AddSingleton(PrivilegedRoleGate.ForEnvironment(builder.Environment.EnvironmentName));
 builder.Services.AddApplication();
 
 builder.Services.AddHttpContextAccessor();

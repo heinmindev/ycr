@@ -46,6 +46,7 @@ public abstract class IdentityHandlerTestBase(SqlServerFixture fixture) : IAsync
             .AddLogging()
             .AddSingleton<TimeProvider>(Clock)
             .AddInfrastructure(Database.ApplicationConnectionString)
+            .AddSingleton(PrivilegedRoleGate.ForEnvironment("Testing"))
             .AddApplication()
             .Replace(ServiceDescriptor.Scoped<IPasswordHasher<StaffUser>>(_ => Hasher))
             .AddSingleton<IAccessTokenIssuer>(new FakeAccessTokenIssuer(Clock))

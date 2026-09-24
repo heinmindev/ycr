@@ -1,9 +1,11 @@
 using Microsoft.Extensions.Options;
+using YCR.Application.Identity;
 
 namespace YCR.Api.Common.Authentication;
 
 /// <summary>
-/// Refuses to start with <c>Auth</c> settings that would weaken a control (plan P4, P11; R3, R9).
+/// Refuses to start with <c>Auth</c> settings that would weaken a control (plan P4, P11; R3, R9;
+/// ADR-0023 item 8).
 /// </summary>
 /// <remarks>
 /// Registered with <c>ValidateOnStart</c>, so a bad value stops the host before it serves a
@@ -29,12 +31,9 @@ public sealed class AuthOptionsValidator(IHostEnvironment environment) : IValida
             failures.Add("Auth:Issuer and Auth:Audience must be set.");
         }
 
-        if (options.AccessTokenLifetime <= TimeSpan.Zero
-            || options.SessionLifetime <= TimeSpan.Zero
-            || options.RefreshGraceWindow < TimeSpan.Zero)
-        {
-            failures.Add("Auth lifetimes must be positive and the refresh grace window must not be negative.");
-        }
+        RefuseChangedLifetime(failures, nameof(AuthOptions.AccessTokenLifetime), options.AccessTokenLifetime, AuthLifetimes.AccessToken);
+        RefuseChangedLifetime(failures, nameof(AuthOptions.SessionLifetime), options.SessionLifetime, AuthLifetimes.Session);
+        RefuseChangedLifetime(failures, nameof(AuthOptions.RefreshGraceWindow), options.RefreshGraceWindow, AuthLifetimes.RefreshGraceWindow);
 
         var limits = options.RateLimits;
         if (limits is null
@@ -60,6 +59,20 @@ public sealed class AuthOptionsValidator(IHostEnvironment environment) : IValida
         }
 
         return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);
+    }
+
+    /// <summary>
+    /// ADR-0023 item 8 fixes the lifetimes in code (review C-1): a configured value is tolerated
+    /// only when it equals the constant, so no deployment can silently change the approved policy.
+    /// </summary>
+    private static void RefuseChangedLifetime(List<string> failures, string setting, TimeSpan? configured, TimeSpan required)
+    {
+        if (configured is { } value && value != required)
+        {
+            failures.Add(
+                $"Auth:{setting} is fixed at {required:c} by ADR-0023 item 8 and cannot be configured; "
+                + $"remove the setting (configured: {value:c}).");
+        }
     }
 
     private static bool IsOrigin(string? value, bool requireHttps) =>

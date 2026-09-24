@@ -15,15 +15,18 @@ public sealed record ReplaceUserRolesCommand(Guid UserId, IReadOnlyList<string> 
 /// </summary>
 /// <remarks>
 /// Checks in order: unknown user → <c>404</c>; own account → <c>422 Identity.CannotChangeOwnRoles</c>
-/// (with any value, S19b); unknown role → <c>400</c>; removing <c>SystemAdministrator</c> from the
-/// last active one → <c>422 Identity.LastAdministrator</c>, under the R27 lock (plan P14). Every
-/// accepted request is audited, including one that sets the same roles (R22: one row per operation).
+/// (with any value, S19b); unknown role → <c>400</c>; in Production, granting a privileged role
+/// the user does not hold → <c>422 Identity.PrivilegedRoleRequiresMfa</c> (S-1); removing
+/// <c>SystemAdministrator</c> from the last active one → <c>422 Identity.LastAdministrator</c>, under
+/// the R27 lock (plan P14). Every accepted request is audited, including one that sets the same
+/// roles (R22: one row per operation).
 /// </remarks>
 public sealed class ReplaceUserRolesHandler(
     IIdentityDbContext db,
     ICurrentUser currentUser,
     IIdentityAdministratorLock administratorLock,
-    IAuditWriter audit)
+    IAuditWriter audit,
+    PrivilegedRoleGate privilegedRoles)
 {
     public async Task<Result> Handle(ReplaceUserRolesCommand command, CancellationToken cancellationToken)
     {
@@ -65,6 +68,13 @@ public sealed class ReplaceUserRolesHandler(
             return roleIds.Error;
         }
 
+        var before = (await IdentityQueries.RoleGrantsAsync(db, user.Roles.Select(role => role.RoleId), cancellationToken)).Roles;
+        var gated = privilegedRoles.Check((command.Roles ?? []).Except(before, StringComparer.Ordinal));
+        if (gated.IsFailure)
+        {
+            return gated.Error;
+        }
+
         var losesAdministrator = !user.IsDisabled
             && user.Roles.Any(role => role.RoleId == administratorRoleId)
             && !roleIds.Value.Contains(administratorRoleId);
@@ -77,7 +87,6 @@ public sealed class ReplaceUserRolesHandler(
             }
         }
 
-        var before = (await IdentityQueries.RoleGrantsAsync(db, user.Roles.Select(role => role.RoleId), cancellationToken)).Roles;
         var replaced = user.ReplaceRoles(roleIds.Value, callerId);
         if (replaced.IsFailure)
         {

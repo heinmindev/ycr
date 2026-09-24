@@ -14,8 +14,9 @@ namespace YCR.Api.Common.Authentication;
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>Validation (plan P11).</b> ES256 only, the configured keys, issuer and audience; <c>exp</c>
-/// required; lifetime judged against <see cref="TimeProvider"/> with a 30-second skew, so a test
+/// <b>Validation (plan P11).</b> ES256 only, the configured keys, issuer and audience; a non-empty
+/// <c>kid</c> that selects the key (review S-4); <c>exp</c> required; lifetime judged against
+/// <see cref="TimeProvider"/> with a 30-second skew, so a test
 /// clock controls expiry (V3); no validation reason in <c>WWW-Authenticate</c>.
 /// </para>
 /// <para>
@@ -58,6 +59,8 @@ public sealed class JwtBearerSetup(
             ValidIssuer = settings.Issuer,
             ValidAudience = settings.Audience,
             IssuerSigningKeys = keys.ValidationKeys,
+            IssuerSigningKeyResolver = ResolveByKeyId,
+            TryAllIssuerSigningKeys = false,
             ValidAlgorithms = [SecurityAlgorithms.EcdsaSha256],
             ValidateIssuer = true,
             ValidateAudience = true,
@@ -75,6 +78,16 @@ public sealed class JwtBearerSetup(
             OnChallenge = WriteChallengeAsync,
         };
     }
+
+    /// <summary>
+    /// Review S-4: the validation key is chosen only by the header's <c>kid</c>. A token with no
+    /// or an empty <c>kid</c>, or a <c>kid</c> that names no configured key, gets no key and fails;
+    /// with <c>TryAllIssuerSigningKeys</c> off, no other key is tried.
+    /// </summary>
+    private IEnumerable<SecurityKey> ResolveByKeyId(string token, SecurityToken securityToken, string kid, TokenValidationParameters parameters) =>
+        string.IsNullOrEmpty(kid)
+            ? []
+            : keys.ValidationKeys.Where(key => string.Equals(key.KeyId, kid, StringComparison.Ordinal));
 
     private bool ValidateLifetime(DateTime? notBefore, DateTime? expires, SecurityToken token, TokenValidationParameters parameters)
     {

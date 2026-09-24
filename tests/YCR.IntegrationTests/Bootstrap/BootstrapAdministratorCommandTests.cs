@@ -28,10 +28,12 @@ public sealed class BootstrapAdministratorCommandTests(SqlServerFixture fixture)
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
-    [Fact]
-    public async Task Bootstrap_FirstRun_CreatesOneMustChangeAdministratorAndExitsZero()
+    [Theory]
+    [InlineData("Testing")]
+    [InlineData("Development")]
+    public async Task Bootstrap_FirstRun_CreatesOneMustChangeAdministratorAndExitsZero(string environment)
     {
-        var run = await RunAsync(["bootstrap-administrator", "--username", "hein.admin"], Password);
+        var run = await RunAsync(["bootstrap-administrator", "--username", "hein.admin"], Password, environment);
 
         Assert.Equal(BootstrapAdministratorCli.Created, run.ExitCode);
         Assert.Contains("must be changed", run.Stdout, StringComparison.Ordinal);
@@ -45,6 +47,22 @@ public sealed class BootstrapAdministratorCommandTests(SqlServerFixture fixture)
         Assert.Equal(1, await ScalarAsync<int>(
             "SELECT COUNT(*) FROM [audit].[AuditEvents] WHERE [Action] = N'Identity.UserCreated' AND [ActorUserId] IS NULL AND [ActorRole] IS NULL AND [AuthorizedByPermission] IS NULL AND [ClientIp] IS NULL;"));
         Assert.Equal(1, await ScalarAsync<int>("SELECT COUNT(*) FROM [audit].[AuditEvents];"));
+    }
+
+    /// <summary>
+    /// S-1 (ADR-0023 item 4 as amended): in Production the bootstrap refuses a privileged account
+    /// until MFA ships — exit 1, <c>Identity.PrivilegedRoleRequiresMfa</c>, nothing written.
+    /// </summary>
+    [Theory]
+    [InlineData("Production")]
+    [InlineData("production")]
+    public async Task Bootstrap_InProduction_IsRefusedWithPrivilegedRoleRequiresMfaAndWritesNothing(string environment)
+    {
+        var run = await RunAsync(["bootstrap-administrator", "--username", "hein.admin"], Password, environment);
+
+        Assert.Equal(BootstrapAdministratorCli.Refused, run.ExitCode);
+        Assert.Contains("Identity.PrivilegedRoleRequiresMfa", run.Stderr, StringComparison.Ordinal);
+        await AssertNothingWrittenAsync();
     }
 
     [Fact]
@@ -142,13 +160,13 @@ public sealed class BootstrapAdministratorCommandTests(SqlServerFixture fixture)
     /// <summary>
     /// The deployed shape: <c>dotnet YCR.Worker.dll bootstrap-administrator --username …</c> with the
     /// connection string in the environment and the password on a pipe; the process exits 0 without
-    /// starting the host, and a second run exits 1.
+    /// starting the host, and a second run exits 1. Run in <c>Testing</c>: Production refuses (S-1).
     /// </summary>
     [Fact]
     public async Task Bootstrap_AsAProcess_ReadsThePasswordFromStdinAndExits()
     {
-        var first = await RunProcessAsync("hein.admin");
-        var second = await RunProcessAsync("other.admin");
+        var first = await RunProcessAsync("hein.admin", "Testing");
+        var second = await RunProcessAsync("other.admin", "Testing");
 
         Assert.True(first.ExitCode == 0, $"exit {first.ExitCode}: {first.Stderr}");
         Assert.Equal(1, second.ExitCode);
@@ -156,7 +174,18 @@ public sealed class BootstrapAdministratorCommandTests(SqlServerFixture fixture)
         Assert.Equal(1, await ScalarAsync<int>("SELECT COUNT(*) FROM [identity].[Users];"));
     }
 
-    private async Task<CliRun> RunAsync(string[] args, string stdin)
+    /// <summary>S-1 in the deployed shape: with no <c>DOTNET_ENVIRONMENT</c> the Worker is Production, and refuses.</summary>
+    [Fact]
+    public async Task Bootstrap_AsAProcessWithNoEnvironment_IsProductionAndRefused()
+    {
+        var run = await RunProcessAsync("hein.admin", environment: null);
+
+        Assert.Equal(BootstrapAdministratorCli.Refused, run.ExitCode);
+        Assert.Contains("Identity.PrivilegedRoleRequiresMfa", run.Stderr, StringComparison.Ordinal);
+        await AssertNothingWrittenAsync();
+    }
+
+    private async Task<CliRun> RunAsync(string[] args, string stdin, string environment = "Testing")
     {
         var logs = new CapturingLoggerProvider();
         var configuration = new ConfigurationBuilder()
@@ -164,7 +193,7 @@ public sealed class BootstrapAdministratorCommandTests(SqlServerFixture fixture)
             .Build();
         await using var services = new ServiceCollection()
             .AddLogging(logging => logging.SetMinimumLevel(LogLevel.Trace).AddProvider(logs))
-            .AddBootstrapAdministrator(configuration)
+            .AddBootstrapAdministrator(configuration, environment)
             .BuildServiceProvider();
         using var stdout = new StringWriter();
         using var stderr = new StringWriter();
@@ -174,7 +203,8 @@ public sealed class BootstrapAdministratorCommandTests(SqlServerFixture fixture)
         return new CliRun(exitCode, stdout.ToString(), stderr.ToString(), [.. logs.Lines]);
     }
 
-    private async Task<CliRun> RunProcessAsync(string userName)
+    /// <param name="environment">The <c>DOTNET_ENVIRONMENT</c> value, or null to leave it unset.</param>
+    private async Task<CliRun> RunProcessAsync(string userName, string? environment)
     {
         var worker = Path.Combine(AppContext.BaseDirectory, "YCR.Worker.dll");
         Assert.True(File.Exists(worker), worker);
@@ -188,7 +218,11 @@ public sealed class BootstrapAdministratorCommandTests(SqlServerFixture fixture)
             WorkingDirectory = AppContext.BaseDirectory,
         };
         start.Environment["ConnectionStrings__Application"] = database.ApplicationConnectionString;
-        start.Environment["DOTNET_ENVIRONMENT"] = "Production";
+        start.Environment.Remove("DOTNET_ENVIRONMENT");
+        if (environment is not null)
+        {
+            start.Environment["DOTNET_ENVIRONMENT"] = environment;
+        }
 
         using var process = Process.Start(start)!;
         await process.StandardInput.WriteLineAsync(Password);

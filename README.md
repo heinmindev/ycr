@@ -64,11 +64,14 @@ and must be changed at the first sign-in:
 
 ```bash
 export ConnectionStrings__Application="Server=localhost,1433;Database=YCR;User Id=ycr_app;Password=...;TrustServerCertificate=True;Current Language=us_english"
+export DOTNET_ENVIRONMENT=Development
 dotnet run --project src/YCR.Worker -- bootstrap-administrator --username <name>
 ```
 
-It exits `0` when it created the account, `1` when it refused (an administrator already exists, or
-the username or password is invalid; nothing is written) and `2` on a usage error.
+It exits `0` when it created the account, `1` when it refused (an administrator already exists,
+the username or password is invalid, or the environment is Production; nothing is written) and `2`
+on a usage error. With `DOTNET_ENVIRONMENT` unset the Worker is `Production`, where the command is
+refused with `Identity.PrivilegedRoleRequiresMfa` until MFA ships (ADR-0023 item 4 as amended).
 
 ## Important
 

@@ -15,7 +15,8 @@ public sealed record CreateUserCommand(string UserName, string Password, IReadOn
 
 /// <summary>
 /// Creates a staff account (spec R20, R26, U1, U2; S19d, S32a). The password an administrator sets
-/// is must-change. Errors carry <c>Identity.*</c> codes (U1: the path is <c>/users</c>).
+/// is must-change. Errors carry <c>Identity.*</c> codes (U1: the path is <c>/users</c>). In
+/// Production a privileged role is refused (<see cref="PrivilegedRoleGate"/>; S-1).
 /// </summary>
 /// <remarks>
 /// The username is unique on its normalized form. A pre-check gives the ordinary <c>409</c>; the
@@ -27,6 +28,7 @@ public sealed class CreateUserHandler(
     IPasswordService passwords,
     IIdGenerator ids,
     IAuditWriter audit,
+    PrivilegedRoleGate privilegedRoles,
     TimeProvider clock)
 {
     public async Task<Result<Guid>> Handle(CreateUserCommand command, CancellationToken cancellationToken)
@@ -44,6 +46,12 @@ public sealed class CreateUserHandler(
         if (roleIds.IsFailure)
         {
             return roleIds.Error;
+        }
+
+        var gated = privilegedRoles.Check(command.Roles ?? []);
+        if (gated.IsFailure)
+        {
+            return gated.Error;
         }
 
         var user = StaffUser.Create(ids.New(), userName.Value, clock.GetUtcNow());

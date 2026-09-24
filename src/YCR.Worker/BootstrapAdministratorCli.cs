@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using YCR.Application;
 using YCR.Application.Common.Abstractions;
+using YCR.Application.Identity;
 using YCR.Application.Identity.BootstrapAdministrator;
 using YCR.Infrastructure;
 
@@ -18,7 +19,9 @@ namespace YCR.Worker;
 /// </para>
 /// <para>
 /// Exit codes: <c>0</c> created; <c>1</c> refused by a rule (an administrator already exists, the
-/// username or password is invalid) — nothing is created or written; <c>2</c> usage error.
+/// username or password is invalid, or the environment is Production, where ADR-0023 item 4 as
+/// amended refuses a privileged account until MFA ships) — nothing is created or written;
+/// <c>2</c> usage error.
 /// </para>
 /// <para>
 /// The host is never started: the command composes <c>AddInfrastructure</c> and
@@ -43,14 +46,21 @@ public static class BootstrapAdministratorCli
         args is { Count: > 0 } && string.Equals(args[0], CommandName, StringComparison.Ordinal);
 
     /// <summary>The services the command needs, and nothing that serves requests.</summary>
-    public static IServiceCollection AddBootstrapAdministrator(this IServiceCollection services, IConfiguration configuration)
+    /// <param name="environmentName">
+    /// The worker's environment (<c>DOTNET_ENVIRONMENT</c>, <c>Production</c> when unset). In
+    /// Production the command is refused with <c>Identity.PrivilegedRoleRequiresMfa</c> until MFA
+    /// ships (ADR-0023 item 4 as amended; S-1).
+    /// </param>
+    public static IServiceCollection AddBootstrapAdministrator(this IServiceCollection services, IConfiguration configuration, string environmentName)
     {
         ArgumentNullException.ThrowIfNull(configuration);
+        ArgumentNullException.ThrowIfNull(environmentName);
         var connectionString = configuration.GetConnectionString("Application")
             ?? throw new InvalidOperationException(
                 "ConnectionStrings:Application is not configured. It must name the least-privilege ycr_app credential.");
 
         services.AddInfrastructure(connectionString);
+        services.AddSingleton(PrivilegedRoleGate.ForEnvironment(environmentName));
         services.AddApplication();
         services.TryAddScoped<ICurrentUser, SystemCurrentUser>();
         return services;

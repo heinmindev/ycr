@@ -27,7 +27,7 @@ internal static class Program
                 .AddLogging(logging => logging
                     .AddConfiguration(configuration.GetSection("Logging"))
                     .AddSimpleConsole(console => console.SingleLine = true))
-                .AddBootstrapAdministrator(configuration)
+                .AddBootstrapAdministrator(configuration, environment)
                 .BuildServiceProvider();
 
             return await BootstrapAdministratorCli.RunAsync(

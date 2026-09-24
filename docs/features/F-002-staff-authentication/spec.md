@@ -412,3 +412,12 @@ Required by `docs/21` §Specification. **No placeholder implementation for any r
 - **ADR-0023** (Accepted 2026-09-23) records D1–D6, D11, D12, D14 and the C5/C6/C7 clarifications of ADR-0016; items 3, 5, 6 and 9 are amended inline for U1–U4 and U6. **ADR-0020** is amended inline for D13–D15.
 - **PLAN must settle:** D18; the permission/role resolution mechanism (O3/O4 — both roles and permissions, or `ActorRole` goes null); the Identity table mapping and optional tables; the blocklist source and its package; the CLI's host (`YCR.Worker` or a dedicated tool); exact security-header values; audit subject constants; how R26's must-change restriction is enforced in the pipeline; and how R27's last-administrator check is made safe under concurrency (S19e).
 - **Outside T-023's file list, left for hein:** `docs/glossary.md` §Actor and role labels still says the role model is not approved under OQ12 (now provisionally ruled); `docs/business/mr-questions-pack.md` (C15; and whether OQ34/OQ35 go into it); `docs/17` could name its `Auth*` events as log/metric events explicitly; `docs/10` §Identity permission grants does not yet list unlock under `users.manage` (U3), and `docs/19` OQ34's ruling block does not yet mention U5's self-target and last-administrator rules.
+
+> **Review history (T-030, stage 8, 2026-09-24; review finding C-2).** The bullet above is kept as
+> written at approval and is now partly stale. The `docs/10` unlock row and the `docs/19` OQ34 U5
+> text were added in the approval commit (see Status). Stage 8 replaced the glossary's
+> §Actor and role labels wording with the eight role identifiers and OQ12's provisional-ruling
+> status, and `docs/17` now names the `Auth*` events as log and metric events. Still outside
+> F-002 and left for hein: `docs/business/mr-questions-pack.md` (C15, and whether OQ34/OQ35 go
+> into it). Stage 8 also amended ADR-0023 item 4 inline (review S-1: the MFA release gate is
+> enforced in code in Production) and fixed the three lifetimes in code (review C-1).

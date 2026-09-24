@@ -77,7 +77,8 @@ public static class UserEndpoints
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
-            .ProducesProblem(StatusCodes.Status409Conflict);
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
 
         users.MapPost("/{id:guid}/disable", async (Guid id, DisableUserHandler handler, CancellationToken cancellationToken) =>
                 (await handler.Handle(new DisableUserCommand(id), cancellationToken)).ToHttpResult(Results.NoContent))

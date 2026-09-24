@@ -12,7 +12,9 @@ namespace YCR.Api.Tests.Identity;
 /// <summary>
 /// S25 (<c>docs/21</c> §Tests): the unmodified production composition, end to end, with real
 /// tokens — no <c>ConfigureTestServices</c>, no test clock, no test handler; configuration only.
-/// The first administrator comes from the Worker's bootstrap command (D10) over the same database.
+/// The first administrator comes from the Worker's bootstrap command (D10) over the same database,
+/// run in <c>Testing</c>: in Production the command refuses a privileged account until MFA ships
+/// (ADR-0023 item 4 as amended; S-1), which <c>BootstrapAdministratorCommandTests</c> covers.
 /// </summary>
 public sealed class ProductionCompositionTests(SqlServerFixture fixture) : ApiTestBase(fixture)
 {
@@ -78,7 +80,7 @@ public sealed class ProductionCompositionTests(SqlServerFixture fixture) : ApiTe
             .Build();
         await using var services = new ServiceCollection()
             .AddLogging()
-            .AddBootstrapAdministrator(configuration)
+            .AddBootstrapAdministrator(configuration, "Testing")
             .BuildServiceProvider();
 
         return await BootstrapAdministratorCli.RunAsync(

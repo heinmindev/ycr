@@ -81,6 +81,14 @@ public static class IdentityErrors
         "Identity.LastAdministrator",
         "At least one active SystemAdministrator must remain.");
 
+    /// <summary>
+    /// ADR-0023 item 4 as amended (hein, 2026-09-24; T-030, S-1): in Production, a privileged role
+    /// cannot be granted until MFA ships.
+    /// </summary>
+    public static readonly Error PrivilegedRoleRequiresMfa = Error.BusinessRule(
+        "Identity.PrivilegedRoleRequiresMfa",
+        "SystemAdministrator, RailwayAdministrator and FinanceOfficer cannot be granted in production until multi-factor authentication is available.");
+
     /// <summary>A role name outside the catalogue (R19). The API's validator normally answers first.</summary>
     public static readonly Error UnknownRole = Error.Validation(
         "Identity.UnknownRole",

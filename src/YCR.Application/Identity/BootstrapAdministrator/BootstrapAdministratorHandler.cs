@@ -27,6 +27,10 @@ public sealed record BootstrapAdministratorCommand(string UserName, string Passw
 /// hein, until Myanma Railways names one — a provisional tech-lead ruling, not a Myanma Railways
 /// answer (OQ34). The password is used here and never logged or audited (R13).
 /// </para>
+/// <para>
+/// In Production it refuses with <c>Identity.PrivilegedRoleRequiresMfa</c> and writes nothing
+/// (ADR-0023 item 4 as amended; <see cref="PrivilegedRoleGate"/>; S-1).
+/// </para>
 /// </remarks>
 public sealed class BootstrapAdministratorHandler(
     IIdentityDbContext db,
@@ -34,6 +38,7 @@ public sealed class BootstrapAdministratorHandler(
     IPasswordService passwords,
     IIdGenerator ids,
     IAuditWriter audit,
+    PrivilegedRoleGate privilegedRoles,
     TimeProvider clock)
 {
     public async Task<Result<Guid>> Handle(BootstrapAdministratorCommand command, CancellationToken cancellationToken)
@@ -44,6 +49,12 @@ public sealed class BootstrapAdministratorHandler(
         if (userName.IsFailure)
         {
             return userName.Error;
+        }
+
+        var gated = privilegedRoles.Check([RoleNames.SystemAdministrator]);
+        if (gated.IsFailure)
+        {
+            return gated.Error;
         }
 
         return await AdministratorGuard.UnderLockAsync(
