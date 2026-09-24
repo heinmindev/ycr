@@ -167,7 +167,8 @@ public sealed class DatabasePrivilegeTests(SqlServerFixture fixture) : IAsyncLif
             SELECT [Id], N'users.manage' FROM [identity].[Roles] WHERE [Name] = N'TicketOperator';
             """));
         Assert.Contains("permission", failure.Message, StringComparison.OrdinalIgnoreCase);
-        Assert.Equal(14, await ScalarAsMigratorAsync("SELECT COUNT(*) FROM [identity].[RolePermissions];"));
+        // 14 F-002 grants plus the ten F-003 route grants (OQ40); unchanged by the denied INSERT.
+        Assert.Equal(24, await ScalarAsMigratorAsync("SELECT COUNT(*) FROM [identity].[RolePermissions];"));
     }
 
     /// <summary>

@@ -164,3 +164,31 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** none.
 
 **State of the branch:** builds; tests green; committed and pushed.
+
+---
+
+## 2026-09-24 22:35 Asia/Yangon — claude — T-035
+
+**Stage:** 4 (IMPLEMENT), plan step 3 of 7 (Seed) — done.
+**Commit:** step 3 code and this entry are one commit on `feature/F-003`.
+
+**Done:**
+- Migration **`20260924150657_Identity_SeedRoutePermissionGrants`**, scaffolded by `dotnet ef migrations add` (the model snapshot did not change; the Designer is EF's), with the SQL written by hand: exactly ten `identity.RolePermissions` rows, `routes.manage` → `SystemAdministrator`, `RailwayAdministrator`; `routes.read` → all eight roles. Role ids re-declared as constants. Header "BUSINESS DECISION — provisional tech-lead ruling (hein, 2026-09-24; T-032, OQ40) — not a Myanma Railways answer". `Down()` deletes exactly those ten pairs. Checked against spec R2/R3 and `docs/10` §Route permission grants: identical.
+- Tests, updated in this step (RED seen first: 3 failed, 14 ≠ 24 and the docs/10 route rows missing from the seed): `Seed_ProducesExactlyEightRolesAndFourteenGrants` renamed `…TwentyFourGrants`, with the ten route rows in its exact expected set; `Seed_MatchesDocs10GrantTables` now parses `## Route permission grants` with the station bullet parser, and asserts each bullet section yields grants; `ApplicationCredential_CannotWriteRolesOrGrants` asserts 24. `Seed_EveryPermissionIsAPermissionsConstant` passes unchanged.
+- plan-V4 re-checked: no pending model changes.
+
+**Deviations:**
+- **V3 — five more F-002 tests pinned the seeded grants, and the plan did not name them.** The plan's FACT list names two tests that assert 14 grants; the first full run after the seed found five more that assert a role's exact permission set or the total. Each was updated to the **exact new set** (an equality, still exact, not loosened), with a one-line comment citing `docs/10` §Route permission grants. This is the plan's own R-3 mitigation ("F-002 tests that pinned 14 … updated to the exact new set in step 3 … extended, not loosened"), applied to tests its list missed. **hein to confirm.** The five:
+  - `YCR.Api.Tests` `UserAdministrationEndpointTests.ListRoles_ReturnsEightRolesWithPermissions`: total 14 → 24.
+  - `YCR.Application.Tests` `AdministrationHandlerTests.ListRoles_ReturnsEightRolesWithPermissions`: `SystemAdministrator` set + `routes.manage`, `routes.read`; `ReportingUser` `[stations.read]` → `[routes.read, stations.read]`.
+  - `YCR.Application.Tests` `SessionHandlerTests.Resolve_ActiveSession_ReturnsUserRolesAndPermissionUnion`: union + `routes.manage`, `routes.read`.
+  - `YCR.Application.Tests` `SessionHandlerTests.GetCurrentUser_ReturnsUserNameRolesAndPermissions`: `RailwayAdministrator` set + the two route permissions.
+  - `YCR.Api.Tests` `PasswordEndpointTests.Me_ReturnsUserNameRolesAndPermissions`: same, with the `Permissions` constants.
+
+**Evidence:** targeted seed tests RED (3 failed of 5) then 5/5; the five V3 tests 5/5 after the update. `dotnet build YCR.sln` 0 warnings, 0 errors. `dotnet test YCR.sln` **691 passed, 0 failed, 0 skipped** (the first full run after the seed had 4 failures, the V3 tests not yet updated; the fifth, the API total, was updated beforehand).
+
+**Next step (exact):** plan step 4 (migration `Security_NetworkRouteGrants`; the new `DatabasePrivilegeTests` cases and the two DDL rows; the `RouteMigrationTests` upgrade and down tests).
+
+**Blockers / open questions:** none. V3 is for hein's review.
+
+**State of the branch:** builds; tests green; committed and pushed.

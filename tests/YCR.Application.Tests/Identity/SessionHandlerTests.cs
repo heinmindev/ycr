@@ -180,8 +180,9 @@ public sealed class SessionHandlerTests(SqlServerFixture fixture) : IdentityHand
 
         Assert.NotNull(principal);
         Assert.Equal([RoleNames.SystemAdministrator, RoleNames.StationManager], principal.Roles);
+        // F-003 adds the route grants to these roles (docs/10 §Route permission grants, OQ40).
         Assert.Equal(
-            ["auth-sessions.revoke", "stations.manage", "stations.read", "users.manage", "users.read", "users.roles.manage"],
+            ["auth-sessions.revoke", "routes.manage", "routes.read", "stations.manage", "stations.read", "users.manage", "users.read", "users.roles.manage"],
             principal.Permissions);
         Assert.False(principal.MustChangePassword);
         Assert.Equal(Clock.GetUtcNow().AddHours(12), principal.SessionExpiresAtUtc);
@@ -254,7 +255,8 @@ public sealed class SessionHandlerTests(SqlServerFixture fixture) : IdentityHand
         Assert.Equal(userId, me.UserId);
         Assert.Equal("hein.min", me.UserName);
         Assert.Equal([RoleNames.RailwayAdministrator], me.Roles);
-        Assert.Equal(["stations.manage", "stations.read"], me.Permissions);
+        // F-003 adds the route grants to these roles (docs/10 §Route permission grants, OQ40).
+        Assert.Equal(["routes.manage", "routes.read", "stations.manage", "stations.read"], me.Permissions);
 
         await using var anonymous = BuildProvider();
         Assert.Null(await WithScopeAsync(anonymous, services =>

@@ -7,7 +7,8 @@ using YCR.TestSupport;
 namespace YCR.Infrastructure.Tests.Identity;
 
 /// <summary>
-/// S30: exactly eight roles and fourteen grants, identical to <c>docs/10</c>, every permission a
+/// S30: exactly eight roles and twenty-four grants (fourteen from F-002, ten route grants from
+/// F-003, OQ40), identical to <c>docs/10</c>, every permission a
 /// <see cref="Permissions"/> constant, and no user.
 /// </summary>
 /// <remarks>
@@ -26,13 +27,13 @@ public sealed class IdentitySeedTests(SqlServerFixture fixture) : IAsyncLifetime
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
     [Fact]
-    public async Task Seed_ProducesExactlyEightRolesAndFourteenGrants()
+    public async Task Seed_ProducesExactlyEightRolesAndTwentyFourGrants()
     {
         var roles = await IdentitySql.StringsAsync(database.MigratorConnectionString, "SELECT [Name] FROM [identity].[Roles]");
         Assert.Equal(RoleNames.All.Order(StringComparer.Ordinal), roles.Order(StringComparer.Ordinal));
 
         var grants = await SeededGrantsAsync();
-        Assert.Equal(14, grants.Count);
+        Assert.Equal(24, grants.Count);
         string[] expected =
         [
             "RailwayAdministrator:stations.manage",
@@ -42,6 +43,9 @@ public sealed class IdentitySeedTests(SqlServerFixture fixture) : IAsyncLifetime
             "SystemAdministrator:users.manage",
             "SystemAdministrator:users.roles.manage",
             "SystemAdministrator:auth-sessions.revoke",
+            "RailwayAdministrator:routes.manage",
+            "SystemAdministrator:routes.manage",
+            .. RoleNames.All.Select(role => $"{role}:routes.read"),
         ];
         Assert.Equal(
             expected.Order(StringComparer.Ordinal),
@@ -91,7 +95,7 @@ public sealed class IdentitySeedTests(SqlServerFixture fixture) : IAsyncLifetime
             """);
 
     /// <summary>
-    /// Reads the two grant sections of <c>docs/10</c>: the station bullets
+    /// Reads the three grant sections of <c>docs/10</c>: the station and route bullets
     /// (<c>- `perm` → … roles …</c>, up to the first parenthesis, which lists who does
     /// <em>not</em> hold it) and the identity table's "Held by" column.
     /// </summary>
@@ -101,12 +105,20 @@ public sealed class IdentitySeedTests(SqlServerFixture fixture) : IAsyncLifetime
         var roles = RoleNames.All.ToHashSet(StringComparer.Ordinal);
         var grants = new List<string>();
 
-        var stations = Section(text, "## Station permission grants");
-        foreach (Match bullet in Regex.Matches(stations, @"^- `(?<permission>[a-z.-]+)` → (?<rest>.*)$", RegexOptions.Multiline))
+        // The station and route sections share one bullet format (F-003 plan R-4), so one parser
+        // reads both. Each section must yield grants, so a reformatted section fails by name.
+        foreach (var heading in new[] { "## Station permission grants", "## Route permission grants" })
         {
-            var rest = bullet.Groups["rest"].Value;
-            var holders = rest.Split('(')[0];
-            grants.AddRange(RolesIn(holders, roles).Select(role => $"{bullet.Groups["permission"].Value} -> {role}"));
+            var section = Section(text, heading);
+            var before = grants.Count;
+            foreach (Match bullet in Regex.Matches(section, @"^- `(?<permission>[a-z.-]+)` → (?<rest>.*)$", RegexOptions.Multiline))
+            {
+                var rest = bullet.Groups["rest"].Value;
+                var holders = rest.Split('(')[0];
+                grants.AddRange(RolesIn(holders, roles).Select(role => $"{bullet.Groups["permission"].Value} -> {role}"));
+            }
+
+            Assert.True(grants.Count > before, $"docs/10 '{heading}' yielded no grants.");
         }
 
         var identity = Section(text, "## Identity permission grants");
