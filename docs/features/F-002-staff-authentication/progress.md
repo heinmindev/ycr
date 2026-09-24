@@ -480,3 +480,23 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** approval (tech-lead checkpoint after step 12).
 
 **State of the branch:** committed and pushed; build green; tests green; CI green on `b3464b6`.
+
+---
+
+## 2026-09-24 17:15 Asia/Yangon — codex — T-027
+
+**Stage:** 5 (TEST)
+**Commit:** `b3464b6` reviewed; stage evidence committed in the next review commit
+**Done this session:**
+- Traced every approved scenario S1-S33, including S19a-S19e, to executable tests.
+- Traced all ten ADR-0016 required tests to executable tests.
+- Confirmed no scenario coverage gap requiring a new test; no assertions were weakened and no tests were skipped or removed.
+- Added the stage-5 traceability matrix and verdict to `review-codex.md`.
+
+**Evidence:** `dotnet test YCR.sln --no-restore` → **614 passed, 0 failed, 0 skipped** with Docker-backed SQL Server running. Domain, architecture, integration, infrastructure, application and API assemblies all passed.
+
+**Next step (exact):** claim T-028 on `main`, then perform the stage-6 correctness and architecture review of `b3464b6` and append its verdict/findings to `review-codex.md`.
+
+**Blockers / open questions:** none.
+
+**State of the branch:** review report and this checkpoint are uncommitted; production code unchanged.
