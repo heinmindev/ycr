@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using YCR.Infrastructure.Persistence;
 
@@ -11,9 +12,11 @@ using YCR.Infrastructure.Persistence;
 namespace YCR.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(YcrDbContext))]
-    partial class YcrDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260924145627_Network_CreateRoutes")]
+    partial class Network_CreateRoutes
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

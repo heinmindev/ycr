@@ -17,4 +17,6 @@ namespace YCR.Application.Network;
 public static class NetworkAuditSubjects
 {
     public const string Station = "Network.Station";
+
+    public const string Route = "Network.Route";
 }

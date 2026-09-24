@@ -15,6 +15,19 @@ public static class Permissions
     public const string StationsRead = "stations.read";
 
     /// <summary>
+    /// Create and deactivate routes (F-003). BUSINESS DECISION - provisional tech-lead ruling
+    /// (hein, 2026-09-24; T-032, OQ40) - not a Myanma Railways answer: routes.manage ->
+    /// SystemAdministrator and RailwayAdministrator; routes.read -> all eight roles
+    /// (docs/10 §Route permission grants). Holding a station permission gives no route right.
+    /// Grants are data, seeded by migration, never in code. The name routes.read is an
+    /// ENGINEERING DECISION (tech lead, hein, 2026-09-24; E2).
+    /// </summary>
+    public const string RoutesManage = "routes.manage";
+
+    /// <summary>Read routes and their station sequences (F-003; see <see cref="RoutesManage"/>).</summary>
+    public const string RoutesRead = "routes.read";
+
+    /// <summary>
     /// BUSINESS DECISION - provisional tech-lead ruling (hein, 2026-09-23; T-023, D8) - not a
     /// Myanma Railways answer: the four identity permissions are held by SystemAdministrator
     /// only (docs/10 §Identity permission grants).
