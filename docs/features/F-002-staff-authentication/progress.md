@@ -326,3 +326,14 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** approval (tech-lead checkpoint after step 7).
 
 **State of the branch:** committed and pushed; build green; tests green.
+
+---
+
+## 2026-09-24 09:00 Asia/Yangon — hein (recorded by claude) — T-025 checkpoint 2 review
+
+**Stage:** 4 (IMPLEMENT), tech-lead checkpoint after step 7 — **passed**
+**Commit reviewed:** `8c4d449` (checkpoint entry `dea0816`)
+**Rulings (hein, 2026-09-24):**
+- The decisions and deviations recorded for steps 5–7 are **accepted as written**, including: case-insensitive username matching at sign-in; `IdentityRetry` limit 10 with jitter; the current password checked before the new password's policy on own password change, with no lockout count; a locked account's existing sessions stay valid; `/auth/me` answering `401` rather than an `Identity.*` code; the new codes `Identity.UnknownRole`, `Identity.InvalidPageRequest`, `Identity.AdministratorAlreadyExists`; the bootstrap refusing when any user (even disabled) holds `SystemAdministrator`; auditing every accepted role change (same set included); an administrator reset leaving the lockout state unchanged.
+- The CI `api-smoke` job staying red from step 7 until step 12 is accepted. **No PR before step 12 is green on GitHub Actions.**
+- Continue with steps 8–12 under the same rules (green `dotnet test` after each step; commit, push and a `progress.md` checkpoint after each). V8 at step 8. Stop after step 12 with the final SHA, the green Actions run URL, the final test totals and every deviation; then set T-025 to `review` as the plan says.
