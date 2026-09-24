@@ -35,8 +35,8 @@ Option 2, one `audit.AuditEvents` ledger table.
 | `Id` | `uniqueidentifier` | no | PK, application-assigned through `IIdGenerator` (ADR-0006) |
 | `OccurredAtUtc` | `datetimeoffset(3)` | no | UTC, from `TimeProvider` (ADR-0018) |
 | `Action` | `nvarchar(100)` | no | `<Module>.<Event>`, e.g. `Network.StationCreated` (`docs/20` §2) |
-| `ActorUserId` | `uniqueidentifier` | yes | Server-side authenticated context only (ADR-0017 §2). Null only for system-initiated actions with no user. |
-| `ActorRole` | `nvarchar(1000)` | yes | **JSON array of the roles the actor held at event time**, e.g. `["Admin","StationManager"]`. Server-side authenticated context only. Null when there is no actor. |
+| `ActorUserId` | `uniqueidentifier` | yes | Server-side authenticated context only (ADR-0017 §2). Null only for system-initiated actions with no user. **Amended 2026-09-23 (hein; T-023, U4):** also null when no user is signed in — a failed sign-in, a lockout and a refresh-family revocation (consistent with ADR-0017 §2). |
+| `ActorRole` | `nvarchar(1000)` | yes | **JSON array of the roles the actor held at event time**, e.g. `["Admin","StationManager"]`. Server-side authenticated context only. Null when there is no actor. **Amended 2026-09-23 (hein; T-023, U4):** so also null for a failed sign-in, a lockout and a refresh-family revocation. |
 | `SubjectType` | `nvarchar(100)` | no | Aggregate, entity or concept the event is about. Always present, including when `SubjectId` is null. |
 | `SubjectId` | `uniqueidentifier` | yes | Identifier of that subject. **Null where the event has no GUID subject**, for example a failed login where no user was resolved. |
 | `BeforeJson` | `nvarchar(max)` | yes | Prior state; null on creation events |

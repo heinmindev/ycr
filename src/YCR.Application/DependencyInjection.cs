@@ -1,4 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using YCR.Application.Identity;
 
 namespace YCR.Application;
 
@@ -23,6 +25,10 @@ public static class DependencyInjection
         {
             services.AddScoped(handler);
         }
+
+        // ADR-0023 item 4 (amended; S-1): each host registers the gate for its environment first.
+        // This fallback blocks privileged roles, so a host that forgets fails closed.
+        services.TryAddSingleton(new PrivilegedRoleGate(blocksPrivilegedRoles: true));
 
         return services;
     }

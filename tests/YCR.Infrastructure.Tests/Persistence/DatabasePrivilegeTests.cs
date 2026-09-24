@@ -1,6 +1,7 @@
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using YCR.Application.Identity.Abstractions;
 using YCR.Infrastructure.Persistence;
 using YCR.TestSupport;
 
@@ -109,6 +110,136 @@ public sealed class DatabasePrivilegeTests(SqlServerFixture fixture) : IAsyncLif
         Assert.Equal(0, await ColumnPermissionAsApplicationAsync("network.Stations", "UPDATE", "NameEn"));
         Assert.Equal(0, await ColumnPermissionAsApplicationAsync("network.Stations", "UPDATE", "NameMy"));
         Assert.Equal(0, await ColumnPermissionAsApplicationAsync("network.Stations", "UPDATE", "CreatedAtUtc"));
+    }
+
+    /// <summary>F-002 plan P7 / <c>Security_IdentityGrants</c>: the grants the Identity module needs.</summary>
+    [Fact]
+    public async Task ApplicationCredential_HasExactlyTheIdentityGrants()
+    {
+        string[] tables = ["Users", "Roles", "RolePermissions", "UserRoles", "AuthSessions", "RefreshTokens"];
+        foreach (var table in tables)
+        {
+            Assert.Equal(1, await PermissionAsApplicationAsync($"identity.{table}", "SELECT"));
+            Assert.Equal(0, await PermissionAsApplicationAsync($"identity.{table}", "ALTER"));
+            Assert.Equal(0, await PermissionAsApplicationAsync($"identity.{table}", "CONTROL"));
+        }
+
+        Assert.Equal(1, await PermissionAsApplicationAsync("identity.Users", "INSERT"));
+        Assert.Equal(1, await PermissionAsApplicationAsync("identity.UserRoles", "INSERT"));
+        Assert.Equal(1, await PermissionAsApplicationAsync("identity.UserRoles", "DELETE"));
+        Assert.Equal(0, await PermissionAsApplicationAsync("identity.UserRoles", "UPDATE"));
+        Assert.Equal(1, await PermissionAsApplicationAsync("identity.AuthSessions", "INSERT"));
+        Assert.Equal(1, await PermissionAsApplicationAsync("identity.RefreshTokens", "INSERT"));
+        Assert.Equal(0, await PermissionAsApplicationAsync("identity.Users", "DELETE"));
+
+        Assert.Equal(1, await ColumnPermissionAsApplicationAsync("identity.AuthSessions", "UPDATE", "RevokedAtUtc"));
+        Assert.Equal(1, await ColumnPermissionAsApplicationAsync("identity.AuthSessions", "UPDATE", "RevocationReason"));
+        Assert.Equal(0, await ColumnPermissionAsApplicationAsync("identity.AuthSessions", "UPDATE", "ExpiresAtUtc"));
+        Assert.Equal(0, await ColumnPermissionAsApplicationAsync("identity.AuthSessions", "UPDATE", "UserId"));
+        Assert.Equal(1, await ColumnPermissionAsApplicationAsync("identity.RefreshTokens", "UPDATE", "RotatedAtUtc"));
+        Assert.Equal(1, await ColumnPermissionAsApplicationAsync("identity.RefreshTokens", "UPDATE", "ReplacedByTokenId"));
+        Assert.Equal(0, await ColumnPermissionAsApplicationAsync("identity.RefreshTokens", "UPDATE", "TokenHash"));
+        Assert.Equal(0, await ColumnPermissionAsApplicationAsync("identity.RefreshTokens", "UPDATE", "SessionId"));
+    }
+
+    /// <summary>D18 / plan P7: F-002 deletes no session or token row.</summary>
+    [Fact]
+    public async Task ApplicationCredential_HasNoDeleteOnSessionsOrTokens()
+    {
+        Assert.Equal(0, await PermissionAsApplicationAsync("identity.AuthSessions", "DELETE"));
+        Assert.Equal(0, await PermissionAsApplicationAsync("identity.RefreshTokens", "DELETE"));
+    }
+
+    /// <summary>D8: grants change by reviewed migration only.</summary>
+    [Fact]
+    public async Task ApplicationCredential_CannotWriteRolesOrGrants()
+    {
+        foreach (var table in new[] { "identity.Roles", "identity.RolePermissions" })
+        {
+            Assert.Equal(0, await PermissionAsApplicationAsync(table, "INSERT"));
+            Assert.Equal(0, await PermissionAsApplicationAsync(table, "UPDATE"));
+            Assert.Equal(0, await PermissionAsApplicationAsync(table, "DELETE"));
+        }
+
+        var failure = await Assert.ThrowsAsync<SqlException>(() => ExecuteAsApplicationAsync(
+            """
+            INSERT INTO [identity].[RolePermissions] ([RoleId], [Permission])
+            SELECT [Id], N'users.manage' FROM [identity].[Roles] WHERE [Name] = N'TicketOperator';
+            """));
+        Assert.Contains("permission", failure.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(14, await ScalarAsMigratorAsync("SELECT COUNT(*) FROM [identity].[RolePermissions];"));
+    }
+
+    /// <summary>
+    /// Plan P7: the columns that legitimately change are updatable; a user's identity columns are
+    /// not (no endpoint renames a user).
+    /// </summary>
+    [Fact]
+    public async Task ApplicationCredential_CanUpdateOnlyListedUserColumns()
+    {
+        string[] updatable =
+        [
+            "PasswordHash", "SecurityStamp", "PasswordChangedAtUtc", "MustChangePassword",
+            "IsDisabled", "DisabledAtUtc", "LockoutEndUtc", "AccessFailedCount",
+        ];
+        foreach (var column in updatable)
+        {
+            Assert.Equal(1, await ColumnPermissionAsApplicationAsync("identity.Users", "UPDATE", column));
+        }
+
+        foreach (var column in new[] { "Id", "UserName", "NormalizedUserName", "CreatedAtUtc" })
+        {
+            Assert.Equal(0, await ColumnPermissionAsApplicationAsync("identity.Users", "UPDATE", column));
+        }
+
+        await ExecuteAsApplicationAsync(
+            """
+            INSERT INTO [identity].[Users]
+                ([Id], [UserName], [NormalizedUserName], [PasswordHash], [SecurityStamp], [IsDisabled],
+                 [AccessFailedCount], [PasswordChangedAtUtc], [MustChangePassword], [CreatedAtUtc])
+            VALUES (NEWID(), N'grant.check', N'GRANT.CHECK', N'placeholder-hash', N'stamp', 0,
+                    0, SYSUTCDATETIME() AT TIME ZONE 'UTC', 1, SYSUTCDATETIME() AT TIME ZONE 'UTC');
+            """);
+        await ExecuteAsApplicationAsync("UPDATE [identity].[Users] SET [AccessFailedCount] = 1;");
+
+        var failure = await Assert.ThrowsAsync<SqlException>(() =>
+            ExecuteAsApplicationAsync("UPDATE [identity].[Users] SET [UserName] = N'renamed';"));
+        Assert.Contains("permission", failure.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// V5 / plan P14: <c>ycr_app</c> can take the R27 administrator lock with no extra grant, and
+    /// the lock is exclusive — a second transaction waits until the first ends.
+    /// </summary>
+    [Fact]
+    public async Task ApplicationCredential_CanTakeTheAdministratorApplock()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var provider = new ServiceCollection()
+            .AddLogging()
+            .AddInfrastructure(database.ApplicationConnectionString)
+            .BuildServiceProvider();
+        await using var firstScope = provider.CreateAsyncScope();
+        await using var secondScope = provider.CreateAsyncScope();
+        var firstContext = firstScope.ServiceProvider.GetRequiredService<YcrDbContext>();
+        var secondContext = secondScope.ServiceProvider.GetRequiredService<YcrDbContext>();
+        var firstLock = firstScope.ServiceProvider.GetRequiredService<IIdentityAdministratorLock>();
+        var secondLock = secondScope.ServiceProvider.GetRequiredService<IIdentityAdministratorLock>();
+
+        // Without a transaction the lock refuses to run unowned.
+        await Assert.ThrowsAsync<InvalidOperationException>(() => firstLock.AcquireAsync(cancellationToken));
+
+        await using var firstTransaction = await firstContext.Database.BeginTransactionAsync(cancellationToken);
+        await firstLock.AcquireAsync(cancellationToken);
+
+        await using var secondTransaction = await secondContext.Database.BeginTransactionAsync(cancellationToken);
+        var waiting = secondLock.AcquireAsync(cancellationToken);
+        await Task.Delay(TimeSpan.FromMilliseconds(750), cancellationToken);
+        Assert.False(waiting.IsCompleted, "The second transaction acquired the lock while the first still held it.");
+
+        await firstTransaction.CommitAsync(cancellationToken);
+        await waiting.WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
+        await secondTransaction.CommitAsync(cancellationToken);
     }
 
     [Fact]

@@ -22,11 +22,14 @@ namespace YCR.Api.Common.Authentication;
 public static class AuthenticationSchemeGuard
 {
     /// <summary>
-    /// The handler types a deployed environment may register. Empty in F-001: ADR-0020 defers
-    /// the real ADR-0016 token implementation to a later feature, so outside Testing there is
-    /// legitimately no scheme at all, and every endpoint that needs a caller answers 401.
+    /// The handler types a deployed environment may register: exactly the framework
+    /// <see cref="Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerHandler"/> (ADR-0020 item 5
+    /// as amended 2026-09-23; D13). It is not a YCR type, so ADR-0020 item 4 — no authentication
+    /// handler of YCR's own in <c>src/</c> — still holds (D15). The F-001 test handler remains
+    /// <c>Testing</c>-only.
     /// </summary>
-    private static readonly Type[] AllowedHandlerTypes = [];
+    private static readonly Type[] AllowedHandlerTypes =
+        [typeof(Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerHandler)];
 
     public static async Task GuardAuthenticationSchemesAsync(this WebApplication app)
     {

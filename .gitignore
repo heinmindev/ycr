@@ -26,6 +26,9 @@ appsettings.*.Local.json
 .env
 .env.*
 !.env.example
+# Private keys (the ES256 dev signing key is generated locally, then stored in user-secrets; F-002 D11)
+*.pem
+*.key
 
 # EF migration bundles (build artifacts, produced by dotnet ef migrations bundle)
 efbundle

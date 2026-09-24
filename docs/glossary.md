@@ -21,7 +21,7 @@ The **Forbidden synonyms** column applies when referring to the exact canonical 
 - **11** - `docs/11-ticket-lifecycle.md`
 - **19** - `docs/19-open-questions.md`
 - **20** - `docs/20-coding-conventions.md`
-- **ADR-0001 through ADR-0021** - `docs/decisions/`
+- **ADR-0001 through ADR-0023** - `docs/decisions/`
 - **F-001** - the walking-skeleton code, merged to `main` at `ac9bbf3`. Source files are cited by full path.
 
 Documents outside this key (`docs/12-fare-engine.md`, `docs/18-threat-model.md`) are cited by full path in the rows that use them.
@@ -66,20 +66,20 @@ Use these names for namespaces, schemas, ownership boundaries, and module refere
 
 ## Actor and role labels
 
-These are canonical labels for the proposed actors named in **03**. Their inclusion does not approve the role model or any role-to-permission grant; those remain **OPEN QUESTION** under OQ12 and OQ28.
+These are canonical labels for the actors named in **03**, with the **role identifier** F-002 implements for each. The eight identifiers are a **BUSINESS DECISION - provisional tech-lead ruling (hein, 2026-09-23; OQ12, F-002 spec R19) - not a Myanma Railways answer**: OQ12 stays open for an official answer, which would supersede them. The identifiers are what `identity.Roles` seeds, what `PUT /api/v1/users/{id}/roles` accepts and what `audit.AuditEvents.ActorRole` records (`src/YCR.Domain/Identity/RoleNames.cs`). A user may hold several roles; roles are not station-scoped. The role-to-permission grants are **10**'s: `stations.*` resolved under OQ28 and the identity permissions ruled for F-002; every other grant is still an OPEN QUESTION there. Roles never authorize by themselves; permissions do.
 
 **Carve-out for compact labels.** A shortened actor label is permitted inside a compact table heading or an architecture-diagram label, where the full name does not fit and the surrounding document leaves the actor unambiguous. This covers the proposal table in **10** (line 3) and the SPA line in **06** (line 8, "Counter / Inspector / Admin SPA"); **no edit to either file is scheduled**. Outside those two uses the canonical label is required - in prose, code, identifiers, API documentation, permission names and audit actions.
 
 | Canonical English | Myanmar term | Meaning and source | Forbidden synonyms |
 |---|---|---|---|
-| System Administrator | OPEN QUESTION - authoritative term not supplied | Proposed actor responsible for system administration. **03**, **10** proposal only. | Admin, System Admin |
-| Railway Administrator | OPEN QUESTION - authoritative term not supplied | Proposed actor responsible for railway administration. **03**, **10** proposal only. | Railway Admin, Admin |
-| Station Manager | OPEN QUESTION - authoritative term not supplied | Proposed station-management actor. **03**, **10** proposal only. | Station Admin, Manager |
-| Ticket Operator | OPEN QUESTION - authoritative term not supplied | Proposed ticket-selling/operator actor. **03**, **10** proposal only. | Operator, Cashier |
-| Ticket Inspector | OPEN QUESTION - authoritative term not supplied | Proposed ticket-validation/inspection actor. **03**, **10** proposal only. Accepted ADR-0013 (line 44) and **11** (line 30) word this actor "validator user" inside the `TicketValidation` definition; quoting those sentences verbatim is permitted, but new text uses Ticket Inspector. | Inspector, Validator |
-| Finance Officer | OPEN QUESTION - authoritative term not supplied | Proposed finance actor. **03**, **10** proposal only. | Finance, Accountant |
-| Auditor | OPEN QUESTION - authoritative term not supplied | Proposed audit-review actor. **03**, **10** proposal only. | Audit user, Reviewer |
-| Reporting User | OPEN QUESTION - authoritative term not supplied | Proposed reporting actor. **03**. | Report user, Analyst |
+| System Administrator (`SystemAdministrator`) | OPEN QUESTION - authoritative term not supplied | Actor responsible for system administration; the only role holding the identity permissions. At least one active holder must remain. In Production it cannot be granted until MFA ships (ADR-0023 item 4 as amended). **03**, **10**, ADR-0023. | Admin, System Admin |
+| Railway Administrator (`RailwayAdministrator`) | OPEN QUESTION - authoritative term not supplied | Actor responsible for railway administration. In Production it cannot be granted until MFA ships (ADR-0023 item 4 as amended). **03**, **10**, ADR-0023. | Railway Admin, Admin |
+| Station Manager (`StationManager`) | OPEN QUESTION - authoritative term not supplied | Station-management actor. **03**, **10**. | Station Admin, Manager |
+| Ticket Operator (`TicketOperator`) | OPEN QUESTION - authoritative term not supplied | Ticket-selling/operator actor. **03**, **10**. | Operator, Cashier |
+| Ticket Inspector (`TicketInspector`) | OPEN QUESTION - authoritative term not supplied | Ticket-validation/inspection actor. **03**, **10**. Accepted ADR-0013 (line 44) and **11** (line 30) word this actor "validator user" inside the `TicketValidation` definition; quoting those sentences verbatim is permitted, but new text uses Ticket Inspector. | Inspector, Validator |
+| Finance Officer (`FinanceOfficer`) | OPEN QUESTION - authoritative term not supplied | Finance actor. In Production it cannot be granted until MFA ships (ADR-0023 item 4 as amended). **03**, **10**, ADR-0023. | Finance, Accountant |
+| Auditor (`Auditor`) | OPEN QUESTION - authoritative term not supplied | Audit-review actor. **03**, **10**. | Audit user, Reviewer |
+| Reporting User (`ReportingUser`) | OPEN QUESTION - authoritative term not supplied | Reporting actor; the eighth role, which has no column in **10**'s proposal table. **03**, **10**. | Report user, Analyst |
 
 ## Network, timetable, and fares
 
@@ -150,7 +150,7 @@ These are canonical labels for the proposed actors named in **03**. Their inclus
 |---|---|---|---|
 | Authentication | OPEN QUESTION - authoritative term not supplied | Establishing the identity of the caller. ADR-0016, ADR-0020. | Authorization, permission check |
 | Authorization | OPEN QUESTION - authoritative term not supplied | Deciding whether an authenticated caller may perform an action. **10**, ADR-0016/0020. | Authentication, role login |
-| Role | OPEN QUESTION - authoritative term not supplied | A named organizational access grouping such as `Station Manager` or `Auditor`; role-to-permission grants remain open. **03**, **10**, OQ12/OQ28. | Permission, user type, passenger category |
+| Role | OPEN QUESTION - authoritative term not supplied | A named organizational access grouping such as `StationManager` or `Auditor` (see §Actor and role labels for the eight identifiers, a provisional ruling under OQ12). A role grants permissions through **10**'s grants, which are data in `identity.RolePermissions`; grants not recorded there remain open. **03**, **10**, OQ12/OQ28, ADR-0023. | Permission, user type, passenger category |
 | Permission | OPEN QUESTION - authoritative term not supplied | A machine-readable capability such as `stations.manage` or `tickets.validate`. **10**, **20**, ADR-0020. | Role, claim (JWT claims are not the permission authority) |
 | Access token | OPEN QUESTION - authoritative term not supplied | A short-lived JWT containing only `sub` and `sid`; it carries no permission claims. ADR-0016. | Refresh token, API key, session cookie |
 | Refresh token | OPEN QUESTION - authoritative term not supplied | A random token stored hashed and rotated through the refresh cookie flow. ADR-0016. | Access token, password, API key |

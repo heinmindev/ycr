@@ -64,4 +64,25 @@ public sealed class ModuleInterfacesTests(SqlServerFixture fixture) : IAsyncLife
 
         Assert.True(await otherScopeContext.Stations.AnyAsync(station => station.Id == id, cancellationToken));
     }
+
+    /// <summary>F-002: the Identity module's interface is the same shared instance (ADR-0012).</summary>
+    [Fact]
+    public async Task ModuleInterfaces_IdentityContext_ResolvesToSameInstance()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var provider = new ServiceCollection()
+            .AddInfrastructure(database.ApplicationConnectionString)
+            .BuildServiceProvider();
+
+        await using var scope = provider.CreateAsyncScope();
+        var concreteContext = scope.ServiceProvider.GetRequiredService<YcrDbContext>();
+        var identityContext = scope.ServiceProvider.GetRequiredService<YCR.Application.Identity.IIdentityDbContext>();
+        var networkContext = scope.ServiceProvider.GetRequiredService<INetworkDbContext>();
+
+        Assert.Same(concreteContext, identityContext);
+        Assert.Same(networkContext, identityContext);
+
+        // Reachable under ycr_app: the seeded catalogue is readable through the interface.
+        Assert.Equal(8, await identityContext.Roles.CountAsync(cancellationToken));
+    }
 }

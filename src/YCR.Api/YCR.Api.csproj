@@ -1,6 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <!--
+    Per-developer secrets (the ES256 dev signing key, D11; ADR-0023 item 7) live in
+    dotnet user-secrets under this id, loaded in Development only — never in the repository.
+  -->
+  <PropertyGroup>
+    <UserSecretsId>ycr-api-4f0d2c8e-7b1a-4f5e-9c3d-2a6e8b1f0c57</UserSecretsId>
+  </PropertyGroup>
+
+  <!--
     Minimal API host. May depend on no YCR.Domain.<Module> type, and from
     YCR.Domain.Common only Result, Result<T>, Error and ErrorType (plan P11).
     An architecture test enforces that allowlist.
@@ -23,6 +31,8 @@
     <PackageReference Include="Scalar.AspNetCore" />
     <!-- /health/ready must report database connectivity (docs/02 section Reliability). -->
     <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" />
+    <!-- The framework JwtBearerHandler, the only scheme the guard allows (ADR-0020 item 5 as amended; ADR-0023). -->
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
   </ItemGroup>
 
 </Project>

@@ -40,14 +40,28 @@ public sealed class PermissionPolicyProvider(IOptions<AuthorizationOptions> opti
             : _fallback.GetPolicyAsync(policyName);
     }
 
-    /// <summary><c>&lt;resource&gt;.&lt;action&gt;</c>, lower case (docs/20 §2).</summary>
+    /// <summary>
+    /// <c>&lt;resource&gt;.&lt;action&gt;</c> (docs/20 §2): two or more <c>.</c>-separated
+    /// segments, each lower-case ASCII words joined by single hyphens.
+    /// </summary>
+    /// <remarks>
+    /// F-002 (plan step 1): <c>users.roles.manage</c> and <c>auth-sessions.revoke</c>, approved in
+    /// <c>docs/10</c>, read <c>users.roles</c> and <c>auth-sessions</c> as the resource. The
+    /// earlier one-dot, letters-only check sent both to the default provider, which throws on the
+    /// first request to an endpoint that requires them.
+    /// </remarks>
     private static bool LooksLikeAPermission(string policyName)
     {
-        var separator = policyName.IndexOf('.', StringComparison.Ordinal);
+        var segments = policyName.Split('.');
 
-        return separator > 0
-            && separator < policyName.Length - 1
-            && policyName.IndexOf('.', separator + 1) < 0
-            && policyName.All(character => char.IsAsciiLetterLower(character) || character == '.');
+        return segments.Length >= 2 && segments.All(IsSegment);
     }
+
+    /// <summary><c>[a-z]+(-[a-z]+)*</c>.</summary>
+    private static bool IsSegment(string segment) =>
+        segment.Length > 0
+        && char.IsAsciiLetterLower(segment[0])
+        && char.IsAsciiLetterLower(segment[^1])
+        && !segment.Contains("--", StringComparison.Ordinal)
+        && segment.All(character => char.IsAsciiLetterLower(character) || character == '-');
 }

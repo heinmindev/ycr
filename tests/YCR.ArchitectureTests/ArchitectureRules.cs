@@ -111,5 +111,29 @@ public static class ArchitectureRules
                     "^YCR\\.Domain\\.Common\\.(?!(Result($|`1$)|Error$|ErrorType$)).+$"))
         .WithoutRequiringPositiveResults();
 
+    /// <summary>
+    /// F-002 plan P5 (V6): <c>IAuditWriter.RecordSignIn</c> names an actor that is not the
+    /// authenticated principal, so only <c>LoginHandler</c> — which has just verified the password —
+    /// may call it. Its compiler-generated async state machine is nested in it and is allowed too.
+    /// </summary>
+    public static readonly IArchRule OnlyLoginHandlerRecordsSignIn = Types().That()
+        .DoNotHaveFullNameMatching("^YCR\\.Application\\.Identity\\.Login\\.LoginHandler(?:[+/].*)?$")
+        .Should()
+        .NotCallAny(MethodMembers().That().HaveNameStartingWith("RecordSignIn("))
+        .WithoutRequiringPositiveResults();
+
+    /// <summary>The same call with no exemption: must fail on the source, proving the call is seen.</summary>
+    public static readonly IArchRule NobodyRecordsSignIn = Types()
+        .Should()
+        .NotCallAny(MethodMembers().That().HaveNameStartingWith("RecordSignIn("))
+        .WithoutRequiringPositiveResults();
+
+    /// <summary>F-002 plan P1: ASP.NET Core Identity lives in Infrastructure, never in Application.</summary>
+    public static readonly IArchRule ApplicationMustNotDependOnAspNetIdentity = Types().That()
+        .ResideInNamespaceMatching("^YCR\\.Application(?:\\..*)?$")
+        .Should()
+        .NotDependOnAny(Types().That().ResideInNamespaceMatching("^Microsoft\\.AspNetCore\\.Identity(?:\\..*)?$"))
+        .WithoutRequiringPositiveResults();
+
     private static string RegexEscape(string value) => System.Text.RegularExpressions.Regex.Escape(value);
 }

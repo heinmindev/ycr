@@ -1,29 +1,26 @@
-### YCR API — every endpoint in F-001.
+### YCR API — the F-001 station endpoints and the F-002 sign-in and administration endpoints.
 ###
-### READ THIS FIRST — why most of these return 401.
+### Setup (README "Developer setup"): a dev signing key and Auth:AllowedOrigins:0 in user-secrets,
+### and a first administrator from `YCR.Worker bootstrap-administrator`.
 ###
-### ADR-0020 ships the authorization pipeline in F-001 but **no authentication handler**. The
-### only handler in the repository lives in tests/YCR.Api.Tests and is registered exclusively
-### through WebApplicationFactory.ConfigureTestServices; spec S21a asserts no
-### AuthenticationHandler<> subtype exists anywhere in src/, and S21b has startup refuse an
-### unexpected scheme outside the Testing environment.
+### Every /api/v1 endpoint except /auth/login and /auth/refresh needs a bearer token. Sign in,
+### copy accessToken into @token below (it lives 15 minutes; refresh for a new one). The
+### bootstrap and every administrator-set password are must-change: until POST /auth/password
+### succeeds, everything but /auth/me, /auth/password, /auth/logout and /auth/refresh answers
+### 403 Auth.PasswordChangeRequired (R26).
 ###
-### So, against a locally running API:
-###   - /health/live and /health/ready answer 200. They are the only anonymous endpoints
-###     (docs/20 §4 requires an explicit .AllowAnonymous() with a reason).
-###   - every /api/v1/stations request answers **401**. There is no credential to send and
-###     **no dev-auth mechanism is provided**, deliberately: a "just for local development"
-###     bypass is exactly the kind of thing that survives into a deployment.
-###
-### The 2xx/4xx behaviours below are proven by tests/YCR.Api.Tests, which host the same
-### Program with the test handler attached. This file documents the surface and lets you
-### confirm the 401s are real; it is not a way to work around them. Real credentials arrive
-### with the ADR-0016 token feature that ADR-0020 defers.
+### The cookie endpoints (login, refresh, logout) check Origin (R9): each request below sends the
+### allowed origin you configured. Without it: 403 Auth.OriginRejected.
 ###
 ### OpenAPI document (Development environment only): {{host}}/openapi/v1.json
 
 @host = http://localhost:5080
+@origin = http://localhost:5080
+@token = paste-the-access-token-here
+@refresh = paste-the-ycr_refresh-cookie-value-here
 @stationId = 00000000-0000-0000-0000-000000000000
+@userId = 00000000-0000-0000-0000-000000000000
+@sessionId = 00000000-0000-0000-0000-000000000000
 
 ### Liveness probe — expect 200. Anonymous.
 GET {{host}}/health/live
@@ -36,9 +33,121 @@ GET {{host}}/health/ready
 ### requires, which a deployed instance has no reason to hand out.
 GET {{host}}/openapi/v1.json
 
-### Create a station — expect 401 (no authentication handler; requires stations.manage).
-### With a credential: 201 + Location, or 400 / 409 Network.StationCodeAlreadyExists.
+# ---- Sign-in (spec §6.1) ----------------------------------------------------------------------
+
+### Sign in — 200 { accessToken, expiresAtUtc } and Set-Cookie ycr_refresh (HttpOnly; Secure;
+### SameSite=Strict; Path=/api/v1/auth/refresh). Wrong password, unknown user, disabled or
+### locked account: the same 401 Auth.InvalidCredentials. 429 Auth.TooManyRequests over the
+### limits (5/min per username, 20/min per address).
+POST {{host}}/api/v1/auth/login
+Origin: {{origin}}
+Content-Type: application/json
+
+{
+  "userName": "your.name",
+  "password": "your password"
+}
+
+### Refresh — 200 with a new access token and a rotated cookie. A browser sends the cookie by
+### itself; a REST client may not send a Secure cookie over http, so it is sent explicitly here.
+### 409 Auth.RefreshSuperseded when this token was rotated within the last 20 s (another tab);
+### 401 Auth.RefreshInvalid otherwise.
+POST {{host}}/api/v1/auth/refresh
+Origin: {{origin}}
+Cookie: ycr_refresh={{refresh}}
+
+### Who am I — 200 { userId, userName, roles, permissions }.
+GET {{host}}/api/v1/auth/me
+Authorization: Bearer {{token}}
+
+### Change own password — 204; revokes your other sessions. 400 Auth.PasswordRejected (12–128
+### characters, not a common password), 422 Auth.CurrentPasswordIncorrect.
+POST {{host}}/api/v1/auth/password
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "currentPassword": "your password",
+  "newPassword": "a new password of 12 or more characters"
+}
+
+### Sign out — 204; revokes this session and expires the cookie.
+POST {{host}}/api/v1/auth/logout
+Origin: {{origin}}
+Authorization: Bearer {{token}}
+
+# ---- Administration (spec §6.2; SystemAdministrator's permissions) -----------------------------
+
+### List staff accounts — users.read.
+GET {{host}}/api/v1/users?page=1&pageSize=50
+Authorization: Bearer {{token}}
+
+### Read one — users.read. 404 Identity.UserNotFound.
+GET {{host}}/api/v1/users/{{userId}}
+Authorization: Bearer {{token}}
+
+### Create — users.manage. 201; the password is must-change. 400 Identity.InvalidUserName
+### (3–50 of a-z 0-9 .), 400 Identity.PasswordRejected, 409 Identity.UserNameAlreadyExists.
+POST {{host}}/api/v1/users
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "userName": "new.clerk",
+  "password": "an initial password",
+  "roles": ["TicketOperator"]
+}
+
+### Replace roles — users.roles.manage. 422 Identity.CannotChangeOwnRoles,
+### 422 Identity.LastAdministrator.
+PUT {{host}}/api/v1/users/{{userId}}/roles
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "roles": ["TicketOperator", "TicketInspector"]
+}
+
+### Disable — users.manage; revokes all the account's sessions. 422 Identity.CannotDisableOwnAccount,
+### 422 Identity.LastAdministrator.
+POST {{host}}/api/v1/users/{{userId}}/disable
+Authorization: Bearer {{token}}
+
+### Enable — users.manage.
+POST {{host}}/api/v1/users/{{userId}}/enable
+Authorization: Bearer {{token}}
+
+### Unlock — users.manage; clears a lockout (10 failures lock for 15 minutes).
+POST {{host}}/api/v1/users/{{userId}}/unlock
+Authorization: Bearer {{token}}
+
+### Administrator password reset — users.manage; must-change; revokes all sessions.
+### 422 Identity.CannotResetOwnPassword (use /auth/password).
+POST {{host}}/api/v1/users/{{userId}}/password-reset
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "newPassword": "a temporary password"
+}
+
+### A user's sessions — users.read.
+GET {{host}}/api/v1/users/{{userId}}/auth-sessions
+Authorization: Bearer {{token}}
+
+### Revoke one session — auth-sessions.revoke. 404 Identity.SessionNotFound.
+POST {{host}}/api/v1/auth-sessions/{{sessionId}}/revoke
+Authorization: Bearer {{token}}
+
+### The role catalogue and each role's permissions — users.read. Grants change only by migration.
+GET {{host}}/api/v1/roles
+Authorization: Bearer {{token}}
+
+# ---- Stations (F-001) -------------------------------------------------------------------------
+
+### Create a station — stations.manage. 201 + Location, or 400 / 409 Network.StationCodeAlreadyExists.
 POST {{host}}/api/v1/stations
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
@@ -47,10 +156,10 @@ Content-Type: application/json
   "nameMy": "အင်းစိန်"
 }
 
-### Create a station with an invalid code — expect 401 here; 400 Network.InvalidStationCode
-### with a credential. The code rule (R3) lives only in StationCode and is provisional until
-### OQ26 is answered.
+### Create a station with an invalid code — 400 Network.InvalidStationCode. The code rule (R3)
+### lives only in StationCode and is provisional until OQ26 is answered.
 POST {{host}}/api/v1/stations
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
@@ -59,29 +168,15 @@ Content-Type: application/json
   "nameMy": "အင်းစိန်"
 }
 
-### Create a station with a missing field — expect 401 here; 400 Common.ValidationFailed with
-### a credential. Rejected by the endpoint filter before the handler runs.
-POST {{host}}/api/v1/stations
-Content-Type: application/json
-
-{
-  "code": "INS",
-  "nameEn": "Insein"
-}
-
-### List stations — expect 401 (requires stations.read). With a credential: 200 with
-### { items, page, pageSize, totalCount }, ordered by code.
+### List stations — stations.read. 200 with { items, page, pageSize, totalCount }, ordered by code.
 GET {{host}}/api/v1/stations?page=1&pageSize=50
+Authorization: Bearer {{token}}
 
-### List stations above the page-size cap — expect 401 here; 400 Network.InvalidPageRequest
-### with a credential. docs/20 §4 caps pageSize at 200.
-GET {{host}}/api/v1/stations?page=1&pageSize=201
-
-### Read one station — expect 401 (requires stations.read). With a credential: 200, or
-### 404 Network.StationNotFound.
+### Read one station — stations.read. 200, or 404 Network.StationNotFound.
 GET {{host}}/api/v1/stations/{{stationId}}
+Authorization: Bearer {{token}}
 
-### Deactivate a station — expect 401 (requires stations.manage). With a credential: 204,
-### 404 Network.StationNotFound, or 422 Network.StationAlreadyInactive.
-### The row is retained, so the code is never reused (R3).
+### Deactivate a station — stations.manage. 204, 404 Network.StationNotFound, or
+### 422 Network.StationAlreadyInactive. The row is retained, so the code is never reused (R3).
 POST {{host}}/api/v1/stations/{{stationId}}/deactivate
+Authorization: Bearer {{token}}

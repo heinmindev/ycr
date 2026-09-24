@@ -15,6 +15,10 @@ using NetworkUsingTicketingContext = YCR.Application.Network.Violations.NetworkU
 using NetworkUsingTicketingDomain = YCR.Application.Network.Violations.NetworkUsingTicketingDomain;
 using ReportingUsingNetworkContext = YCR.Application.Reporting.Violations.ReportingUsingNetworkContext;
 using SourceUsingAuthenticationHandler = YCR.Api.Violations.SourceUsingAuthenticationHandler;
+using RecordSignInOutsideLoginHandler = YCR.Application.Identity.Violations.RecordSignInOutsideLoginHandler;
+using IdentityUsingNetworkContext = YCR.Application.Identity.Violations.IdentityUsingNetworkContext;
+using NetworkUsingIdentityContext = YCR.Application.Network.Violations.NetworkUsingIdentityContext;
+using ApplicationUsingAspNetIdentity = YCR.Application.Violations.ApplicationUsingAspNetIdentity;
 
 namespace YCR.ArchitectureTests;
 
@@ -38,7 +42,8 @@ public sealed class ArchitectureRuleTests
             typeof(Microsoft.EntityFrameworkCore.DbContext).Assembly,
             typeof(Microsoft.EntityFrameworkCore.SqlServerDbContextOptionsExtensions).Assembly,
             typeof(Microsoft.Data.SqlClient.SqlConnection).Assembly,
-            typeof(Microsoft.AspNetCore.Authentication.AuthenticationHandler<>).Assembly)
+            typeof(Microsoft.AspNetCore.Authentication.AuthenticationHandler<>).Assembly,
+            typeof(Microsoft.AspNetCore.Identity.PasswordHasher<>).Assembly)
         .Build();
 
     [Fact]
@@ -64,6 +69,48 @@ public sealed class ArchitectureRuleTests
                 ArchitectureRules.DomainModuleMustNotDependOnOtherDomains(module).HasNoViolations(SourceArchitecture),
                 module);
         }
+    }
+
+    /// <summary>
+    /// F-002 plan P5, V6: only <c>LoginHandler</c> calls <c>RecordSignIn</c>. The unexempted rule
+    /// must fail on the source — proving ArchUnitNET sees the call inside the async handler — and
+    /// the exempted rule must pass on the source and fail on the planted fixture.
+    /// </summary>
+    [Fact]
+    public void RecordSignIn_CalledOutsideLoginHandler_IsDetected()
+    {
+        var seenInSource = string.Join(
+            Environment.NewLine,
+            ArchitectureRules.NobodyRecordsSignIn.Evaluate(SourceArchitecture).Where(result => !result.Passed));
+        Assert.Contains("LoginHandler", seenInSource, StringComparison.Ordinal);
+
+        AssertRuleProtectsFixture(
+            ArchitectureRules.OnlyLoginHandlerRecordsSignIn,
+            nameof(RecordSignInOutsideLoginHandler));
+    }
+
+    [Fact]
+    public void IdentityApplication_DependingOnAnotherModuleContext_IsDetected()
+    {
+        AssertRuleProtectsFixture(
+            ArchitectureRules.ApplicationModuleMayDependOnlyOnAllowedTypes("Identity"),
+            nameof(IdentityUsingNetworkContext));
+    }
+
+    [Fact]
+    public void NetworkApplication_DependingOnIdentityContext_IsDetected()
+    {
+        AssertRuleProtectsFixture(
+            ArchitectureRules.ApplicationModuleMayDependOnlyOnAllowedTypes("Network"),
+            nameof(NetworkUsingIdentityContext));
+    }
+
+    [Fact]
+    public void Application_DependingOnAspNetIdentity_IsDetected()
+    {
+        AssertRuleProtectsFixture(
+            ArchitectureRules.ApplicationMustNotDependOnAspNetIdentity,
+            nameof(ApplicationUsingAspNetIdentity));
     }
 
     [Fact]
@@ -149,7 +196,9 @@ public sealed class ArchitectureRuleTests
             typeof(YCR.Domain.Common.Result).Assembly,
             typeof(YCR.Application.Network.INetworkDbContext).Assembly,
             typeof(YCR.Infrastructure.Persistence.YcrDbContext).Assembly,
-            ReflectionAssembly.Load("YCR.Api")
+            ReflectionAssembly.Load("YCR.Api"),
+            // F-002 (plan step 10): the Worker now composes the application too (bootstrap command).
+            typeof(YCR.Worker.SystemCurrentUser).Assembly,
         };
 
         var sourceViolations = sourceAssemblies

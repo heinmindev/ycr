@@ -37,6 +37,8 @@ Modules: `Identity, Network, Timetable, Fare, Ticketing, Payments, Operations, R
 | UTC column | `<Name>Utc` | `IssuedAtUtc` |
 | Test method | `Method_State_ExpectedResult` | `Create_WithDuplicateCode_ReturnsConflict` |
 
+**Authentication error codes (ENGINEERING DECISION, tech lead, hein, 2026-09-23; ADR-0023, F-002 D14):** the `Identity` module's error codes are split by prefix. Sign-in, refresh and token errors use **`Auth.<Reason>`** — consistent with ADR-0016's `Auth.RefreshSuperseded` — for example `Auth.InvalidCredentials`. User-administration errors use **`Identity.<Reason>`**, for example `Identity.UserNameAlreadyExists`. Audit actions stay `Identity.<Event>` (for example `Identity.LoginFailed`). `Auth` is an error-code prefix only, not a module. **The prefix follows the path (hein, 2026-09-23; ADR-0023 item 9, F-002 U1):** every error from an endpoint under `/auth/*` uses `Auth.` — including changing one's own password (`Auth.PasswordRejected`, `Auth.CurrentPasswordIncorrect`) — and every error from an endpoint under `/users/*` uses `Identity.` (`Identity.PasswordRejected`). The authentication pipeline's own rejections (`Auth.Unauthenticated`, `Auth.PasswordChangeRequired`) keep `Auth.` on every path.
+
 `*Utc` fields are required to contain UTC values (`DateTimeOffset.Offset == TimeSpan.Zero`).
 Domain factories reject non-UTC offsets, and SQL Server persistence adds a matching check
 constraint where the column is created. Test methods may use `Method_ExpectedResult` when there is
@@ -185,7 +187,7 @@ public sealed class StationConfiguration : IEntityTypeConfiguration<Station>
 - Errors: ProblemDetails with `errorCode` and `traceId` (ADR-0004).
 - Versioned policy (fares, timetables): create a version, then publish it. **Never PATCH a published version** (ADR-0002).
 - Never return EF entities. Map to `*Response` records explicitly (no AutoMapper).
-- Every endpoint has `.RequireAuthorization(<permission>)` or an explicit `.AllowAnonymous()` with a comment saying why.
+- Every endpoint has `.RequireAuthorization(<permission>)` or an explicit `.AllowAnonymous()` with a comment saying why. **Third case (ENGINEERING DECISION, tech lead, hein, 2026-09-23; T-023, F-002 D17):** a self-service endpoint that any authenticated user may call, and that acts only on the caller's own account or session (for example `GET /auth/me`, `POST /auth/logout`, `POST /auth/password`), may use `.RequireAuthorization()` with no permission, **only** with a comment saying why. It is never a shortcut for an endpoint that reads or changes anyone else's data; that needs a permission.
 
 ## 5. Idempotency (financial and retryable commands)
 

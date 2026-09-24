@@ -9,6 +9,7 @@
   -->
   <ItemGroup>
     <ProjectReference Include="../../src/YCR.Api/YCR.Api.csproj" />
+    <ProjectReference Include="../../src/YCR.Worker/YCR.Worker.csproj" />
     <ProjectReference Include="../YCR.TestSupport/YCR.TestSupport.csproj" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
   </ItemGroup>

@@ -27,3 +27,7 @@ docker-compose*.yml text eol=lf
 *.jpg binary
 *.ico binary
 *.pdf binary
+
+# The embedded common-password blocklist (F-002 plan P9). Its SHA-256 is recorded in
+# THIRD-PARTY-NOTICES.md and asserted by a test, so its bytes must not depend on the checkout.
+src/YCR.Infrastructure/Identity/common-passwords.txt text eol=lf

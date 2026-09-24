@@ -39,4 +39,41 @@ public interface IAuditWriter
         IAuditSnapshot? before,
         IAuditSnapshot? after,
         string? reasonCode = null);
+
+    /// <summary>
+    /// Records an event that has no actor, whoever the ambient principal is: <c>ActorUserId</c>,
+    /// <c>ActorRole</c> and <c>AuthorizedByPermission</c> are written null; the client address
+    /// and correlation id still come from <see cref="ICurrentUser"/>.
+    /// </summary>
+    /// <remarks>
+    /// F-002 plan P5 (spec R12, U4): failed sign-in, lockout, refresh-family revocation and the
+    /// bootstrap's <c>UserCreated</c>. A bearer token sent to <c>/auth/login</c> or
+    /// <c>/auth/refresh</c> must not become the actor of these rows. A null actor cannot
+    /// impersonate anyone, so this method is safe to call from anywhere.
+    /// </remarks>
+    void RecordWithoutActor(
+        string action,
+        string subjectType,
+        Guid? subjectId,
+        IAuditSnapshot? before,
+        IAuditSnapshot? after);
+
+    /// <summary>
+    /// Records <c>Identity.LoginSucceeded</c> with the user whose password was just verified as
+    /// the actor, and that user's roles as <c>ActorRole</c> (spec R12, U4). There is no bearer
+    /// principal yet, so <see cref="ICurrentUser"/> cannot supply the actor.
+    /// </summary>
+    /// <remarks>
+    /// F-002 plan P5: the only way to name an actor that is not the authenticated principal. An
+    /// architecture test fails the build if anything other than <c>LoginHandler</c> calls it.
+    /// <c>AuthorizedByPermission</c> is null: signing in needs no permission. The user is passed
+    /// by id, not as the aggregate, because this Common abstraction may not depend on a module
+    /// (ADR-0012 architecture rule).
+    /// </remarks>
+    void RecordSignIn(
+        Guid verifiedUserId,
+        IReadOnlyCollection<string> roles,
+        string action,
+        string subjectType,
+        IAuditSnapshot? after);
 }
