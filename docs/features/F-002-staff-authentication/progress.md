@@ -398,3 +398,31 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** none.
 
 **State of the branch:** committed and pushed; build green; tests green (CI `api-smoke` red until step 12, as accepted).
+
+---
+
+## 2026-09-24 13:10 Asia/Yangon — claude — T-025 step 10
+
+**Stage:** 4 (IMPLEMENT), plan step 10 of 12
+**Commit:** `f456319` on `feature/F-002`
+**Done this session:**
+- `YCR.Worker`: `BootstrapAdministratorCli` — `dotnet YCR.Worker.dll bootstrap-administrator --username <name>`; the password is the first line of standard input (read without echo when stdin is a terminal); any `--password…` or `-p` argument is refused; exit `0` created, `1` refused by a rule (nothing written), `2` usage error; stdout/stderr carry the account id and error codes, never the password. `AddBootstrapAdministrator(configuration)` composes `AddInfrastructure` + `AddApplication` over `ConnectionStrings:Application` with `SystemCurrentUser` (all actor fields null, one correlation id per run). `Program` dispatches the command before any host is built; with no command it is the F-001 bare host.
+- `YCR.IntegrationTests`: first suite. References the Worker; the F-001 exit-code-8 waiver is removed (its note said it would be). `BootstrapAdministratorCommandTests` (16): first run (one must-change `SystemAdministrator`, one `UserCreated` row with null actor, role, permission and client address), second run exits 1 and writes nothing, 4 invalid usernames, 2 policy violations, the password in no output / Trace log / ledger row, 3 command-line password forms refused, 3 usage errors plus empty stdin, and **one real `dotnet YCR.Worker.dll` process** fed its password on a pipe (exit 0, then 1 on a second run).
+- `YCR.Api.Tests/Identity/ProductionCompositionTests` (S25, 2): `Unmodified` host in `Production` with a non-test key; bootstrap via the Worker command against the same database → sign in → `403` until `/auth/password` → sign in → `GET /stations` `200`; anonymous → `401 Auth.Unauthenticated`. `YCR.Api.Tests` references the Worker for this.
+- `YCR.ArchitectureTests`: the Worker assembly joins the S21a no-authentication-handler scan (plan: "now also scans `YCR.Worker`").
+- **Mutation check:** removing the `--password` refusal failed 2 tests (the `-p` case is a separate check and still passed). Making `SystemCurrentUser.UserId` non-null failed nothing — an equivalent mutation: the bootstrap audits through `RecordWithoutActor`, which forces every actor field to null whatever `ICurrentUser` says (P5), so `SystemCurrentUser`'s values are defence in depth.
+
+**Deviations from the plan / decisions inside its latitude:**
+- The Worker's `Program` is an explicit `internal static class YCR.Worker.Program` instead of top-level statements, so it is not a second global `Program` beside the API's in test projects that reference both (`WebApplicationFactory<Program>` would otherwise be ambiguous).
+- The command class is `BootstrapAdministratorCli` (plan: `BootstrapAdministratorCommand`), because `YCR.Application.Identity.BootstrapAdministrator.BootstrapAdministratorCommand` is the handler's command record. Its entry point is `RunAsync(args, stdin, stdout, stderr, services)` as planned.
+- The CLI builds a plain `ServiceCollection` (configuration from `appsettings.json`, `appsettings.{DOTNET_ENVIRONMENT}.json`, environment variables) rather than `Host.CreateApplicationBuilder`: the host's Development-time `ValidateOnBuild` would reject `AddApplication`'s sign-in handlers, which need the API's token issuer the Worker does not have.
+- Exit code `2` (usage) is added beside the plan's `0`/non-zero.
+- `SqlServerFixture.cs` is at the project root (used by any future suite), not under `Bootstrap/`.
+
+**Evidence:** `dotnet test YCR.sln` → **614/614 passed, 0 skipped** (+18). `dotnet build YCR.sln` 0 warnings.
+
+**Next step (exact):** plan step 11 — README (dev key generation with user-secrets, bootstrap usage, Origin note), `.env.example` (`Auth__AllowedOrigins__0`, key never in `.env`), `src/YCR.Api/appsettings.json` `Auth` defaults, `src/YCR.Worker/appsettings.json` (logging), `YCR.Api.http` (login/refresh/me), `UserSecretsId` in `YCR.Api.csproj`; `THIRD-PARTY-NOTICES.md` already landed at step 4.
+
+**Blockers / open questions:** none.
+
+**State of the branch:** committed and pushed; build green; tests green (CI `api-smoke` red until step 12, as accepted).
