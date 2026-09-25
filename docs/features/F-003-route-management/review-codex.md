@@ -85,6 +85,8 @@ specification and plan in the reviewed scope.
 
 #### C-1 — Low — Unreachable route-station constraint mapping has no focused test
 
+**Status:** Addressed as ruled, at `fa3642c` (T-039).
+
 **Evidence:** `src/YCR.Application/Network/CreateRoute/CreateRouteHandler.cs:104-110` catches
 `UX_RouteStations_StationId_RouteId`, while `Route.Create` rejects every repeated station before
 `SaveChangesAsync` (`src/YCR.Domain/Network/Route.cs:81-88`). The stage-5 race and duplicate tests
@@ -132,6 +134,8 @@ data disclosure categories; ADR-0017/0021 audit controls; `docs/09` authenticati
 ### Findings
 
 #### S-1 — Medium — Route body size is bounded only after JSON model binding
+
+**Status:** Fixed at `fa3642c` (T-039).
 
 **Threat:** API abuse / resource exhaustion (`docs/18`).
 

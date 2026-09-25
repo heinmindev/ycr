@@ -357,3 +357,25 @@ Baseline before step 1: 643/643.
 **Blockers / open questions:** no blocking findings.
 
 **State of the branch:** tests green; report and progress are uncommitted.
+
+## 2026-09-25 09:20 Asia/Yangon — agent: claude — T-039
+
+**Stage:** 8 (remediation and documentation) — complete; waiting on re-review (T-040, codex).
+**Commit:** fix at `fa3642c`; this entry and the `review-codex.md` Status lines are the commit after it. The CI run for the branch head is recorded in `TASKS.md` T-039 Notes.
+
+**Done this session:**
+- Claimed T-039 (`claim/T-039`, ledger commit on `main`).
+- **S-1 (REQUIRED CONTROL, hein, 2026-09-25):** `POST /api/v1/routes` carries `RequestSizeLimitAttribute(32 KB)` as endpoint metadata (`RouteEndpoints.CreateRouteMaxRequestBodyBytes`). Endpoint routing copies `IRequestSizeLimitMetadata` into the server's `IHttpMaxRequestBodySizeFeature` before the body is read, so Kestrel refuses a larger body before JSON binding. No other endpoint's limit changed (T-042). **Why tests run on Kestrel:** `TestServer` has no `IHttpMaxRequestBodySizeFeature` (checked in `Microsoft.AspNetCore.TestHost` 10.0.12), so the metadata is inert there; `RouteRequestLimitTests` starts the API with `WebApplicationFactory.UseKestrel(0)` and talks to it over real HTTP.
+- New `tests/YCR.Api.Tests/Network/RouteRequestLimitTests.cs` (7 tests): `Limit_Is32KiB`; `Post_WithBodyOver32KiB_Returns413WithoutInternals` (declared length and chunked); `Post_WithMalformedJson_Returns400WithoutInternals` (3 bodies); `Post_WithLargestValidRequest_IsUnderTheLimitAndReachesTheHandler` (200 ids, 10-character code, two 100-character names → `422 Network.RouteStationNotFound`). Each refusal is pinned to `application/problem+json` with `status` and `traceId`, under 1 KB, with no exception type, stack frame, framework/parser detail, server path or database name, and nothing written. **Red first:** with the metadata removed, both oversize cases returned `400` (body parsed whole, then refused by validation); with it, `413`.
+- **C-1:** kept the `UX_RouteStations_StationId_RouteId` catch in `CreateRouteHandler`; the comment now says it is defence in depth, unreachable while `Route.Create` refuses repeats, and that the translation is covered by `UniqueConstraintTranslationTests` (index name pinned by `RouteModelTests`). No test seam.
+- **Spec Amendment 3** (§0.9): V7 (blank/whitespace code or name at the endpoint is `400 Common.ValidationFailed`; `InvalidRouteCode`/`InvalidRouteName` from the domain for format and length) and **R27** (32 KB, `POST /routes`). S5, S11 and §6 updated. The S5 API theory gains two rows, whitespace-only `code` and `nameMy` (only `nameEn` was covered), so the amended S11 is traced end to end.
+- **Docs:** `docs/07` "F-003 route tables, constraints, indexes and grants" (columns, objects, both `NO ACTION` FKs, grants and absences, why there is no `IX_RouteStations_StationId`, the three migration names); `docs/08` "Implemented in F-003 — routes" (endpoints, contracts, error codes and their sources, error precedence, the 32 KB limit, not-provided operations) and Initial resources (`PATCH /routes` not provided); glossary rows *Route code*, *IsClosed*, *RouteStation / position* (Myanmar term OPEN QUESTION). README lists no endpoints: unchanged. `docs/10` and `docs/19` not edited (instructed); the plan's "record the migration name in `docs/10`" is therefore done in `docs/07` instead.
+- `review-codex.md`: `**Status:**` lines added under S-1 and C-1 (the findings are headings, so there was no Status column to fill); Codex's text unchanged.
+
+**Evidence:** `dotnet test YCR.sln` on the `fa3642c` code — **798 passed, 0 failed, 0 skipped** (789 + 7 limit tests + 2 S5 rows). Targeted `RouteRequestLimitTests` 7/7, and 5/7 with the limit removed (the two oversize cases fail as expected).
+
+**Next step (exact):** codex — T-040 re-review of `fa3642c` (S-1, C-1, Amendment 3, docs against behaviour).
+
+**Blockers / open questions:** none blocking. For T-042/hein: the framework's `400` (malformed JSON) and `413` ProblemDetails carry `traceId` but no `errorCode`, on every endpoint (the plan-V5 behaviour); `docs/08` states this.
+
+**State of the branch:** builds; tests green; everything committed and pushed.
