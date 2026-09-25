@@ -285,3 +285,27 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Found while preparing step 9 — a plan gap (see the next entry).**
 
 **State of the branch:** builds; tests green locally; committed and pushed.
+
+---
+
+## 2026-09-25 18:45 Asia/Yangon — claude — T-046
+
+**Stage:** 4 (IMPLEMENT) — **stopped before plan step 9. Blocked: `engineering` (two plan gaps; tech-lead ruling needed, no business OQ).**
+**Commit:** code at `045be9f` (step 8); this entry is the commit after it.
+
+**CI evidence.** Run [36114002714](https://github.com/heinmindev/ycr/actions/runs/36114002714) at `045be9f`: Build and test **failure** (1158 total, 1157 passed, **1 failed**, 0 skipped), API smoke test **failure**, Secret scan success, Trunk-only skipped (no PR). The step-7 run 36110923723 at `9237d1e` already showed gap G1 (Build and test failure; smoke success, because the startup check arrived in step 8). Steps 1–6 runs were cancelled by later pushes; `7f5ae96` (step 6) was green.
+
+**G1 — `LocalCalendarTests.AsiaYangon_ResolvesInThisEnvironment` cannot be written as the plan names it.** The plan (§Test plan, Infrastructure; ruling Q3; V6) says: "its base offset is +06:30 with **no adjustment rules, i.e. no DST**". On Windows (ICU / "Myanmar Standard Time") that holds. On Linux tzdata it does not. Checked in `mcr.microsoft.com/dotnet/sdk:10.0` (Ubuntu 24.04.5, the runner's family) on 2026-09-25: `Asia/Yangon` resolves, `BaseUtcOffset = 06:30`, but `GetAdjustmentRules()` returns **9 historical rules** (LMT −00:05 base deltas to 1920; +02:30 base delta 1942-05-01..1945-05-02, the wartime +09:00), every one with `DaylightDelta = 00:00`, and `SupportsDaylightSavingTime` is **true** (a .NET/tzdata quirk, not real DST). `GetUtcOffset` is 06:30 and `IsDaylightSavingTime` false for 2026, 2030, 2040. In CI the test failed at its `SupportsDaylightSavingTime` assertion. Everything else about the zone passes on the runner, including both midnight-crossing theories (`17:29:59Z` / `17:30:00Z`).
+  - *Proposed (not applied):* keep "resolves" and "+06:30", replace "no adjustment rules / no DST flag" by what the ruling means for F-004 dates: `GetUtcOffset(d) == +06:30` and `IsDaylightSavingTime(d) == false` for dates across the service horizon (e.g. 2026–2040), and every adjustment rule has `DaylightDelta == 0`. This changes a test assertion the approved plan spells out, so it is not a mechanical deviation.
+
+**G2 — `api-smoke` does not start the API with its shipped `appsettings.json`.** Plan step 9 says the job "starts the built Worker (bootstrap) and the API with their shipped `appsettings.json`, so it proves the zone check passes on the Linux runner". True for the Worker (`Program.Main` reads `AppContext.BaseDirectory`). **False for the API:** `ci.yml` "Run the API" runs `dotnet src/YCR.Api/bin/Release/net10.0/YCR.Api.dll` from the repository root, so the content root is the repo root and `appsettings.json` is never loaded (it never was; `Auth:Issuer`/`Audience`/limits have code defaults, which hid it). With step 8's fail-closed check the API now refuses to start in CI: `System.InvalidOperationException: Time:LocalTimeZone is not configured…` (run 36114002714, "Run the API"). Reproduced locally the same way; the same binary started from its own directory loads the file and serves `/health/live` 200. The fail-closed behaviour itself is correct (ruling Q3); the question is how the deployed-shape API gets the setting.
+  - *Options:* (a) add `Time__LocalTimeZone: Asia/Yangon` to the "Run the API" `env:` block, as every other deployment setting reaches it there — then the smoke proves the zone resolves on the runner but not that the shipped file is read; `CiWorkflowTests` inspects `env:` and must be re-checked; (b) run the API with its output directory as working directory (content root), so the shipped `appsettings.json` is loaded as the plan assumed — this also starts loading the file's `Auth` values (equal to the code defaults today) in the smoke, a wider change to the deployed-shape job; (c) something else hein prefers (e.g. `--contentRoot`). Also a stage-8 fact for `docs/15`: a deployment must run from the app directory or supply `Time__LocalTimeZone`.
+  - *Recommendation:* (b) — it is the only one that makes the plan's step-9 claim true and exercises the shipped setting; (a) if hein prefers not to change the job's start shape.
+
+**Not done (waiting for the rulings):** plan step 9 entirely — the `YCR.Api.http` "Services (F-004)" section and the `api-smoke` service checks (drafted, not applied); the green CI run; the ledger move to `review`.
+
+**Next step (exact):** hein rules on G1 (the proposed assertion or another) and G2 (a/b/c). Then: apply G1 in `LocalCalendarTests` (record as a V-number, RED on Linux already observed in CI), apply the G2 choice in `ci.yml`, do step 9 (`.http`, the smoke checks), push, get CI green, move T-046 to `review`.
+
+**Blockers / open questions:** `engineering` — G1, G2 above. No business OQ.
+
+**State of the branch:** builds; `dotnet test YCR.sln` green locally (1158/1158, 0 skipped, Windows); CI red for G1 and G2 only; all work committed and pushed.
