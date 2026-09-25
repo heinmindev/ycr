@@ -14,8 +14,21 @@ namespace YCR.Application.Network;
 /// <c>409 Conflict</c> into an unhandled <c>500</c>, and nothing would fail until a duplicate
 /// code was posted in production.
 /// </para>
+/// <para>
+/// The route names are kept honest the same way, by <c>RouteModelTests</c>.
+/// </para>
 /// </remarks>
 public static class NetworkConstraints
 {
     public const string StationCodeUniqueIndex = "UX_Stations_Code";
+
+    /// <summary>R14: route codes are unique across all routes, inactive ones included.</summary>
+    public const string RouteCodeUniqueIndex = "UX_Routes_Code";
+
+    /// <summary>
+    /// R7: a station appears at most once in one route. On <c>(StationId, RouteId)</c>, so it also
+    /// covers the station foreign key and EF adds no <c>IX_RouteStations_StationId</c>
+    /// (spec Amendment 1, hein, 2026-09-24).
+    /// </summary>
+    public const string RouteStationUniqueIndex = "UX_RouteStations_StationId_RouteId";
 }

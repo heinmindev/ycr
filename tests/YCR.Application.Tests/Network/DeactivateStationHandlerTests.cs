@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using YCR.Application.Network.CreateRoute;
 using YCR.Application.Network.CreateStation;
 using YCR.Application.Network.DeactivateStation;
 using YCR.Domain.Common;
@@ -99,6 +100,39 @@ public sealed class DeactivateStationHandlerTests(SqlServerFixture fixture) : Ne
         Assert.Equal(1, await ScalarAsync<int>(
             "SELECT COUNT(*) FROM [audit].[AuditEvents] WHERE [Action] = N'Network.StationDeactivated';"));
         Assert.Equal(0, await ScalarAsync<int>("SELECT CAST([IsActive] AS int) FROM [network].[Stations];"));
+    }
+
+    /// <summary>
+    /// F-003 S17 / R12: deactivating a station that is in an active route is allowed, exactly as in
+    /// F-001, and the route's sequence rows are untouched (OQ39 provisional ruling).
+    /// </summary>
+    [Fact]
+    public async Task DeactivateStation_WhenStationIsInActiveRoute_DeactivatesAndLeavesRouteStationsUnchanged()
+    {
+        await using var provider = BuildProvider();
+        var first = await CreateAsync(provider, "INS");
+        var second = await CreateAsync(provider, "BGO");
+        Guid routeId;
+        await using (var scope = provider.CreateAsyncScope())
+        {
+            var route = await scope.ServiceProvider.GetRequiredService<CreateRouteHandler>()
+                .Handle(new CreateRouteCommand("R1", "Route", "လမ်းကြောင်း", false, [first, second]), CancellationToken);
+            Assert.True(route.IsSuccess);
+            routeId = route.Value;
+        }
+
+        var result = await DeactivateAsync(provider, second);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(0, await ScalarAsync<int>(
+            $"SELECT CAST([IsActive] AS int) FROM [network].[Stations] WHERE [Id] = '{second}';"));
+        Assert.Equal(
+            $"1:{first}|2:{second}",
+            await ScalarAsync<string>(
+                $"SELECT STRING_AGG(CONCAT([Position], ':', LOWER(CONVERT(nvarchar(36), [StationId]))), '|') WITHIN GROUP (ORDER BY [Position]) FROM [network].[RouteStations] WHERE [RouteId] = '{routeId}';"));
+        Assert.Equal(1, await ScalarAsync<int>("SELECT CAST([IsActive] AS int) FROM [network].[Routes];"));
+        Assert.Equal(1, await ScalarAsync<int>(
+            "SELECT COUNT(*) FROM [audit].[AuditEvents] WHERE [Action] = N'Network.StationDeactivated';"));
     }
 
     private async Task<Guid> CreateAsync(IServiceProvider provider, string code)

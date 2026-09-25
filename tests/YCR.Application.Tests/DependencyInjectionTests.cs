@@ -41,6 +41,11 @@ public sealed class DependencyInjectionTests
         Assert.Contains(typeof(DeactivateStationHandler), handlers);
         Assert.Contains(typeof(GetStationHandler), handlers);
         Assert.Contains(typeof(ListStationsHandler), handlers);
+        // F-003: routes.
+        Assert.Contains(typeof(YCR.Application.Network.CreateRoute.CreateRouteHandler), handlers);
+        Assert.Contains(typeof(YCR.Application.Network.DeactivateRoute.DeactivateRouteHandler), handlers);
+        Assert.Contains(typeof(YCR.Application.Network.GetRoute.GetRouteHandler), handlers);
+        Assert.Contains(typeof(YCR.Application.Network.ListRoutes.ListRoutesHandler), handlers);
         // F-002 step 5: the sign-in slice.
         Assert.Contains(typeof(YCR.Application.Identity.Login.LoginHandler), handlers);
         Assert.Contains(typeof(YCR.Application.Identity.RefreshSession.RefreshSessionHandler), handlers);
@@ -54,7 +59,7 @@ public sealed class DependencyInjectionTests
             Assert.Contains(handlers, handler => handler.FullName == $"YCR.Application.Identity.{name}.{name}Handler");
         }
 
-        Assert.Equal(22, handlers.Count);
+        Assert.Equal(26, handlers.Count);
     }
 
     /// <summary>S-1 (ADR-0023 item 4 as amended): a host that registers no gate fails closed.</summary>

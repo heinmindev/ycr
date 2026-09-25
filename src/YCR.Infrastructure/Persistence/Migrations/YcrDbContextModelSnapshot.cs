@@ -241,6 +241,68 @@ namespace YCR.Infrastructure.Persistence.Migrations
                     b.ToTable("UserRoles", "identity");
                 });
 
+            modelBuilder.Entity("YCR.Domain.Network.Route", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<DateTimeOffset?>("DeactivatedAtUtc")
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<bool>("IsActive")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsClosed")
+                        .HasColumnType("bit");
+
+                    b.HasKey("Id")
+                        .HasName("PK_Routes");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Routes_Code");
+
+                    b.ToTable("Routes", "network", t =>
+                        {
+                            t.HasCheckConstraint("CK_Routes_CreatedAtUtc_Utc", "DATEPART(TZOFFSET, [CreatedAtUtc]) = 0");
+
+                            t.HasCheckConstraint("CK_Routes_DeactivatedAtUtc_Utc", "[DeactivatedAtUtc] IS NULL OR DATEPART(TZOFFSET, [DeactivatedAtUtc]) = 0");
+                        });
+                });
+
+            modelBuilder.Entity("YCR.Domain.Network.RouteStation", b =>
+                {
+                    b.Property<Guid>("RouteId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("StationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("RouteId", "Position")
+                        .HasName("PK_RouteStations");
+
+                    b.HasIndex("StationId", "RouteId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_RouteStations_StationId_RouteId");
+
+                    b.ToTable("RouteStations", "network", t =>
+                        {
+                            t.HasCheckConstraint("CK_RouteStations_Position", "[Position] >= 1");
+                        });
+                });
+
             modelBuilder.Entity("YCR.Domain.Network.Station", b =>
                 {
                     b.Property<Guid>("Id")
@@ -381,6 +443,54 @@ namespace YCR.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("YCR.Domain.Network.Route", b =>
+                {
+                    b.OwnsOne("YCR.Domain.Network.BilingualName", "Name", b1 =>
+                        {
+                            b1.Property<Guid>("RouteId")
+                                .HasColumnType("uniqueidentifier");
+
+                            b1.Property<string>("En")
+                                .IsRequired()
+                                .HasMaxLength(100)
+                                .HasColumnType("nvarchar(100)")
+                                .HasColumnName("NameEn");
+
+                            b1.Property<string>("My")
+                                .IsRequired()
+                                .HasMaxLength(100)
+                                .HasColumnType("nvarchar(100)")
+                                .HasColumnName("NameMy");
+
+                            b1.HasKey("RouteId");
+
+                            b1.ToTable("Routes", "network");
+
+                            b1.WithOwner()
+                                .HasForeignKey("RouteId");
+                        });
+
+                    b.Navigation("Name")
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("YCR.Domain.Network.RouteStation", b =>
+                {
+                    b.HasOne("YCR.Domain.Network.Route", null)
+                        .WithMany("Stations")
+                        .HasForeignKey("RouteId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_RouteStations_Routes_RouteId");
+
+                    b.HasOne("YCR.Domain.Network.Station", null)
+                        .WithMany()
+                        .HasForeignKey("StationId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_RouteStations_Stations_StationId");
+                });
+
             modelBuilder.Entity("YCR.Domain.Network.Station", b =>
                 {
                     b.OwnsOne("YCR.Domain.Network.BilingualName", "Name", b1 =>
@@ -425,6 +535,11 @@ namespace YCR.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("YCR.Domain.Identity.StaffUser", b =>
                 {
                     b.Navigation("Roles");
+                });
+
+            modelBuilder.Entity("YCR.Domain.Network.Route", b =>
+                {
+                    b.Navigation("Stations");
                 });
 #pragma warning restore 612, 618
         }

@@ -13,6 +13,8 @@ public sealed class YcrDbContext(DbContextOptions<YcrDbContext> options)
 {
     public DbSet<Station> Stations => Set<Station>();
 
+    public DbSet<Route> Routes => Set<Route>();
+
     public DbSet<StaffUser> Users => Set<StaffUser>();
 
     public DbSet<Role> Roles => Set<Role>();
