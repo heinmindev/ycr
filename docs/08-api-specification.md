@@ -8,8 +8,8 @@ Initial resources:
 
 - GET/POST/PATCH `/stations`
 - GET/POST `/routes`, POST `/routes/{id}/deactivate` — implemented in F-003 (below). **`PATCH /routes` is not provided** (OQ41 ruling: code and names are fixed after creation), and there is no `PUT /routes/{id}/stations` (OQ38 ruling: sequences are immutable)
-- GET/POST/PATCH `/trains`
-- GET/POST/PATCH `/services`
+- ~~GET/POST/PATCH `/trains`~~ — **not provided** (OQ42 provisional ruling, hein, 2026-09-25: there is no `Train` concept in Phase 1; use case 3 is met by services)
+- GET/POST `/services`, POST `/services/{id}/withdraw` — implemented in F-004 (below). **`PATCH /services` is not provided** (OQ48 ruling: a service is immutable except for withdrawal)
 - POST `/schedules/versions`
 - POST `/schedules/versions/{id}/publish`
 - POST `/fares/versions`
@@ -215,6 +215,136 @@ keeps the server's default until T-042 sets deliberate limits.
 fixed at creation), no `PUT /routes/{id}/stations` or other sequence replacement (to change the
 network, create a new route and deactivate the old one), no reactivation and no `DELETE`. The
 route endpoints appear in the Development-only OpenAPI document under the tag `Routes`.
+
+## Implemented in F-004 — services
+
+F-004 spec §6. A **service** is master data in the `Timetable` module: a code, a bilingual name,
+one route, a direction, an ordered list of stops (stations, no times), a set of operating days and
+an effective period. It is created whole and afterwards can only be **withdrawn**, which shortens
+its period. The service **rules** below are **BUSINESS DECISION — provisional tech-lead rulings
+(hein, 2026-09-25; T-044, OQ42–OQ50) — not a Myanma Railways answer**; an official, different
+answer supersedes them. Public holidays and per-date exceptions are not implemented (OQ47 stays
+open). Every endpoint also has the responses in §Applies to every protected endpoint. No service
+endpoint takes an `Idempotency-Key` (spec R25), and no request or response carries a version token.
+
+| Method | Path | Request | Success | Error codes | Permission |
+|---|---|---|---|---|---|
+| POST | `/api/v1/services` | `CreateServiceRequest`. Body at most **32 KiB** | `201` + `CreateServiceResponse { id }` and `Location: /api/v1/services/{id}` | `400` `Common.ValidationFailed` · `400` `Timetable.InvalidServiceCode` · `400` `Timetable.InvalidServiceName` · `400` `Timetable.InvalidEffectivePeriod` · `400` malformed JSON · `401` · `403` · `409` `Timetable.ServiceCodePeriodOverlap` · `413` body over 32 KiB · `422` `Timetable.ServiceEffectiveToInPast` · `422` `Timetable.ServiceRouteNotFound` · `422` `Timetable.ServiceRouteInactive` · `422` `Timetable.ServiceStopNotOnRoute` · `422` `Timetable.ServiceStopRepeated` · `422` `Timetable.ServiceTooFewStops` · `422` `Timetable.ServiceStopsOutOfOrder` · `422` `Timetable.ServiceStopStationInactive` | `services.manage` |
+| GET | `/api/v1/services/{id}` | — | `200` + `ServiceResponse` | `401` · `403` · `404` `Timetable.ServiceNotFound` | `services.read` |
+| GET | `/api/v1/services` | `?page=1&pageSize=50` (max 200) `&routeId=` (optional); ordered by `code`, then `effectiveFrom`, then `id`; withdrawn services included; an unknown `routeId` gives an empty page | `200` + `{ items: ServiceSummaryResponse[], page, pageSize, totalCount }` | `400` `Timetable.InvalidPageRequest` · `401` · `403` | `services.read` |
+| POST | `/api/v1/services/{id}/withdraw` | `WithdrawServiceRequest { withdrawFrom }`. Body at most **1 KiB** | `204` | `400` `Common.ValidationFailed` · `400` malformed JSON · `401` · `403` · `404` `Timetable.ServiceNotFound` · `409` `Timetable.ServiceChangedConcurrently` · `413` body over 1 KiB · `422` `Timetable.WithdrawalDateInPast` · `422` `Timetable.WithdrawalDoesNotShorten` | `services.manage` |
+
+`services.manage` is held by `SystemAdministrator` and `RailwayAdministrator`; `services.read` by
+all eight roles (`docs/10` §Service permission grants). A station or route permission gives no
+service right, and a service permission gives no station or route right.
+
+**Contracts.**
+
+```text
+CreateServiceRequest   { code, nameEn, nameMy, routeId, direction: "Forward" | "Reverse",
+                         stopStationIds: string[],            // in stop order, 1..200
+                         operatingDays: string[],             // "Monday".."Sunday", 1..7, no repeats
+                         effectiveFrom: date, effectiveTo: date | null }
+CreateServiceResponse  { id }
+WithdrawServiceRequest { withdrawFrom: date }                 // the first date the service no longer runs
+ServiceResponse        { id, code, nameEn, nameMy, direction,
+                         route: { id, code, nameEn, nameMy, isClosed, isActive },
+                         stops: ServiceStopResponse[],        // in position order
+                         operatingDays: string[],             // Monday first
+                         effectiveFrom, effectiveTo, neverRuns, createdAtUtc, withdrawnAtUtc }
+ServiceStopResponse    { position, stationId, code, nameEn, nameMy, isActive }
+ServiceSummaryResponse { id, code, nameEn, nameMy, routeId, routeCode, direction, stopCount,
+                         operatingDays, effectiveFrom, effectiveTo, neverRuns, createdAtUtc,
+                         withdrawnAtUtc }
+```
+
+- `routeId` and every `stopStationIds` element are GUIDs in `D` format
+  (`00000000-0000-0000-0000-000000000000`); dates are exactly `YYYY-MM-DD`.
+- `direction` is required, with no default, and is exactly `Forward` or `Reverse`: along the
+  route's station order, or against it.
+- `operatingDays` holds exact, case-sensitive English day names — `Monday`, `Tuesday`,
+  `Wednesday`, `Thursday`, `Friday`, `Saturday`, `Sunday` — at least one, no repeats. `monday`,
+  `Mon` and `1` are refused. Responses list them Monday first.
+- `stopStationIds` is the whole stop list in order: at least one id (the domain then requires two),
+  at most **200** (REQUIRED CONTROL, spec R31). A full circuit of a route with 200 stations needs
+  201 stops and is therefore not supported.
+- `effectiveTo` is inclusive and may be absent or `null` (open-ended).
+- `position` is 1-based and contiguous in stop order; it is not the route position, the station
+  code or the ADR-0014 station index. A full circuit keeps its closing stop (the first station
+  again) at the last position.
+- The route's and each stop station's `code`, `nameEn`, `nameMy`, `isActive` (and the route's
+  `isClosed`) are **current** values, read at query time through the Network contract; a service
+  row stores only ids. Deactivating a route or station is still allowed and changes no service.
+- `effectiveTo` and `withdrawnAtUtc` are `null` until set. `withdrawnAtUtc` is the latest
+  withdrawal's instant. `neverRuns` is `true` exactly when a withdrawal has made `effectiveTo`
+  earlier than `effectiveFrom`; it is computed, not stored.
+- No request has an actor field; audit actors come from the server.
+
+**Error codes, and the order they are checked in.** A create that breaks several rules gets the
+first failure in this order (spec R37); within one check, the first offending stop in stop order
+is reported.
+
+1. **`400 Common.ValidationFailed`** — the request validator, before the handler runs: a missing,
+   empty or whitespace-only `code`, `nameEn` or `nameMy`; a missing or non-`D`-format `routeId`; a
+   missing or unknown `direction`; a missing or empty `stopStationIds`, more than 200 of them, or a
+   `null` or non-GUID element; a missing or empty `operatingDays`, a repeated day or an unknown day
+   name; a missing or malformed `effectiveFrom`; a malformed `effectiveTo`. Nothing is read or
+   written.
+2. **`400 Timetable.InvalidServiceCode`** — not 2–10 characters of `A`–`Z` and `0`–`9` after
+   trimming.
+3. **`400 Timetable.InvalidServiceName`** — a name longer than 100 characters after trimming.
+4. **`400 Timetable.InvalidEffectivePeriod`** — `effectiveTo` earlier than `effectiveFrom`.
+5. **`422 Timetable.ServiceEffectiveToInPast`** — `effectiveTo` earlier than today's Asia/Yangon
+   date. `effectiveFrom` may be in the past.
+6. **`422 Timetable.ServiceRouteNotFound`** — no route has `routeId` (a `422`, not a `404`: the
+   addressed resource is the new service).
+7. **`422 Timetable.ServiceRouteInactive`** — the route is inactive.
+8. **`422 Timetable.ServiceStopNotOnRoute`** — a stop is not a station of the route (including an
+   id that names no station).
+9. **`422 Timetable.ServiceStopRepeated`** — a station appears twice among the stops, other than a
+   full circuit's closing stop.
+10. **`422 Timetable.ServiceTooFewStops`** — fewer than 2 stops, or a full circuit with fewer than
+    3 distinct stations.
+11. **`422 Timetable.ServiceStopsOutOfOrder`** — the stops do not follow the route order in the
+    service's direction. On an open route there is no wrap. On a closed route the stops may wrap
+    from the last station to the first (`Forward`) or the first to the last (`Reverse`), and may
+    cover at most one circuit; exactly one circuit only as a full circuit whose last stop repeats
+    the first.
+12. **`422 Timetable.ServiceStopStationInactive`** — a stop's station is inactive. Stations the
+    service passes without stopping are not checked.
+13. **`409 Timetable.ServiceCodePeriodOverlap`** — checked last, under the code lock: another
+    service with the same code has a period that overlaps (inclusive dates; a `null` end is
+    unbounded; a service that never runs overlaps nothing). Also the answer to the loser of two
+    concurrent creates with one code and overlapping periods.
+
+A withdrawal is checked in this order: `400 Common.ValidationFailed` (a missing or malformed
+`withdrawFrom`); `404 Timetable.ServiceNotFound`; then, under the code lock, **`422
+Timetable.WithdrawalDateInPast`** (`withdrawFrom` earlier than today's Asia/Yangon date) and
+**`422 Timetable.WithdrawalDoesNotShorten`** (the new `effectiveTo`, `withdrawFrom` − 1 day, is not
+earlier than the current one; a second withdrawal is allowed when it shortens further). **`409
+Timetable.ServiceChangedConcurrently`** is the concurrency-token backstop for a writer that
+bypassed the code lock; nothing is written. A withdrawal never causes `ServiceCodePeriodOverlap`,
+because it only shortens a period, and it has no route or station guard. "Today" is always the
+Asia/Yangon date of the server clock (`Time:LocalTimeZone`, `docs/15`).
+
+A malformed `page`, `pageSize` or `routeId` query value (for example `?routeId=abc`) is a framework
+`400` without an `errorCode`, as for every other list endpoint (T-042). A lock timeout is the
+opaque `500` (`Common.UnexpectedError`, ADR-0026).
+
+**Request-body limits (REQUIRED CONTROL, spec R31, plan P20).** `POST /api/v1/services` accepts a
+body of at most **32 KiB (32,768 bytes)**; the largest valid request — 200 ids, all seven days, a
+10-character code and two 100-character names escaped as `\uXXXX` — is 9,280 bytes. `POST
+/api/v1/services/{id}/withdraw` accepts at most **1 KiB (1,024 bytes)**; its only valid body is 29
+bytes. Both are endpoint metadata applied to Kestrel before the body is read, so a larger body,
+with a declared length or chunked, is refused with the framework's `413` before JSON binding.
+Malformed JSON is the framework's `400`. Neither carries an `errorCode` (as for `POST /routes`
+above).
+
+**Not provided** (OQ42 and OQ48 rulings): no `PATCH` or `PUT /services/{id}` and no other edit (to
+change a timetable, withdraw the old service from date D and create a new one with the same code
+from D), no reactivation, no `DELETE`, no `/trains`, and no `/schedules/versions*` or time field
+(FR-004). Each answers `404` or `405`. The service endpoints appear in the Development-only OpenAPI
+document under the tag `Services`.
 
 ## Blocked behavior
 

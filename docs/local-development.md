@@ -92,8 +92,10 @@ dotnet ef database update --project src/YCR.Infrastructure --startup-project src
 Remove-Item Env:YCR_DESIGN_TIME_CONNECTION
 ```
 
-This applies six migrations (F-001: stations, the audit ledger, the `ycr_app` role; F-002: the
-`identity` schema, the seeded roles and grants, the identity grants) and ends with `Done.`
+This applies twelve migrations (F-001: stations, the audit ledger, the `ycr_app` role; F-002: the
+`identity` schema, the seeded roles and grants, the identity grants; F-003: routes, their seeded
+grants, the route grants; F-004: the `timetable` schema, the seeded service grants, the timetable
+grants; `docs/07`) and ends with `Done.`
 
 `Current Language=us_english` is required on every connection string: unique-constraint
 violations are recognised from the English error text (`.env.example`).
@@ -207,7 +209,26 @@ dotnet run --project src/YCR.Api --no-launch-profile
 
 Wait for `Now listening on: http://localhost:5080`. If it stops at startup instead, the first
 error line names the setting it refused (a missing key, a key that is not P-256, no allowed
-origin, a changed lifetime).
+origin, a changed lifetime, `Time:LocalTimeZone`).
+
+**Content root and the time zone (F-004).** The API and the Worker read `Time:LocalTimeZone`
+(`Asia/Yangon`) from their shipped `appsettings.json` and **refuse to start** if it is missing or
+this machine cannot resolve it (`docs/15` §F-004). `dotnet run --project src/YCR.Api` (and
+`src/YCR.Worker`) runs the app with the **project directory** as working directory, which holds
+that `appsettings.json`, so the commands in this guide work from the repository root. To run a
+**built** host directly, start it from its output directory, as CI does:
+
+```powershell
+cd src/YCR.Api/bin/Debug/net10.0
+dotnet YCR.Api.dll
+```
+
+Started from anywhere else (for example `dotnet src/YCR.Api/bin/Debug/net10.0/YCR.Api.dll` from the
+repository root), the API reads no `appsettings.json` and stops with `Time:LocalTimeZone is not
+configured`. The Worker's zone check and bootstrap command read the file next to `YCR.Worker.dll`
+wherever they start, but run it from its output directory too. Windows resolves `Asia/Yangon`
+through ICU; on Linux (WSL, containers) the `tzdata` package must be installed, and a plain
+`-chiseled` .NET image has no zone data (`docs/15`).
 
 What is served:
 
@@ -328,6 +349,8 @@ and a secret scan. Keep `dotnet test YCR.sln` green locally before pushing.
 | EF says `YCR_DESIGN_TIME_CONNECTION must be set` | the variable is missing in this window | §2.3 |
 | API connects but every query fails with a permission error | §2.4 was skipped | re-run the init container |
 | API stops at startup | a missing or rejected signing key, no allowed origin, or a changed lifetime | §4; the error line names it |
+| API or Worker stops with `Time:LocalTimeZone is not configured` | the host was started outside its project or output directory, so its `appsettings.json` was not read | §5, Content root and the time zone |
+| `… is not a time zone this host can resolve; install IANA time-zone data` | no ICU (Windows) or no `tzdata` (Linux) | install the zone data (`docs/15` §F-004) |
 | `403 Auth.OriginRejected` | the request's `Origin` is not the allowed origin | open the API on exactly the origin in user-secrets, or send `Origin` |
 | `403 Auth.PasswordChangeRequired` | first sign-in with a must-change password | §6 step 3 |
 | `401 Auth.InvalidCredentials` on a correct password | the account is locked (10 failures lock it for 15 minutes) or disabled; the response is deliberately identical | wait 15 minutes, or have an administrator use `POST /users/{id}/unlock` |
