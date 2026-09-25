@@ -75,3 +75,22 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** none blocking. OQ42–OQ50 still open with Myanma Railways (provisional rulings apply); OQ47 holiday/exception part open (known limitation). OQ1, OQ4, OQ17, OQ19 unchanged.
 
 **State of the branch:** documentation only; all work committed on `feature/F-004` and pushed.
+
+---
+
+## 2026-09-25 12:19 Asia/Yangon — claude — T-045
+
+**Stage:** 3 (PLAN) — plan written; ⛔ awaiting approval.
+**Commit:** `plan.md` is in the commit before this entry on `feature/F-004`. The plan SHA is recorded in `TASKS.md` T-045 Notes.
+
+**Done this session:**
+- Wrote `docs/features/F-004-service-management/plan.md` (revision 1) against the approved spec `c2ea4f0`: P1–P23; the ADR-0025 contract (`INetworkReader` + four records, `internal NetworkReader`, DI in `AddApplication`, the new `ContractsMustNotDependOnModuleDomainOrContext` rule with violating fixtures, Timetable boundary fixtures); the stop-order algorithm with pseudo-code and pinning cases; the R35 lock (`sp_getapplock` on `timetable.ServiceCode:<CODE>`, transaction-owned, no grant); three migrations with rollback/roll-forward; endpoint inventory with body limits (32 KiB create, 1 KiB withdraw; largest valid bodies 9,280 and 29 bytes); a test plan mapping all 53 live scenarios; the 16 existing tests whose counts or lists change; stage-8 documentation list; nine steps.
+- Verified at PLAN in a scratch console (outside the repo, EF Core 10.0.12): cross-schema FKs from `HasOne<Route>().WithMany()` / `HasOne<Station>().WithMany()` are `NO ACTION` to `network.*` with no navigation; EF adds `IX_Services_RouteId` and `IX_ServiceStops_StationId` by convention (both wanted by spec §7, now declared explicitly); the Timetable diff emits nothing against `network`.
+
+**Evidence:** documentation only; no build or test run, because no repository code changed. Commands: `git pull` (both checkouts), `git branch claim/T-045 main`, `grep` over `src/` and `tests/` for pinned counts and permission lists, `dotnet run` of the scratch EF console, `git commit`, `git push`.
+
+**Next step (exact):** hein rules on plan Q1 (shared kernel: move `BilingualName` and the code format to `YCR.Domain.Common`), Q2 (explicit transaction for the code lock as the second F-002 P14 exception) and Q3 (`Time:LocalTimeZone` + `ILocalCalendar`), and approves the plan. Stage 4 (implementation) is a separate task and must not start before that.
+
+**Blockers / open questions:** `approval` (⛔ stage 3). Engineering: plan Q1–Q3. No new business OQ. OQ42–OQ50 still open with Myanma Railways (provisional rulings apply); OQ47 holiday/exception part open (known limitation). OQ1, OQ4, OQ17, OQ19 unchanged.
+
+**State of the branch:** documentation only; all work committed on `feature/F-004` and pushed.
