@@ -338,6 +338,25 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 
 ---
 
+## 2026-09-26 02:55 Asia/Yangon — codex — T-051
+
+**Stage:** Re-review of T-050 documentation and ADR-0026 against implementation SHA `c5d8516`.
+
+**Done:** confirmed `c5d8516` is an ancestor of branch head `1cac48a`; the `71f0bab..1cac48a`
+delta changes only `docs/`; reviewed each changed document, the three timetable migrations and EF
+configurations, service handlers and lock implementations, API and Worker startup code, and the
+architecture tests. Added the re-review to `review-codex.md`.
+
+**Finding:** one Low documentation accuracy finding (L-1): `docs/15` and
+`docs/local-development.md` abbreviate the missing/unknown local-time-zone startup messages, while
+the API and Worker emit the full resolver messages. No Critical, High or Medium finding.
+
+**Evidence:** isolated `dotnet test YCR.sln` — **1161 passed, 0 failed, 0 skipped**.
+
+**Next step (exact):** T-052 human approval and merge review.
+
+---
+
 ## 2026-09-26 00:01 Asia/Yangon — claude — T-050
 
 **Stage:** 8 (DOCUMENT) — done. No review findings to remediate (codex stages 5–7 at `1bae50f`, `8c94408`, `71f0bab`: READY, no findings).

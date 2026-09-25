@@ -144,6 +144,69 @@ with 0 warnings and 0 errors. `git diff --check` is clean for the review changes
 
 None.
 
+## Re-review of c5d8516
+
+**Reviewed documentation SHA:** `c5d8516` (feature/F-004; branch head `1cac48a` adds only the
+stage-8 progress checkpoint). `c5d8516` is an ancestor of `HEAD`. The delta from `71f0bab` to
+`1cac48a` changes only files under `docs/`.
+
+**Verification:** `dotnet test YCR.sln` passed with **1,161 passed, 0 failed, 0 skipped**. The
+review also checked the implementation at `c5d8516`, the EF configurations and migrations, the
+handlers and lock implementations, the API and Worker startup code, and the architecture tests.
+
+### Per-document results
+
+- `docs/07-database-design.md` — **Correct.** The timetable section matches the three migration
+  names and order (`Timetable_CreateServices`, `Identity_SeedServicePermissionGrants`,
+  `Security_TimetableGrants`), the `Services` and `ServiceStops` columns, checks, indexes, both
+  cross-schema `NO ACTION` foreign keys, and the `ycr_app` grants and withheld permissions. The
+  module-schema paragraph states ADR-0025's primary-key, never-delete, `NO ACTION`, no-navigation,
+  referencing-migration conditions. `Trains` is explicitly unused and `Services` replaces
+  `TrainServices`.
+- `docs/08-api-specification.md` — **Correct.** It documents the four implemented service
+  endpoints, exact permissions, DTO contracts and error codes, the R37 create order and withdrawal
+  order, 32 KiB/1 KiB limits, the 200-stop cap, exact Monday-through-Sunday names, framework 400
+  and 413 behaviour, lock-timeout `500 Common.UnexpectedError`, and the absent train, patch, put,
+  delete, reactivation, schedule-version and time endpoints.
+- `docs/20-coding-conventions.md` — **Correct.** The cross-module read row matches
+  `INetworkReader`/`NetworkReader` and the `ContractsMustNotDependOnModuleDomainOrContext` rule.
+  The own-transaction rule and §8 `ILocalCalendar.Today()` rule match the handlers, lock
+  abstraction, architecture tests and configured-zone implementation.
+- `docs/15-deployment-architecture.md` — **Finding L-1 (Low).** The unknown-zone message is
+  quoted exactly, but the missing/blank message is abbreviated as
+  `Time:LocalTimeZone is not configured…` at lines 119-122. `LocalTimeOptions.ResolveZone` emits
+  the full message `Time:LocalTimeZone is not configured. Set it to an IANA time-zone id such as
+  'Asia/Yangon'.` (source `src/YCR.Infrastructure/Time/LocalTimeOptions.cs:31-35`), and the Worker
+  writes that same full message to stderr (`src/YCR.Worker/Program.cs:29-36`).
+- `docs/local-development.md` — **Finding L-1 (Low), same evidence.** The troubleshooting rows
+  use the abbreviated `Time:LocalTimeZone is not configured` and an ellipsis for the unknown-zone
+  message (lines 349-353), so they do not preserve the exact startup text requested. The content-root
+  statements otherwise match `dotnet run --project` (project directory), direct API execution from
+  its output directory, and the Worker's `AppContext.BaseDirectory` configuration.
+- `docs/glossary.md` — **Correct.** The rewritten `Service` entry and new service-code,
+  direction, stop, operating-days, effective-period and withdrawal entries match the spec rulings
+  and implementation; every changed Myanmar-term cell remains `OPEN QUESTION`.
+- `docs/decisions/ADR-0026-application-locks-for-set-invariants.md` — **Correct.** It remains
+  Proposed, explicitly bounds itself as ADR-0004's set-invariant exception, and matches both
+  `SqlServerIdentityAdministratorLock` and `SqlServerServiceCodeLock`: exclusive,
+  transaction-owned `sp_getapplock`, 30-second timeout, resource names, transaction ownership,
+  negative-return failure handling, opaque `500 Common.UnexpectedError`, and one-save transaction
+  sequencing.
+- `docs/decisions/README.md` — **Correct.** ADR-0026 is listed as Proposed.
+- `docs/features/F-004-service-management/progress.md` — **Correct.** This is the stage-8
+  checkpoint and records the reviewed documentation SHA and the external GitHub billing failure;
+  it does not alter the implementation claim.
+
+### Findings
+
+**L-1 (Low) — startup failure text is not exact in deployment/local documentation.** The two
+  affected documents abbreviate the missing-zone message and use an ellipsis for the unknown-zone
+  troubleshooting text, while the API and Worker emit stable full messages. This is a documentation
+  accuracy issue; it does not change runtime behaviour or security controls.
+
+**Verdict:** **READY FOR HUMAN APPROVAL**, with L-1 recorded for documentation cleanup. No Critical,
+High or Medium finding was identified.
+
 ## Stage 7 — Security review
 
 **Reviewed SHA:** `67797d6` (plus the stage-5 tests and the Stage 6 report at `8c94408`).
