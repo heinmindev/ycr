@@ -1,12 +1,12 @@
 # F-004: Service management
 
-Status: **Draft** — stage 2 ⛔, awaiting hein's rulings (§0.9). Written by claude (T-044). Stages 1–2 of `docs/workflows/02-feature-development.md`. **Not approvable as written:** OQ42–OQ49 are blocking OPEN QUESTIONs and the FR-003/FR-004 boundary (B) is unruled.
+Status: **Draft — all rulings applied, awaiting approval.** Written by claude (T-044). Stages 1–2 of `docs/workflows/02-feature-development.md`. hein's rulings of 2026-09-25 on B, OQ42–OQ49, ADR-0025 and E1–E13 are recorded in §0.9 and applied throughout. The business rulings are **provisional tech-lead rulings — not a Myanma Railways answer**. **Still to rule before approval (§0.10):** OQ50 (raised while applying OQ48), the stop cap versus a full circuit on a 200-station route (Q2), and the create-versus-deactivation race (Q3).
 
-Module(s): `Timetable` (new; first feature in it); read-only consumer of `Network` through a contract; cross-cutting `Audit`, `Identity` (permission grants only)
-Related: FR-003, FR-004 (boundary only), UC 3 "Manage trains" and UC 4 "Publish schedules" (`docs/03-use-cases.md` §Core use cases, items 3–4), FR-002 / F-003 (routes), ADR-0002, ADR-0004, ADR-0006, ADR-0012, ADR-0014, ADR-0017, ADR-0018, ADR-0019, ADR-0021, ADR-0024 (Proposed), ADR-0025 (Proposed, this task)
+Module(s): `Timetable` (new; first feature in it); read-only consumer of `Network` through a contract (ADR-0025); cross-cutting `Audit`, `Identity` (permission grants only)
+Related: FR-003, FR-004 (boundary only), UC 3 "Manage trains" (`docs/03-use-cases.md` §Core use cases, item 3; met by services, OQ42 ruling), FR-002 / F-003 (routes), ADR-0002, ADR-0004, ADR-0006, ADR-0012, ADR-0014, ADR-0017, ADR-0018, ADR-0019, ADR-0021, ADR-0025 (Accepted 2026-09-25); ADR-0024 (Proposed) is not used (E10)
 
 Decision owner:
-- Business rules (what a train and a service are, service identity, direction and extent, stopping patterns, interaction with inactive routes and stations, operating days, effective periods and change, role grants): **Myanma Railways**, routed through `hein` (`docs/19-open-questions.md` OQ42–OQ49). Suggested routing label, following `docs/business/mr-questions-pack.md`: Network Operations / Planning (timetabling role to be nominated). hein may instead give provisional tech-lead rulings, labelled "not a Myanma Railways answer", as for OQ36–OQ41.
+- Business rules (what a train and a service are, service identity, direction and extent, stopping patterns, interaction with inactive routes and stations, operating days, effective periods and change, role grants): **Myanma Railways**, routed through `hein` (`docs/19-open-questions.md` OQ42–OQ50). Suggested routing label, following `docs/business/mr-questions-pack.md`: Network Operations / Planning (timetabling role to be nominated). **For F-004, hein gave provisional tech-lead rulings on 2026-09-25 (T-044) — not a Myanma Railways answer** (§0.9). Still open with Myanma Railways.
 - Scope boundary between FR-003 and FR-004, and engineering decisions: **tech lead (`hein`)**, recorded as ADRs per `docs/decisions/README.md`.
 
 Authoritative sources: `docs/00-project-specification.md`; `docs/01-functional-requirements.md` §FR-003, §FR-004; `docs/03`; `docs/04`; `docs/05`; `docs/07`; `docs/08`; `docs/10`; `docs/12`; `docs/19`; `docs/20`; `docs/glossary.md`; ADR-0002/0004/0006/0012/0014/0017/0018/0019/0021; the F-003 spec and the existing `Network` code. **No Myanma Railways-authoritative source defines any train, service, stopping pattern, operating calendar, effective-period rule or timetable permission grant.**
@@ -15,7 +15,7 @@ Authoritative sources: `docs/00-project-specification.md`; `docs/01-functional-r
 
 ## 0. Discovery notes
 
-Stage-1 output. Every note cites its source and names the decision owner. Where a note lists options, they are non-binding; §0.9 is the table hein rules on.
+Stage-1 output. Every note cites its source and names the decision owner. §0.1–§0.8 are kept as written at discovery, with closure notes added; where they list options or proposals, the rulings in §0.9 decide.
 
 ### 0.1 What the sources say
 
@@ -90,6 +90,8 @@ Whether a service can change, be withdrawn early, reactivated or deleted, and wh
 | C5 | FR-003 gives *services* effective periods; FR-004 gives *timetable versions* effective dates. Two effective-dating mechanisms with no stated relationship. | `docs/01` §FR-003, §FR-004 | Carried by OQ48 (business) and B (scope). | Myanma Railways; hein |
 | C6 | *(Outside F-004; reported, not changed.)* `docs/business/mr-questions-pack.md` §OQ1 lists "timetable references" as blocked by OQ1. By the F-001/F-003 precedent OQ1 blocks **data**, not APIs (F-003 C3, being fixed for routes by T-043 item 5). | `docs/business/mr-questions-pack.md` §OQ1; F-003 spec C3 | This spec follows the precedent (R27). The pack is not edited here; T-043's item 5 could cover timetable references in the same sentence. | hein |
 | C7 | *(Minor.)* The glossary's `Service` definition, "A timetable/service aggregate", defines the term with itself. | `docs/glossary.md` (`Service`) | Stage 8 rewrites it once OQ42/OQ43 are ruled. | glossary owner |
+**Closure notes (hein's rulings, 2026-09-25):** **C1 closed** by OQ42 — there is no `Train` concept in Phase 1, and use case 3 is met by services. **C2 closed** by OQ42 and E2 — the table is `timetable.Services`. **C3 closed** by B1 and OQ48 — services are immutable except for withdrawal, so there is no `PATCH /services` and no `/trains`; `docs/08` is updated at stage 8. **C4 closed** by E6 and OQ49 — `services.read` added and both service permissions granted in `docs/10`; `trains.manage` marked not used in Phase 1; `schedules.*` stays open for FR-004. **C5 closed for F-004** by B1 and OQ48 — a service has its own effective period; how timetable-version effective dates relate to it is FR-004's question. C6 and C7 are unchanged.
+
 
 ### 0.4 Engineering choices proposed (hein decides)
 
@@ -128,6 +130,8 @@ No document defines: any YCR service, train or train number; what a train is; a 
 
 Whichever is chosen, `ScheduleVersion`, `SchedulePublished` and `schedules.*` stay out of F-004 under B1 and B4. §6 and §7 are written against **B1** as a worked example so PLAN has a concrete shape; they change if hein picks B2 or B3.
 
+**Outcome (hein, 2026-09-25): B1.** B2–B4 are kept above as history only; nothing in §1–§9 describes them.
+
 ### 0.8 Where the existing code constrains the design
 
 - No `Timetable` folder exists in any layer; F-004 creates the module (E1). `DependencyInjection.AddInfrastructure` registers each module interface against `YcrDbContext` (`src/YCR.Infrastructure/DependencyInjection.cs`); `ITimetableDbContext` is added the same way.
@@ -136,29 +140,48 @@ Whichever is chosen, `ScheduleVersion`, `SchedulePublished` and `schedules.*` st
 - `NetworkConstraints` / `RouteModelTests` pattern for constraint names a handler matches; `TimetableConstraints` would follow it.
 - `DeactivateRouteHandler` and `DeactivateStationHandler` change only if OQ46 rules "refuse" — which would also need the reverse contract (G5).
 
-### 0.9 Rulings needed from hein
+### 0.9 Rulings (hein, 2026-09-25)
 
-| ID | Question | Options (non-binding) | Blocks |
+The stage-2 ⛔ asked hein to rule on B, OQ42–OQ49, ADR-0025 and E1–E13. hein ruled on all of them on 2026-09-25.
+
+**The business rulings (OQ42–OQ49) are provisional tech-lead rulings.** For each one: **Resolved by tech-lead ruling (hein, 2026-09-25; T-044) — not a Myanma Railways answer.** This project chose not to wait for one. **Still open with Myanma Railways.** If Myanma Railways later gives an official, different answer, that supersedes this ruling and needs its own follow-up task. The same wording is in `docs/19-open-questions.md` under each OQ and, for OQ49, in `docs/10-authorization-matrix.md` §Service permission grants.
+
+| ID | Ruling | Label | Applied in |
 |---|---|---|---|
-| **B** | Where does F-004 (FR-003) end and FR-004 begin? | B1 service master data only · B2 services inside draft versions, no publish · B3 merge FR-003 and FR-004 · B4 trains first (§0.7) | The whole of §5–§7; which of OQ42–OQ49 must be ruled now; whether ADR-0024 and `schedules.*` are needed now |
-| **OQ42** | What is a train, and does Phase 1 record trains separately from services? | (a) physical rolling stock assigned to services · (b) a numbered working = a service; drop `Train`/`/trains`/`trains.manage` · (c) not in Phase 1 | R5; `Train` aggregate, `/trains`, `trains.*`, `Trains` table; C1 |
-| **OQ43** | What identifies a service, and does it have names and a type? | (a) code/number under the station and route code rules (2–10 `A`–`Z`/`0`–`9`, unique across all services, never reused) plus `BilingualName` · (b) number unique only per route and direction · (c) number unique per effective period (reusable later) · type: none / a fixed list / defer to fares (OQ17) | R6, R7; §7 columns and unique index |
-| **OQ44** | How is direction and extent expressed? | (a) explicit direction (in route order / reverse) plus start and end stations · (b) derived from the ordered stops only · closed route: full circuit back to start allowed or not; more than one circuit allowed or not · open route: reverse and part-route allowed or not | R9, R10 |
-| **OQ45** | What are the stopping-pattern rules? | Stops ⊆ route stations: yes / no · in route order in the service's direction: yes / no · skipping: allowed / not · first and last stops = start and end: yes / no · minimum stops: 2 / other · one route per service: yes / no · stop attributes: none / set-down / pick-up / request | R11–R14; `ServiceStops` shape |
-| **OQ46** | Services versus inactive routes and stations? | Creation: refuse inactive route/stop (OQ39 analogue) / allow · on deactivation: allow, service unchanged (one-way module dependency) / refuse while services use it (two-way dependency) / withdraw services automatically | R15, R16; any change to F-001/F-003 deactivation |
-| **OQ47** | On which days does a service run? | (a) days of the week only · (b) days of the week + a holiday calendar (owner to name) with runs/doesn't-run-on-holidays · (c) days of the week + per-date exceptions · (d) explicit list of dates · operating day = date of leaving the first stop: yes / no | R17, R18; §7 |
-| **OQ48** | Effective period, change and versioning? | (a) immutable like routes: create whole, withdraw with an end date, change = new service · (b) versioned inside timetable versions (draft → published, immutable once published) · (c) edited in place, history in the ledger only · end date: required / open · early withdrawal, reactivation: allowed / not · overlap of two definitions of one service: allowed / not | R19–R21; §5; §6 (`PATCH`?); §7 grants; E10 |
-| **OQ49** | Which roles manage and read services (and trains, timetable versions)? | e.g. `services.manage` → `SystemAdministrator`, `RailwayAdministrator`; `services.read` → all eight roles (the OQ40 pattern) — or narrower | R3, R4; §2; grant seed |
-| **E3–E5 / ADR-0025** | Accept ADR-0025: primitive-record Network contract, Contracts architecture rule, `NO ACTION` foreign keys from `timetable` to `network` primary keys? | Accept · amend (e.g. no cross-schema FKs, option B1) · reject | R28, R29; §7 foreign keys |
-| **E6** | Add `services.read` (and `trains.read` / `schedules.read` where in scope) to `docs/10`? | Accept · other names | R4 |
-| **E11** | No hard delete of services; stable ids, whatever OQ48 rules? | Accept · reject | R33; §7 grants |
-| **E1, E2, E7–E10, E12, E13** | Accept the remaining engineering proposals? | Accept · amend | §6, §7, §8 |
+| **B** | **B1.** F-004 is service master data only: identity, route, direction, stopping pattern (no times), operating days, effective period, withdrawal. Times, `ScheduleVersion` and publication are FR-004, a later feature. | ENGINEERING DECISION (tech lead, hein, 2026-09-25; scope) | R2, R22; §4–§9 |
+| **OQ42** | No `Train` concept in Phase 1. `docs/03` use case 3 "Manage trains" is met by services. `trains.manage` stays in the `docs/10` inventory marked "not used in Phase 1 (OQ42 ruling)". No `/trains` endpoint, no `Trains` table. Closes C1 and C2 (the table is `timetable.Services`). | BUSINESS DECISION — provisional tech-lead ruling, not a Myanma Railways answer | R5; §6; §7; `docs/10` |
+| **OQ43** | A service has a code under the station/route format (2–10 characters, `A`–`Z`/`0`–`9`) and a `BilingualName` under the station name rules. A code is unique only among services whose effective periods overlap; a service whose period does not overlap may reuse it, so a train number continues across timetable changes. No service type (deferred to fares, OQ9/OQ17). | BUSINESS DECISION — provisional tech-lead ruling, not a Myanma Railways answer | R6, R7, R35; S21–S29 |
+| **OQ44** | A service stores `Direction` = `Forward` \| `Reverse`, relative to its route's station order. Stops follow the route order in that direction. On a closed route the stops may wrap from the route's last station to its first (`Forward`) or from its first to its last (`Reverse`). A full circuit is expressed by repeating the first stop as the last stop: only on a closed route, only as the final stop, at most one circuit. Part-route running is allowed on open and closed routes; reverse running on an open route is allowed. | BUSINESS DECISION — provisional tech-lead ruling, not a Myanma Railways answer | R9, R10, R12, R14; S4–S14 |
+| **OQ45** | Every stop is a station of the service's route; stops are in route order for the direction (with the OQ44 wrap); stations may be passed without stopping; the first and last stops are the service's extent; at least 2 stops (a full circuit needs at least 3 distinct stations); one route per service; no repeated stop except the full-circuit closure; no stop attributes in Phase 1. The 200-stop cap (E12) stays. | BUSINESS DECISION — provisional tech-lead ruling, not a Myanma Railways answer; cap: REQUIRED CONTROL | R10–R14, R31; S6–S16 |
+| **OQ46** | Creating a service on an inactive route, or with an inactive station as a stop, is refused (`422`, stable codes). Deactivating a route or station stays allowed and existing services are unchanged; service reads show the current route and station active flags. `Network` never calls `Timetable` (ADR-0025 Follow-up). Known limitation recorded. | BUSINESS DECISION — provisional tech-lead ruling, not a Myanma Railways answer | R15, R16; S17–S20, S39; §9 |
+| **OQ47** | Operating days are a set of days of the week only, at least one day. A public-holiday calendar and per-date exceptions **stay open with Myanma Railways** (known limitation). The operating date is the Asia/Yangon calendar date on which the service starts, meaningful only once FR-004 adds times. | BUSINESS DECISION — provisional tech-lead ruling, not a Myanma Railways answer (partial; holidays and exceptions still OPEN) | R17, R18; S21, S52; §9; Blocked behaviour |
+| **OQ48** | Immutable except for withdrawal. `EffectiveFrom` required; `EffectiveTo` inclusive, may be null (open-ended). Withdrawal takes a date D and sets `EffectiveTo` = D − 1 day; it may only shorten the period (never extend, never reopen), and D must not be earlier than today's Asia/Yangon date. If D ≤ `EffectiveFrom`, the service never runs. No other edit, no reactivation, no delete. A timetable change = withdraw the old service from D + create a new one with the same code from D. **Engineering consequence (hein):** the no-overlap rule cannot be a unique index; create and withdraw must serialise on the code (mechanism left to PLAN), with concurrency scenarios. Withdrawal is the one `UPDATE`; propose its concurrency token and record `WithdrawnAtUtc` (F-003 A1 pattern). | BUSINESS DECISION — provisional tech-lead ruling, not a Myanma Railways answer; serialisation: ENGINEERING DECISION (tech lead, hein, 2026-09-25) | R19–R21, R35, R36, R41; S23–S38; §5; §7 |
+| **OQ49** | `services.manage` → `SystemAdministrator`, `RailwayAdministrator`; `services.read` → all eight roles. No `trains.*` grants. `schedules.*` deferred to FR-004, unchanged in the inventory. | BUSINESS DECISION — provisional tech-lead ruling, not a Myanma Railways answer | R3, R4; §2; `docs/10` §Service permission grants; S41, S42 |
+| **ADR-0025** | **Accepted** (hein, 2026-09-25). Status and README row set to Accepted; its Decision section is final. | ENGINEERING DECISION (tech lead, hein, 2026-09-25) | R28, R29; E3–E5; S48, S50 |
+| **E6** | Add `services.read` only (no `trains.read`, no `schedules.read`). | ENGINEERING DECISION (tech lead, hein, 2026-09-25) | R4; `docs/10` |
+| **E10** | The immutable path: no version token, no `rowversion`; ADR-0024 stays unused. | ENGINEERING DECISION (tech lead, hein, 2026-09-25) | R36; §6; §7 |
+| **E11** | Accepted: no hard delete; stable ids. | ENGINEERING DECISION (tech lead, hein, 2026-09-25) | R33; §7 grants |
+| **E1–E5, E7–E9, E12, E13** | Accepted. The body-size limit **value** is set at PLAN, as in F-003. | ENGINEERING DECISION (tech lead, hein, 2026-09-25) | R8, R23–R32; §6–§8 |
+
+### 0.10 Raised while applying the rulings — needs hein
+
+| ID | Question | Why it is not settled by the rulings | Options (non-binding) | Blocks |
+|---|---|---|---|---|
+| **OQ50** (new in `docs/19`) | May a service be created with an `EffectiveFrom` — or an `EffectiveTo` — earlier than today's Asia/Yangon date? | OQ48 bars a *withdrawal* date in the past but says nothing about *creation*. A past `EffectiveFrom` records that a service ran on dates already over — for example the timetable in force at go-live. This is a business rule, so it is asked, not assumed. | (a) refused (`422`) · (b) allowed · (c) allowed only for an initial load | R39, S40 |
+| **Q2** | The OQ45 ruling keeps a 200-stop cap, and F-003 allows routes of up to 200 stations (F-003 R26). A full circuit that stops at every station of a 200-station route needs 201 stop entries (the closure repeats the first). | Two rulings meet at the edge: the cap as written refuses a service the OQ44/OQ45 rulings otherwise allow. The spec applies the cap as ruled (200) and does not choose. | (a) keep 200 (accepted edge case; YCR's loop is far shorter) · (b) 201, so every valid pattern on any valid route fits | R31; S21 |
+| **Q3** | A service created while its route, or one of its stop stations, is being deactivated. | Not covered by the rulings. The end state equals the serial order "create, then deactivate", which the OQ46 ruling allows. | Accept, not serialised (F-003 §5 precedent) · serialise | S51; §5 |
+
+**Consequences of the rulings, recorded so they are seen (not conflicts):**
+- The overlap rule compares **periods only**, not routes, directions or operating days (OQ43 ruling). So a code cannot be used at the same time by a `Forward` and a `Reverse` service, nor by a weekday service and a weekend service with overlapping periods; each needs its own code.
+- **Interpretation of "at most one circuit" (OQ44):** a stop sequence whose cumulative travel along the route, in its direction, reaches the route's length without being the full-circuit closure passes its first stop again, and is refused as out of order (R12). Example: `[D, A, C, E]` `Forward` on a five-station closed route.
+- **Interpretation of "an inactive station as a stop" (OQ46):** only stations the service **stops** at are checked. An inactive station on the route that the service passes without stopping does not refuse the creation (S18).
+- A withdrawn service that never runs (D ≤ `EffectiveFrom`) has an empty period, so it overlaps nothing and its code is free for any period (R42).
 
 ---
 
 ## 1. Goal
 
-Railway administrators need to define the services that run over the network — which route, which direction, which stations they stop at, on which days and over which period — so that later features (timetable publication, ticketing, reporting) have one authoritative place to read services from, and every change is authorised, validated and audited.
+Railway administrators need to define the services that run over the network — which route, which direction, which stations they stop at, on which days of the week and over which period — and to withdraw them, so that later features (timetable times and publication, ticketing, reporting) have one authoritative place to read services from, and every creation and withdrawal is authorised, validated and audited.
 
 ---
 
@@ -166,204 +189,291 @@ Railway administrators need to define the services that run over the network —
 
 | Actor | Permission | Held by |
 |---|---|---|
-| Staff user managing services | `services.manage` | **OPEN QUESTION — OQ49** |
-| Staff user reading services | `services.read` (name proposed, E6) | **OPEN QUESTION — OQ49** |
-| Staff user managing trains | `trains.manage` — only if OQ42 keeps trains | **OPEN QUESTION — OQ42, OQ49** |
-| Staff user managing timetable versions | `schedules.manage` — not in F-004 under B1/B4 | **OPEN QUESTION — B, OQ49** |
+| Staff user managing services (create, withdraw) | `services.manage` | `SystemAdministrator`, `RailwayAdministrator` — provisional tech-lead ruling (hein, 2026-09-25; T-044, OQ49), not a Myanma Railways answer |
+| Staff user reading services | `services.read` | All eight roles: `SystemAdministrator`, `RailwayAdministrator`, `StationManager`, `TicketOperator`, `TicketInspector`, `FinanceOfficer`, `Auditor`, `ReportingUser` — same ruling |
 
-Holding a station or route permission gives no service right (F-003 R3 pattern). Grants are data seeded by a reviewed migration; no API edits them.
+Holding a station or route permission gives no service right, and holding a service permission gives no station or route right. `trains.manage` is not used in Phase 1 (OQ42). `schedules.*` belongs to FR-004. Grants are data seeded by a reviewed migration (F-002 R11 mechanism); no API edits them.
 
 ---
 
 ## 3. Business rules
 
+Provisional rulings are labelled "BUSINESS DECISION — provisional tech-lead ruling (hein, 2026-09-25; T-044, OQnn), not a Myanma Railways answer", shortened below to **PROVISIONAL RULING (OQnn)**. Each is still open with Myanma Railways; an official, different answer supersedes the ruling and needs its own follow-up task.
+
+In the rules, *n* is the number of stations in the service's route, and a station's position is its 1-based place in the route's sequence.
+
 | # | Rule | Label | Source |
 |---|---|---|---|
 | R1 | Authorized users can define train services, operating days, effective periods and stopping patterns. | FACT | `docs/01` §FR-003 |
-| R2 | Authorized users can publish timetable versions with effective dates. How much of this is in F-004 is ruling B. | FACT; scope: **OPEN — ruling B (hein)** | `docs/01` §FR-004; §0.7 |
-| R3 | Managing services requires `services.manage`. Which roles hold it is not decided. | Name: FACT. Grants: **OPEN QUESTION (OQ49)** | `docs/10` §Permission inventory |
-| R4 | Reading services requires a read permission, proposed `services.read`. Station and route permissions give no service right. | Name: ENGINEERING DECISION proposed (E6). Grants: **OPEN QUESTION (OQ49)** | `docs/10`; F-003 R3 precedent |
-| R5 | Whether a `Train` exists separately from a `Service`, and what it is. | **OPEN QUESTION (OQ42)** | `docs/19` OQ42; C1 |
-| R6 | A service's identifier: number or code, format, uniqueness scope, reuse. | **OPEN QUESTION (OQ43)** | `docs/19` OQ43 |
-| R7 | A service's names and type/class. | **OPEN QUESTION (OQ43)** | `docs/19` OQ43; `docs/12` |
-| R8 | A service belongs to the `Timetable` module and references its route and stations by identifier only. | FACT (`docs/05`); ENGINEERING DECISION (ADR-0012 items 2, 6; E1, E2) | `docs/05`; ADR-0012 |
-| R9 | A route has no direction; direction belongs to services. How a service expresses it. | "belongs to services": **BUSINESS DECISION — provisional tech-lead ruling (hein, 2026-09-24; OQ36), not a Myanma Railways answer**. How: **OPEN QUESTION (OQ44)** | `docs/19` OQ36, OQ44 |
-| R10 | A service's start and end stations and extent (part route, full circuit, several circuits). | **OPEN QUESTION (OQ44)** | `docs/19` OQ44 |
-| R11 | Whether every stop must be a station of the service's route, and whether a service may use more than one route. | **OPEN QUESTION (OQ45)** | `docs/19` OQ45 |
-| R12 | Whether stops must follow the route's order in the service's direction. | **OPEN QUESTION (OQ45)** | `docs/19` OQ45 |
-| R13 | Skipping stations; first and last stops; minimum number of stops. | **OPEN QUESTION (OQ45)** | `docs/19` OQ45 |
-| R14 | Repeated stops and stop attributes (set-down, pick-up, request). | **OPEN QUESTION (OQ45)** | `docs/19` OQ45 |
-| R15 | Whether a service may be defined on an inactive route or with an inactive stop. | **OPEN QUESTION (OQ46)** | `docs/19` OQ46; OQ39 analogue |
-| R16 | What deactivating a route or station does to services that use it. Until ruled, F-001's and F-003's deactivation endpoints are unchanged. | **OPEN QUESTION (OQ46)** | `docs/19` OQ46 |
-| R17 | On which days a service runs: days of week, holidays, per-date exceptions. | **OPEN QUESTION (OQ47)** | `docs/19` OQ47 |
-| R18 | Operating days are calendar dates (`DateOnly`/`date`) in the configured Asia/Yangon zone, never hard-coded. Which date counts as a service's operating day is OQ47. | Storage and zone: ENGINEERING DECISION (ADR-0018 §Time; E9). Which date: **OPEN QUESTION (OQ47)** | ADR-0018 |
-| R19 | A service's effective period: start required, end optional, inclusive or not. Stored as `EffectiveFrom`/`EffectiveTo` `date`. | Shape: **OPEN QUESTION (OQ48)**. Storage: ENGINEERING DECISION (ADR-0018; E9) | `docs/19` OQ48; ADR-0018 |
-| R20 | Whether a service can change after it is defined, and whether earlier definitions are kept (immutable / versioned / edited in place). Historical schedule versions are preserved and published timetable versions are immutable. | Preservation and immutability of published versions: FACT. Services' change model: **OPEN QUESTION (OQ48)** | `docs/07` §Rules; `docs/08`; `docs/20` §4; `docs/19` OQ48 |
-| R21 | Withdrawal, reactivation and overlap of service definitions. | **OPEN QUESTION (OQ48)** | `docs/19` OQ48 |
-| R22 | Arrival and departure times per stop are not in F-004 under B1, B2 and B4. | **OPEN — ruling B (hein)** | §0.7 |
-| R23 | Service identifiers are application-generated GUIDs through `IIdGenerator`, mapped `ValueGeneratedNever()`. | ENGINEERING DECISION | ADR-0006 §Decision item 1 and amendment |
-| R24 | Every accepted service change is audited in the same `SaveChangesAsync`, with actor fields from the authenticated server-side context only. | ENGINEERING DECISION | ADR-0017 §Decision items 1–2; ADR-0021; F-003 R20 |
-| R25 | Service management takes no `Idempotency-Key`. | ENGINEERING DECISION (E8) | `docs/20` §5 |
-| R26 | Instants are `DateTimeOffset` / `datetimeoffset(3)` UTC with a UTC check constraint; services own no `BusinessDate`. | ENGINEERING DECISION | ADR-0018; ADR-0019; `docs/20` §2 |
-| R27 | No real service data ships: no seed migration or fixture of real YCR services. Tests build their own stations, routes and services. OQ1 blocks data, not the service API. | FACT (consequence of OQ1, open) | `docs/19` OQ1; F-003 R23 precedent; C6 |
-| R28 | Timetable reads Network data only through a read-only `YCR.Application.Network.Contracts` interface returning primitive records; it never uses `INetworkDbContext` or `YCR.Domain.Network`. | ENGINEERING DECISION (ADR-0012 item 4); contract shape proposed (ADR-0025 Proposed; E3, E4) | ADR-0012; ADR-0025 |
-| R29 | `timetable` rows reference `network.Routes(Id)` and `network.Stations(Id)` by `NO ACTION` foreign keys. | ENGINEERING DECISION proposed (ADR-0025 Proposed; E5) — **pending hein** | ADR-0025; `docs/07` §Rules |
-| R30 | Service responses show the route's and each stop station's **current** code, names and active flag, read at query time through the contract; a service row stores only ids. | ENGINEERING DECISION proposed | F-003 R24 precedent; E3 |
-| R31 | Every body-carrying service endpoint has an explicit body-size limit and every array a maximum length (stops ≤ 200), refused before binding. | REQUIRED CONTROL proposed (E12) | F-003 R26/R27; `docs/18` |
-| R32 | Error codes are `Timetable.<Reason>`, mapped per ADR-0004. | ENGINEERING DECISION (E7) | ADR-0004; `docs/20` §2 |
-| R33 | Service rows are never deleted and ids never change; there is no `DELETE` endpoint and `ycr_app` has no `DELETE` on `timetable` tables. | ENGINEERING DECISION proposed (E11) — **pending hein** | AGENTS.md rule 5; `docs/07` §Rules; G11 |
+| R2 | F-004 is service master data only. Times, `ScheduleVersion` and timetable publication (FR-004) are a later feature. | ENGINEERING DECISION (tech lead, hein, 2026-09-25; ruling B → B1) | §0.9 B |
+| R3 | Creating and withdrawing services requires `services.manage`, held by `SystemAdministrator` and `RailwayAdministrator`. | Name: FACT. Grants: **PROVISIONAL RULING (OQ49)** | `docs/10` §Service permission grants |
+| R4 | Reading services requires `services.read`, held by all eight roles. Station and route permissions give no service right. | Name: ENGINEERING DECISION (tech lead, hein, 2026-09-25, E6). Grants: **PROVISIONAL RULING (OQ49)** | `docs/10` §Service permission grants |
+| R5 | There is no `Train` concept in Phase 1: no `Train` aggregate, no `/trains` endpoint, no `Trains` table, no `trains.*` grant. Use case 3 "Manage trains" is met by services. | **PROVISIONAL RULING (OQ42)** | `docs/19` OQ42 |
+| R6 | A service has a code: 2–10 characters of `A`–`Z` and `0`–`9` after trimming (`400 Timetable.InvalidServiceCode`). A code is unique only among services whose effective periods overlap (R35); it may be reused by a service whose period does not overlap. | **PROVISIONAL RULING (OQ43)** | `docs/19` OQ43; F-001 R3; F-003 R13 |
+| R7 | A service has a `BilingualName`: `NameEn` and `NameMy` both required, each 1–100 characters after trimming (`400 Timetable.InvalidServiceName`); neither is unique. There is no service type or class. | **PROVISIONAL RULING (OQ43)** | `docs/19` OQ43; F-001 R4 |
+| R8 | A service belongs to the `Timetable` module and references its route and stop stations by identifier only. | FACT (`docs/05`); ENGINEERING DECISION (ADR-0012 items 2, 6; E1, E2 accepted) | `docs/05`; ADR-0012 |
+| R9 | A service stores `Direction` = `Forward` or `Reverse`, relative to its route's station order. `direction` is required on creation, with no default (`400 Common.ValidationFailed`). A route has no direction. | **PROVISIONAL RULING (OQ44; OQ36)**; no default: ENGINEERING DECISION (F-003 R25 pattern) | `docs/19` OQ36, OQ44 |
+| R10 | A service has exactly one route, and its first and last stops are its extent. It may run over part of a route, on open and closed routes, in either direction. | **PROVISIONAL RULING (OQ44, OQ45)** | `docs/19` OQ44, OQ45 |
+| R11 | Every stop is a station of the service's route: `422 Timetable.ServiceStopNotOnRoute`. An id that names no station at all is not on the route either. | **PROVISIONAL RULING (OQ45)** | `docs/19` OQ45 |
+| R12 | Stops follow the route order in the service's direction. **Open route:** positions strictly increase (`Forward`) or strictly decrease (`Reverse`); no wrap. **Closed route:** each step between consecutive stops is measured cyclically in the direction (`Forward`: `(p₂ − p₁) mod n`; `Reverse`: `(p₁ − p₂) mod n`), so a sequence may wrap from the last station to the first (`Forward`) or from the first to the last (`Reverse`); the sum of the steps must be at most *n* − 1, or exactly *n* for a full circuit (R14). Anything else is `422 Timetable.ServiceStopsOutOfOrder`. | Order and wrap: **PROVISIONAL RULING (OQ44, OQ45)**. The step formulation and "a sum ≥ *n* that is not the closure is more than one circuit": ENGINEERING interpretation of the ruling (§0.10) | `docs/19` OQ44, OQ45 |
+| R13 | Stations may be passed without stopping. A service has at least 2 stops (`422 Timetable.ServiceTooFewStops`). | **PROVISIONAL RULING (OQ45)** | `docs/19` OQ45 |
+| R14 | No station appears twice among the stops (`422 Timetable.ServiceStopRepeated`), except the **full-circuit closure**: the last stop repeats the first, only on a closed route, only as the final stop, covering exactly one circuit (step sum = *n*), with at least 3 distinct stations (else `422 Timetable.ServiceTooFewStops`). A closure on an open route is a repeated stop. There are no stop attributes (set-down, pick-up, request) in Phase 1. | **PROVISIONAL RULING (OQ44, OQ45)** | `docs/19` OQ44, OQ45 |
+| R15 | Creating a service on an inactive route is refused (`422 Timetable.ServiceRouteInactive`); so is a stop at an inactive station (`422 Timetable.ServiceStopStationInactive`). Only stations the service stops at are checked. An unknown route is `422 Timetable.ServiceRouteNotFound`. Nothing is written. | **PROVISIONAL RULING (OQ46)**; "only stops are checked": interpretation (§0.10); not-found code: ENGINEERING DECISION (F-003 E8 pattern) | `docs/19` OQ46 |
+| R16 | Deactivating a route (F-003) or a station (F-001) stays allowed and changes no service. Service reads show the route's and each stop station's **current** active flag. `Network` never calls `Timetable`; F-001's and F-003's deactivation code does not change. | **PROVISIONAL RULING (OQ46)**; ADR-0025 Follow-up | `docs/19` OQ46; ADR-0025 |
+| R17 | Operating days are a set of days of the week, at least one, no repeats (`400 Common.ValidationFailed` otherwise). There is no public-holiday calendar and no per-date exception in F-004. | Days of week: **PROVISIONAL RULING (OQ47)**. Holidays and exceptions: **OPEN QUESTION (OQ47, still open with Myanma Railways)** — not implemented, no placeholder | `docs/19` OQ47 |
+| R18 | A service's operating date is the Asia/Yangon calendar date on which it starts. F-004 stores no times, so the rule has no observable effect until FR-004 adds them. Dates are `DateOnly`/`date`; the zone comes from configuration and is never hard-coded. | Operating date: **PROVISIONAL RULING (OQ47)**. Storage and zone: ENGINEERING DECISION (ADR-0018 §Time; E9) | `docs/19` OQ47; ADR-0018 |
+| R19 | `EffectiveFrom` is required. `EffectiveTo` is inclusive and may be null (open-ended). At creation, `EffectiveTo`, if given, is not earlier than `EffectiveFrom` (`400 Timetable.InvalidEffectivePeriod`), so a new service always has a period of at least one day. | Required / inclusive / nullable: **PROVISIONAL RULING (OQ48)**. Non-empty at creation: ENGINEERING DECISION (input consistency) | `docs/19` OQ48 |
+| R20 | A service is immutable except for withdrawal: code, names, route, direction, stops, operating days and `EffectiveFrom` never change, and there is no reactivation and no delete. A timetable change is: withdraw the old service from D, and create a new one with the same code from D. | **PROVISIONAL RULING (OQ48)** | `docs/19` OQ48 |
+| R21 | **Withdrawal** takes a date D (the first date on which the service no longer runs) and sets `EffectiveTo` = D − 1 day. D must not be earlier than today's Asia/Yangon date (`422 Timetable.WithdrawalDateInPast`). The new `EffectiveTo` must be earlier than the current end (the current `EffectiveTo`, or unbounded when it is null); otherwise the withdrawal would extend or not change the period and is refused (`422 Timetable.WithdrawalDoesNotShorten`). **A second or later withdrawal is allowed when it shortens further**, under the same two checks; one that does not is refused with the same code. Withdrawal has no route or station guard (R16). | **PROVISIONAL RULING (OQ48)**; "a later withdrawal may shorten further": decided here as instructed (T-044) | `docs/19` OQ48 |
+| R22 | No arrival or departure times, no `ScheduleVersion`, no publication. | ENGINEERING DECISION (tech lead, hein, 2026-09-25; B1) | §0.9 B |
+| R23 | Service identifiers are application-generated GUIDs through `IIdGenerator`, mapped `ValueGeneratedNever()`. | ENGINEERING DECISION | ADR-0006 |
+| R24 | Creation and every withdrawal are audited in the same `SaveChangesAsync`, with actor fields from the authenticated server-side context only. | ENGINEERING DECISION | ADR-0017 §Decision items 1–2; ADR-0021; F-003 R20 |
+| R25 | Service management takes no `Idempotency-Key`. | ENGINEERING DECISION (E8, accepted) | `docs/20` §5 |
+| R26 | Instants are `DateTimeOffset` / `datetimeoffset(3)` UTC with a UTC check constraint; services own no `BusinessDate`. | ENGINEERING DECISION | ADR-0018; ADR-0019 |
+| R27 | No real service data ships: no seed migration or fixture of real YCR services. Tests build their own stations, routes and services. OQ1 blocks data, not the service API. | FACT (consequence of OQ1, open) | `docs/19` OQ1; F-003 R23 |
+| R28 | Timetable reads Network data only through the read-only `YCR.Application.Network.Contracts` interface (E3), which returns primitive records; it never uses `INetworkDbContext` or `YCR.Domain.Network`. | ENGINEERING DECISION (ADR-0012 item 4; ADR-0025 items 1–3, Accepted) | ADR-0025 |
+| R29 | `timetable.Services.RouteId` → `network.Routes(Id)` and `timetable.ServiceStops.StationId` → `network.Stations(Id)` are `NO ACTION` foreign keys, created by the Timetable migration with no navigation property. No key to `network.RouteStations`; R11 is enforced by the aggregate. | ENGINEERING DECISION (ADR-0025 items 5–7, Accepted; E5) | ADR-0025; `docs/07` §Rules |
+| R30 | Service responses show the route's and each stop station's **current** code, names and active flag, read at query time through the contract; a service row stores only ids. | ENGINEERING DECISION (E3 accepted; F-003 R24 pattern) | ADR-0025 |
+| R31 | `stopStationIds` has at most **200** elements (`400 Common.ValidationFailed`). Each body-carrying service endpoint has an explicit body-size limit, value set at PLAN, refused with `413` before JSON binding; malformed JSON is a bounded `400`. | REQUIRED CONTROL (tech lead, hein, 2026-09-25; OQ45 ruling, E12) — **Q2 open on 200 vs 201** | F-003 R26, R27; `docs/18` |
+| R32 | Error codes are `Timetable.<Reason>`, mapped per ADR-0004. | ENGINEERING DECISION (E7 accepted) | ADR-0004; `docs/20` §2 |
+| R33 | Service rows are never deleted and ids never change; there is no `DELETE` endpoint and `ycr_app` has no `DELETE` on `timetable` tables. | ENGINEERING DECISION (tech lead, hein, 2026-09-25; E11) | AGENTS.md rule 5; `docs/07` §Rules |
 | R34 | OQ4 and OQ19 do not block F-004; R33 keeps OQ4's "service-specific ticket" option open. | FACT (analysis, G11) | `docs/19` OQ4, OQ19; ADR-0014 |
+| R35 | **No overlapping periods for one code.** Two services with the same code may not both have non-empty periods that overlap (inclusive dates; a null `EffectiveTo` is unbounded): `409 Timetable.ServiceCodePeriodOverlap`. This cannot be a unique index. The create and withdraw handlers **serialise on the code**: each takes an exclusive lock scoped to that code inside the transaction that reads the code's services and writes, so two requests on one code run one after the other and requests on different codes do not block each other. The mechanism (an application lock such as `sp_getapplock` on a code-derived resource, or an `UPDLOCK, HOLDLOCK` range read on `IX_Services_Code`) is chosen at PLAN. | Rule: **PROVISIONAL RULING (OQ43, OQ48)**. Serialisation: ENGINEERING DECISION (tech lead, hein, 2026-09-25) | `docs/19` OQ43, OQ48; §0.9 OQ48 |
+| R36 | Withdrawal is the only `UPDATE`. It writes `EffectiveTo` and `WithdrawnAtUtc` (the clock's UTC now, `TimeProvider`) in the same `UPDATE`; `WithdrawnAtUtc` is null until the first withdrawal and holds the **latest** withdrawal's instant (each withdrawal's before and after state is in the audit ledger). `EffectiveTo` is the EF concurrency token, as a backstop behind R35's lock: if it fires, the request returns `409 Timetable.ServiceChangedConcurrently` and writes nothing. No `rowversion`, no client-held version. | ENGINEERING DECISION (tech lead, hein, 2026-09-25; OQ48 consequence, E10; F-003 A1 pattern). The `409` code is proposed here | F-003 §0.8 A1, R17 |
+| R37 | When a create breaks several rules, the checks run in this order and the first failure is returned: request validation (`400 Common.ValidationFailed`); code; names; effective period; route exists; route active; stops on the route; repeated stop; too few stops; order; inactive stop station; then, under the lock, the code-period overlap (`409`). Within one check, the first offending stop in sequence order is reported. | ENGINEERING DECISION (proposed; F-003 plan P4 pattern) | F-003 `Route.Create` |
+| R38 | Today's date for R21 is `TimeProvider.GetUtcNow()` converted to the configured zone (Asia/Yangon), never the server's local time. | ENGINEERING DECISION (ADR-0018) | ADR-0018 §Time |
+| R39 | Whether `EffectiveFrom` (or a given `EffectiveTo`) may be earlier than today's Asia/Yangon date at creation. | **OPEN QUESTION (OQ50)** — blocking | `docs/19` OQ50; §0.10 |
+| R40 | Operating days are stored as seven `bit` columns and exchanged as an array of English day names (`"Monday"` … `"Sunday"`); responses list them Monday first. | ENGINEERING DECISION (proposed) | §7 |
+| R41 | A withdrawn service whose `EffectiveTo` is earlier than its `EffectiveFrom` **never runs**. It reads back with those two dates as stored, `withdrawnAtUtc` set, and a derived `neverRuns: true` (computed, not stored; `false` for every other service). | Never runs: **PROVISIONAL RULING (OQ48)**. Read-back shape: ENGINEERING DECISION (proposed) | `docs/19` OQ48 |
+| R42 | A service that never runs has an empty period, so it overlaps nothing, and R35 ignores it. | Consequence of the OQ43 and OQ48 rulings | R35, R41 |
 
-**Blocking open questions:** **OQ42, OQ43, OQ44, OQ45, OQ46, OQ47, OQ48, OQ49**, and the scope ruling **B**. Under B3, further business questions about times would have to be raised before approval. The spec cannot be Approved until each is ruled — by Myanma Railways, or by hein as a provisional tech-lead ruling labelled "not a Myanma Railways answer".
+**Blocking open questions:** **OQ50** (R39). **Q2** (stop cap 200 vs 201) and **Q3** (create versus deactivation race) are rulings the spec needs but are not OPEN QUESTIONs in `docs/19` (§0.10). OQ42–OQ49 are resolved for F-004 by provisional tech-lead rulings and remain open with Myanma Railways; OQ47's holiday and exception part stays OPEN and does not block (§9). OQ1, OQ4, OQ17 and OQ19 stay open and do not block.
 
 ---
 
 ## 4. Scenarios (Given / When / Then)
 
-Written against boundary **B1** (§0.7). Status codes follow ADR-0004; every error is ProblemDetails with `errorCode` and `traceId`. Each scenario names the OQs whose ruling fixes its final form; a scenario tagged **[blocked: …]** is a placeholder for the rule, not a rule. Error-code names are proposals (E7).
+Status codes follow ADR-0004; every error is ProblemDetails with `errorCode` and `traceId`. Unless a scenario says otherwise: route **RC** is closed, `[A, B, C, D, E]` (*n* = 5); route **RO** is open, `[P, Q, R, S]`; all are active; the caller holds `services.manage`; today (Asia/Yangon, from a test clock) is **2026-10-01**; a create uses a valid code, names, `Monday`–`Friday`, `effectiveFrom = 2026-10-05` and `effectiveTo = null`. "Nothing written" means no service row, no stop row and no audit event.
 
 ### Happy path
 
-- **S1.** *[blocked: OQ43, OQ44, OQ45, OQ47, OQ48]* Given an active route R with active stations, and a caller holding `services.manage`, when they POST `/services` with the identity fields (OQ43), `routeId = R`, a direction (OQ44), an ordered list of stop station ids, the operating days (OQ47) and the effective period (OQ48), then `201 Created` with `Location: /api/v1/services/{id}` and `{ id }`; one `timetable.Services` row and one `timetable.ServiceStops` row per stop, in order `1..n`; one `Timetable.ServiceCreated` audit event.
-- **S2.** Given that service, a caller holding `services.read` GETs `/services/{id}` → `200` with `ServiceResponse`: the service's fields, the route's current code and names, and the stops in order, each with the station's current code, names and `isActive` (R30). No EF entity is serialised (AGENTS.md rule 4).
-- **S3.** Given several services, one of them withdrawn, a caller holding `services.read` GETs `/services?page=1&pageSize=50` → `200` with `items, page, pageSize, totalCount`, in a stable order (proposed: by identifier, OQ43), withdrawn services included and marked. A `routeId` filter is proposed.
+- **S1.** POST `/services` with `code = "S101"`, `routeId = RC`, `direction = Forward`, `stopStationIds = [A, C, E]` → `201 Created`, `Location: /api/v1/services/{id}`, `{ id }`; one `timetable.Services` row (`Direction = Forward`, `RunsOnMonday`–`RunsOnFriday` = 1, the others 0, `EffectiveTo` null, `WithdrawnAtUtc` null) and three `timetable.ServiceStops` rows, positions 1–3; one `Timetable.ServiceCreated` event.
+- **S2.** A caller holding `services.read` GETs `/services/{id}` → `200` with `ServiceResponse`: code, names, direction, operating days (Monday first), dates, `neverRuns = false`, `withdrawnAtUtc = null`, the route's current code, names, `isClosed` and `isActive`, and the stops in position order with each station's current code, names and `isActive` (R30). No EF entity is serialised.
+- **S3.** Given several services, one withdrawn and two sharing a code with adjacent periods, GET `/services?page=1&pageSize=50` → `200` with `items, page, pageSize, totalCount`, ordered by code then `effectiveFrom`, withdrawn services included; `&routeId=RC` returns only RC's services.
 
-### Failures, each with its error code
+### Direction, order and circuits (OQ44, OQ45)
 
-- **S4.** Validation → `400 Common.ValidationFailed`: a missing required field; an empty stop list; a non-GUID id; more than 200 stops (R31); a missing effective start date *[blocked: OQ48 whether required]*; an empty operating-day set *[blocked: OQ47]*. Nothing is read or written.
-- **S5.** Unknown `routeId` → `422 Timetable.ServiceRouteNotFound`; nothing written (the addressed resource is the new service, so not `404`; F-003 E8 precedent).
-- **S6.** *[blocked: OQ46]* Inactive route → `422 Timetable.ServiceRouteInactive`, **if** OQ46 refuses; otherwise `201`.
-- **S7.** Unknown stop station id → `422 Timetable.ServiceStopStationNotFound`; nothing written.
-- **S8.** *[blocked: OQ46]* Inactive stop station → `422 Timetable.ServiceStopStationInactive`, **if** OQ46 refuses.
-- **S9.** *[blocked: OQ45]* A stop that is not a station of the route → `422 Timetable.ServiceStopNotOnRoute`, **if** OQ45 requires stops ⊆ route.
-- **S10.** *[blocked: OQ44, OQ45]* Stops out of route order for the stated direction → `422 Timetable.ServiceStopsOutOfOrder`, **if** OQ45 requires order. Cases to pin once ruled: on a closed route `[A, B, C, D]`, stops `[C, D, A]` in route order wrap past the end (valid if order is cyclic); `[C, A, D]` is out of order; reverse direction reads the route backwards.
-- **S11.** *[blocked: OQ45]* Too few stops → `422 Timetable.ServiceTooFewStops`; a repeated stop → `422 Timetable.ServiceStopRepeated` unless OQ44/OQ45 allow a full circuit.
-- **S12.** *[blocked: OQ48]* `EffectiveTo` before `EffectiveFrom` → `400 Timetable.InvalidEffectivePeriod`.
-- **S13.** *[blocked: OQ43]* Duplicate identifier within its uniqueness scope → `409 Timetable.ServiceCodeAlreadyExists`, also for the loser of two parallel creates (unique-index violation, ADR-0004).
-- **S14.** *[blocked: OQ43]* Malformed identifier or name → `400 Timetable.InvalidServiceCode` / `400 Timetable.InvalidServiceName`.
-- **S15.** GET or withdraw an unknown service id → `404 Timetable.ServiceNotFound`.
-- **S16.** `pageSize=201` → `400 Timetable.InvalidPageRequest` (`docs/20` §4).
-- **S17.** Anonymous request to any `/services` endpoint → `401 Auth.Unauthenticated`.
-- **S18.** Authenticated without the permission → `403`: only `services.read` POSTs `/services`; only `routes.manage` or `routes.read` or `stations.*` POSTs or GETs `/services` (R4).
-- **S19.** A body over the endpoint's limit → `413` before JSON binding, framework ProblemDetails with no stack trace or path; malformed JSON → bounded `400` (R31; F-003 R27).
+- **S4.** `Forward` wrap on a closed route: RC, `[D, E, A, B]` → `201` (steps 1, 1, 1; sum 3 ≤ 4).
+- **S5.** `Reverse` wrap on a closed route: RC, `Reverse`, `[B, A, E, D]` → `201` (steps 1, 1, 1).
+- **S6.** Wrap with skipped stations: RC, `Forward`, `[D, A, C]` → `201` (steps 2, 2; sum 4). RC, `Forward`, `[C, B]` → `201` (one step of 4: the service runs C, D, E, A, B and stops only at C and B).
+- **S7.** Full circuit: RC, `Forward`, `[C, D, E, A, B, C]` → `201` (sum 5 = *n*); with skipped stations `[C, E, B, C]` → `201`; `Reverse`, `[C, A, D, C]` → `201` (steps 2, 2, 1). Read-back keeps the closing stop at the last position.
+- **S8.** A full circuit with fewer than 3 distinct stations: RC, `Forward`, `[C, E, C]` → `422 Timetable.ServiceTooFewStops`; nothing written.
+- **S9.** More than one circuit: RC, `Forward`, `[C, D, E, A, B, C, D]` → `422 Timetable.ServiceStopRepeated` (C appears other than as the closure); RC, `Forward`, `[D, A, C, E]` → `422 Timetable.ServiceStopsOutOfOrder` (steps 2, 2, 2; sum 6 > 4: it passes D again). Nothing written.
+- **S10.** Open route, part route and reverse: RO, `Forward`, `[Q, R]` → `201`; RO, `Reverse`, `[S, R, P]` → `201`.
+- **S11.** Wrap on an open route is refused: RO, `Forward`, `[R, S, P]` → `422 Timetable.ServiceStopsOutOfOrder`; RO, `Reverse`, `[Q, P, S]` → `422 Timetable.ServiceStopsOutOfOrder`. Nothing written.
+- **S12.** A full circuit on an open route is refused: RO, `Forward`, `[P, Q, R, P]` → `422 Timetable.ServiceStopRepeated`; nothing written.
+- **S13.** Repeated stop: RC, `Forward`, `[A, B, B, C]` → `422 Timetable.ServiceStopRepeated`; `[A, B, A, C]` → same. Nothing written.
+- **S14.** Stops out of order: RC, `Forward`, `[A, C, B]` → `422 Timetable.ServiceStopsOutOfOrder` (steps 2, 4; sum 6 > 4); RO, `Forward`, `[P, R, Q]` → same. Nothing written.
+- **S15.** One stop: `[A]` → `422 Timetable.ServiceTooFewStops`; nothing written.
+- **S16.** A stop not on the route: a station that exists but is not in RC, or an id that names no station → `422 Timetable.ServiceStopNotOnRoute`; nothing written.
 
-### Lifecycle
+### Routes and stations (OQ46)
 
-- **S20.** *[blocked: OQ48]* Withdraw (proposed `POST /services/{id}/withdraw`, under G7 (a)) an active service → `204`, the row keeps its id and stops, the withdrawal date or instant is recorded, one `Timetable.ServiceWithdrawn` event; again → `422 Timetable.ServiceAlreadyWithdrawn`, no event; two in parallel → exactly one `204`, one `422`, one event (F-003 S23 pattern).
-- **S21.** *[blocked: OQ46]* Given service S uses route R and station B, when R is deactivated (F-003) or B is deactivated (F-001), then — under "allow, service unchanged" — `204` exactly as today, S's rows are unchanged, and S2 shows the route or stop with `isActive = false`.
+- **S17.** Inactive route: RC deactivated, then a create on RC → `422 Timetable.ServiceRouteInactive`; nothing written.
+- **S18.** Inactive stop station: station C deactivated, then RC, `[A, C, E]` → `422 Timetable.ServiceStopStationInactive`; nothing written. RC, `Forward`, `[B, D]` (passes C without stopping) → `201` (R15).
+- **S19.** Unknown `routeId` → `422 Timetable.ServiceRouteNotFound`; nothing written.
+- **S20.** Given the S1 service on RC, stopping at C, when RC is deactivated (`POST /routes/{RC}/deactivate`) or C is deactivated (`POST /stations/{C}/deactivate`), then `204` exactly as today; the service's rows are unchanged; GET shows `route.isActive = false`, or C's stop with `isActive = false`.
 
-### Concurrency and data integrity
+### Validation and identity (OQ43, OQ47, OQ48)
 
-- **S22.** An audit event's actor fields come from the authenticated context; actor fields in the request body are ignored (ADR-0017 §2).
-- **S23.** A failed create writes neither the service nor any stop row (one `SaveChangesAsync`, ADR-0004); a successful one has stops contiguous `1..n`.
-- **S24.** *[pending ADR-0025]* A stop row naming a station id that does not exist is refused by the database even when written by direct SQL under `ycr_app` (the foreign key, R29); likewise a service naming a missing route.
-- **S25.** Database privileges: `ycr_app`'s grants on `timetable.Services` and `timetable.ServiceStops` are exactly those §7 lists, and a test asserts the absences — no `DELETE`, no `UPDATE` of identity, route or stop columns, no DDL (F-003 S25 pattern; final list after OQ48).
-- **S26.** A Myanmar service name (if OQ43 gives services names) round-trips unchanged with real Myanmar Unicode text.
-- **S27.** Architecture: `YCR.Application.Timetable` depends on no `YCR.Domain.Network` type and not on `INetworkDbContext`; a type in `YCR.Application.Network.Contracts` depends on no module domain type (E4), each proven with a violating fixture.
-- **S28.** *[accept or refuse the race, hein]* A service created while its route (or a stop station) is being deactivated: the end state equals the serial order "create, then deactivate". Proposed: accepted, not serialised, as F-003 accepted route creation against station deactivation (F-003 §5).
+- **S21.** `400 Common.ValidationFailed`, nothing read or written: a missing or blank `code`, `nameEn` or `nameMy`; a missing `routeId`; a missing `direction` or a value other than `Forward`/`Reverse`; a missing or empty `stopStationIds`; a `null` or non-GUID stop id; more than 200 stop ids (R31; exactly 200 reaches the handler); a missing or empty `operatingDays`; a repeated or unknown day name; a missing or malformed `effectiveFrom`; a malformed `effectiveTo`.
+- **S22.** Code `"s1"`, `"A"`, `"ABCDEFGHIJK"` or `"S-1"` → `400 Timetable.InvalidServiceCode`; a 101-character name after trimming → `400 Timetable.InvalidServiceName`.
+- **S23.** `effectiveTo = 2026-10-04` with `effectiveFrom = 2026-10-05` → `400 Timetable.InvalidEffectivePeriod`; `effectiveTo = effectiveFrom` → `201` (a one-day period).
+
+### Codes and periods (OQ43, OQ48; R35)
+
+- **S24.** Overlap, open-ended: `S101` exists from 2026-10-05, open-ended. A create of `S101` from 2027-01-01 → `409 Timetable.ServiceCodePeriodOverlap`; nothing written.
+- **S25.** Overlap, inclusive edge: `S101` exists for 2026-10-05 – 2026-12-31. A create of `S101` from 2026-12-31 → `409 Timetable.ServiceCodePeriodOverlap`. From 2027-01-01 (adjacent) → `201`. The overlap check ignores route, direction and operating days: `S101` on RO, `Reverse`, `Saturday`–`Sunday`, from 2026-11-01 → `409`.
+- **S26.** Timetable change: `S101` exists from 2026-10-05, open-ended. Withdraw it from 2027-01-01 → `204`, `EffectiveTo = 2026-12-31`. Create `S101` from 2027-01-01, on the same or another route → `201`. Both read back; the list shows them in `effectiveFrom` order.
+- **S27.** Parallel creates, same code, overlapping periods → exactly one `201` and one `409 Timetable.ServiceCodePeriodOverlap`; one service row and one `Timetable.ServiceCreated` event.
+- **S28.** Parallel creates, same code, adjacent periods (2026-10-05 – 2026-12-31, and from 2027-01-01) → both `201`.
+- **S29.** Withdrawal racing a create: `S101` (X) exists from 2026-10-05, open-ended. In parallel, withdraw X from 2027-01-01 and create `S101` from 2027-01-01. The two serialise on the code (R35). Withdraw-then-create → `204`, `201`. Create-then-withdraw → create `409`, withdraw `204`. In no interleaving are two overlapping `S101` rows committed; the test forces both orders.
+
+### Withdrawal (OQ48; R21, R36)
+
+- **S30.** Withdraw X (from 2026-10-05, open-ended) with `withdrawFrom = 2026-11-01` → `204`; `EffectiveTo = 2026-10-31` and `WithdrawnAtUtc` = the clock's UTC now, both in one `UPDATE`; stops and every other column unchanged; one `Timetable.ServiceWithdrawn` event with before and after snapshots.
+- **S31.** `withdrawFrom` = today (2026-10-01) → `204`, `EffectiveTo = 2026-09-30`.
+- **S32.** `withdrawFrom` in the past (2026-09-30) → `422 Timetable.WithdrawalDateInPast`; nothing written.
+- **S33.** Would extend or not change: Y has `EffectiveTo = 2026-12-31`. `withdrawFrom = 2027-02-01` (new end 2027-01-31) → `422 Timetable.WithdrawalDoesNotShorten`; `withdrawFrom = 2027-01-01` (new end equals the current one) → same. Nothing written.
+- **S34.** Already ended: Z has `EffectiveTo = 2026-09-30`, before today. Any `withdrawFrom` ≥ today → `422 Timetable.WithdrawalDoesNotShorten` (it would reopen the period).
+- **S35.** Second withdrawal: after S30 (`EffectiveTo = 2026-10-31`), `withdrawFrom = 2026-10-20` → `204`, `EffectiveTo = 2026-10-19`, `WithdrawnAtUtc` updated, a second `Timetable.ServiceWithdrawn` event; then `withdrawFrom = 2026-11-15` → `422 Timetable.WithdrawalDoesNotShorten`.
+- **S36.** Never runs: W from 2026-11-01, open-ended; withdraw from 2026-10-15 → `204`, `EffectiveTo = 2026-10-14`. GET W → `effectiveFrom = 2026-11-01`, `effectiveTo = 2026-10-14`, `withdrawnAtUtc` set, `neverRuns = true` (R41). A new service with W's code and any period → `201` (R42).
+- **S37.** Parallel withdrawals of one service, from 2026-11-01 and from 2026-10-20: they serialise (R35). In either order the final `EffectiveTo` is 2026-10-19. "11-01 then 10-20" gives `204`, `204` and two events; "10-20 then 11-01" gives `204`, `422 Timetable.WithdrawalDoesNotShorten` and one event.
+- **S38.** Withdraw an unknown id → `404 Timetable.ServiceNotFound`; a missing or malformed `withdrawFrom` → `400 Common.ValidationFailed`.
+- **S39.** Withdraw a service whose route, or one of its stop stations, has been deactivated → `204` (no route or station guard, R21).
+- **S40.** *[blocked: OQ50]* A create with `effectiveFrom` earlier than today (2026-09-01), or with a given `effectiveTo` earlier than today: refused or allowed per OQ50.
+
+### Access, input limits, integrity
+
+- **S41.** Anonymous request to any `/services` endpoint → `401 Auth.Unauthenticated`.
+- **S42.** `403`: a caller with only `services.read` POSTs `/services` or `/services/{id}/withdraw`; a caller with only `routes.manage`, `routes.read`, `stations.manage` or `stations.read` POSTs or GETs `/services` (R4).
+- **S43.** A body over the endpoint's limit, declared or chunked → `413` before JSON binding, framework ProblemDetails with no stack trace, exception type or path; malformed JSON → bounded `400` (R31).
+- **S44.** `pageSize=201` → `400 Timetable.InvalidPageRequest`.
+- **S45.** An audit event's actor fields come from the authenticated context; actor fields in the request body are ignored (ADR-0017 §2).
+- **S46.** A failed create writes nothing (one `SaveChangesAsync`); a successful one has stop positions contiguous `1..n` in request order.
+- **S47.** Database privileges: `ycr_app` holds exactly §7's grants; a test asserts the absences — no `DELETE` on either table; no `UPDATE` of any `Services` column other than `EffectiveTo` and `WithdrawnAtUtc`; no `UPDATE` on `ServiceStops`; no DDL (F-003 S25 pattern).
+- **S48.** Foreign keys (ADR-0025): inserting a `ServiceStops` row whose `StationId` names no station, or a `Services` row whose `RouteId` names no route, by direct SQL under `ycr_app`, is refused by the database.
+- **S49.** A Myanmar service name round-trips unchanged, using real Myanmar Unicode text.
+- **S50.** Architecture: `YCR.Application.Timetable` depends on no `YCR.Domain.Network` type and not on `INetworkDbContext`; a type in `YCR.Application.Network.Contracts` depends on no module domain or context type (ADR-0025 item 4); each is proven with a violating fixture.
+- **S51.** *[awaiting Q3]* A service created while its route or a stop station is being deactivated: proposed accepted, not serialised; the end state equals "create, then deactivate", which R16 allows.
+- **S52.** Operating days round-trip: `["Sunday", "Monday"]` stores `RunsOnSunday = 1` and `RunsOnMonday = 1`, the others 0, and reads back as `["Monday", "Sunday"]`.
 
 ---
 
 ## 5. State changes
 
-Under boundary B1 and G7 (a). Everything here is *[blocked: OQ48]*.
-
 | Entity | From | Event | Guard | To |
 |---|---|---|---|---|
-| Service | (none) | `CreateService` | `services.manage`; identity valid and unused (OQ43); route exists (R28) and is active (OQ46); stops valid for the route and direction (OQ44, OQ45); operating days valid (OQ47); effective period valid (OQ48) | Active |
-| Service | Active | `WithdrawService` | `services.manage`; OQ48 allows early withdrawal | Withdrawn, withdrawal recorded |
-| Service | Withdrawn | `WithdrawService` | — | rejected, `422 Timetable.ServiceAlreadyWithdrawn` |
-| Route / Station | Active | `DeactivateRoute` / `DeactivateStation` | unchanged from F-003 / F-001 unless OQ46 rules otherwise | Inactive; services unchanged (OQ46 option "allow") |
+| Service | (none) | `CreateService` | `services.manage`; R6, R7, R9–R15, R17, R19 (and R39 once OQ50 is ruled); no overlapping service with the same code (R35, under the code lock) | Created, with its period |
+| Service | any | `WithdrawService(D)` | `services.manage`; D ≥ today, Asia/Yangon (R21); D − 1 earlier than the current end (R21); under the code lock (R35) | Same service; `EffectiveTo` = D − 1; `WithdrawnAtUtc` = now |
+| Route / Station | Active | `DeactivateRoute` / `DeactivateStation` | unchanged from F-003 / F-001 | Inactive; services unchanged (R16) |
 
-Under G7 (b) the table is replaced by a `ScheduleVersion` lifecycle (Draft → Published, immutable once published), which is FR-004's under B1.
+A service has no status column. Whether it runs on a date follows from its period and operating days; `neverRuns` (R41) is the only derived flag the API reports. No other transition exists: there is no edit, reactivation or delete (R20, R33).
 
 ---
 
 ## 6. API
 
-Proposal under **B1**. Base path `/api/v1`, JSON camelCase, GUID ids, ProblemDetails with `errorCode` and `traceId` (`docs/20` §4; ADR-0004). No `Idempotency-Key` (R25). Field names in *italics* wait for their OQ.
+Base path `/api/v1`, JSON camelCase, GUID ids, dates `YYYY-MM-DD`, ProblemDetails with `errorCode` and `traceId` (`docs/20` §4; ADR-0004). No `Idempotency-Key` (R25). No version token (E10). Every endpoint also has the responses in `docs/08` §Applies to every protected endpoint.
 
 | Method | Path | Request | Success | Error codes | Permission |
 |---|---|---|---|---|---|
-| POST | `/services` | `CreateServiceRequest { `*`code`*`, `*`nameEn`*`, `*`nameMy`*`, routeId, `*`direction`*`, stopStationIds: Guid[] (≤ 200), `*`operatingDays`*`, effectiveFrom, `*`effectiveTo`*` }`; explicit body limit (R31) | `201` + `CreateServiceResponse { id }` and `Location` | `400 Common.ValidationFailed` · `400 Timetable.InvalidServiceCode` · `400 Timetable.InvalidServiceName` · `400 Timetable.InvalidEffectivePeriod` · `400` malformed JSON · `401` · `403` · `409 Timetable.ServiceCodeAlreadyExists` · `413` · `422 Timetable.ServiceRouteNotFound` · `422 Timetable.ServiceRouteInactive` · `422 Timetable.ServiceStopStationNotFound` · `422 Timetable.ServiceStopStationInactive` · `422 Timetable.ServiceStopNotOnRoute` · `422 Timetable.ServiceStopsOutOfOrder` · `422 Timetable.ServiceStopRepeated` · `422 Timetable.ServiceTooFewStops` — each conditional on its OQ (§4) | `services.manage` |
-| GET | `/services/{id}` | — | `200` + `ServiceResponse { id, `*`code, nameEn, nameMy`*`, route: { id, code, nameEn, nameMy, isClosed, isActive }, `*`direction`*`, stops: [{ position, stationId, code, nameEn, nameMy, isActive }], `*`operatingDays`*`, effectiveFrom, `*`effectiveTo`*`, isActive, createdAtUtc, `*`withdrawnAt…`*` }` | `401` · `403` · `404 Timetable.ServiceNotFound` | `services.read` |
-| GET | `/services` | `?page=1&pageSize=50` (max 200); proposed `&routeId=` filter | `200` + `{ items: ServiceSummaryResponse[], page, pageSize, totalCount }` | `400 Timetable.InvalidPageRequest` · `401` · `403` | `services.read` |
-| POST | `/services/{id}/withdraw` | *[blocked: OQ48]* possibly `{ effectiveTo }` | `204` | `401` · `403` · `404 Timetable.ServiceNotFound` · `422 Timetable.ServiceAlreadyWithdrawn` | `services.manage` |
+| POST | `/services` | `CreateServiceRequest`; body limit set at PLAN (R31) | `201` + `CreateServiceResponse { id }` and `Location: /api/v1/services/{id}` | `400 Common.ValidationFailed` · `400 Timetable.InvalidServiceCode` · `400 Timetable.InvalidServiceName` · `400 Timetable.InvalidEffectivePeriod` · `400` malformed JSON · `401` · `403` · `409 Timetable.ServiceCodePeriodOverlap` · `413` · `422 Timetable.ServiceRouteNotFound` · `422 Timetable.ServiceRouteInactive` · `422 Timetable.ServiceStopNotOnRoute` · `422 Timetable.ServiceStopRepeated` · `422 Timetable.ServiceTooFewStops` · `422 Timetable.ServiceStopsOutOfOrder` · `422 Timetable.ServiceStopStationInactive` | `services.manage` |
+| GET | `/services/{id}` | — | `200` + `ServiceResponse` | `401` · `403` · `404 Timetable.ServiceNotFound` | `services.read` |
+| GET | `/services` | `?page=1&pageSize=50` (max 200) `&routeId=` (optional); ordered by `code`, then `effectiveFrom`; withdrawn services included | `200` + `{ items: ServiceSummaryResponse[], page, pageSize, totalCount }` | `400 Timetable.InvalidPageRequest` · `401` · `403` | `services.read` |
+| POST | `/services/{id}/withdraw` | `WithdrawServiceRequest { withdrawFrom }`; body limit set at PLAN | `204` | `400 Common.ValidationFailed` · `400` malformed JSON · `401` · `403` · `404 Timetable.ServiceNotFound` · `409 Timetable.ServiceChangedConcurrently` (R36 backstop) · `413` · `422 Timetable.WithdrawalDateInPast` · `422 Timetable.WithdrawalDoesNotShorten` | `services.manage` |
 
-**Deliberately absent under B1 and G7 (a):** `PATCH /services` (C3), `DELETE` (R33), any times. **Trains:** `GET/POST /trains` exist only if OQ42 is (a); under (b) or (c) `docs/08`'s `/trains` line is removed at stage 8. **Schedules:** `/schedules/versions*` are FR-004's under B1.
+A withdrawal can never cause `409 Timetable.ServiceCodePeriodOverlap`, because it only shortens a period.
+
+**Contracts.**
+
+```text
+CreateServiceRequest   { code, nameEn, nameMy, routeId, direction: "Forward" | "Reverse",
+                         stopStationIds: string[],            // in stop order, 1..200
+                         operatingDays: string[],             // "Monday".."Sunday", 1..7, no repeats
+                         effectiveFrom: date, effectiveTo: date | null }
+CreateServiceResponse  { id }
+WithdrawServiceRequest { withdrawFrom: date }                 // first date the service no longer runs
+ServiceResponse        { id, code, nameEn, nameMy, direction,
+                         route: { id, code, nameEn, nameMy, isClosed, isActive },
+                         stops: ServiceStopResponse[],        // in position order
+                         operatingDays: string[],             // Monday first
+                         effectiveFrom, effectiveTo, neverRuns, createdAtUtc, withdrawnAtUtc }
+ServiceStopResponse    { position, stationId, code, nameEn, nameMy, isActive }
+ServiceSummaryResponse { id, code, nameEn, nameMy, routeId, routeCode, direction, stopCount,
+                         operatingDays, effectiveFrom, effectiveTo, neverRuns, createdAtUtc,
+                         withdrawnAtUtc }
+```
+
+Route and station `code`, names and `isActive` are **current** values, read at query time through the Network contract (R30). `effectiveTo` and `withdrawnAtUtc` are `null` until set. No request has an actor field.
+
+**Deliberately absent:** `PATCH /services` and any other edit (R20); reactivation; `DELETE` (R33); `/trains` (R5); `/schedules/versions*` and any time field (R22).
 
 ---
 
 ## 7. Data
 
-Proposal under **B1** and G7 (a). Schema `timetable` (E1). Every `*Utc` column is `datetimeoffset(3)` with `CK_<Table>_<Column>_Utc`, declared in the EF model as well as the migration. Foreign keys are `NO ACTION`. Italic columns wait for their OQ.
+Schema `timetable` (E1). Every `*Utc` column is `datetimeoffset(3)` with `CK_<Table>_<Column>_Utc` (`DATEPART(TZOFFSET, …) = 0`; a null passes), declared in the EF model as well as the migration. Foreign keys are `NO ACTION`.
 
 ### `timetable.Services`
 
 | Column | Type | Null | Notes |
 |---|---|---|---|
 | `Id` | `uniqueidentifier` | no | PK, clustered, application-assigned (R23) |
-| *`Code`* | `nvarchar(n)` | *OQ43* | Identifier; unique index scope per OQ43 |
-| *`NameEn`*, *`NameMy`* | `nvarchar(100)` | *OQ43* | `BilingualName`, if services have names |
-| `RouteId` | `uniqueidentifier` | no | `FK_Services_Routes_RouteId` → `network.Routes(Id)` *(ADR-0025, pending)*; indexed for the `routeId` filter |
-| *`Direction`* | `tinyint` | *OQ44* | With a `CK_` listing the allowed values, if direction is stored |
-| *operating days* | e.g. seven `bit` columns `RunsMonday`…`RunsSunday` with a check that at least one is set | *OQ47* | Holiday or per-date exception tables if OQ47 (b)/(c)/(d) |
-| `EffectiveFrom` | `date` | *OQ48* | ADR-0018 |
-| `EffectiveTo` | `date` | *OQ48* | `CK_Services_EffectivePeriod`: `EffectiveTo IS NULL OR EffectiveTo >= EffectiveFrom` |
-| `IsActive` | `bit` | no | EF concurrency token for withdrawal (E10) |
-| `CreatedAtUtc` | `datetimeoffset(3)` | no | UTC check |
-| *`WithdrawnAtUtc`* | `datetimeoffset(3)` | yes | *OQ48*; UTC check; set in the same `UPDATE` as `IsActive = 0` (F-003 A1 pattern) |
+| `Code` | `nvarchar(10)` | no | R6; **not unique** (R35) |
+| `NameEn` | `nvarchar(100)` | no | Owned `BilingualName` (R7) |
+| `NameMy` | `nvarchar(100)` | no | Myanmar Unicode, never Zawgyi (`docs/20` §6; OQ29 ruling) |
+| `RouteId` | `uniqueidentifier` | no | `FK_Services_Routes_RouteId` → `network.Routes(Id)` (R29) |
+| `Direction` | `nvarchar(10)` | no | `Forward` or `Reverse` (R9); stored as text so ledger readers and reports need no lookup |
+| `RunsOnMonday` … `RunsOnSunday` | `bit` × 7 | no | Operating days (R17, R40) |
+| `EffectiveFrom` | `date` | no | R19 |
+| `EffectiveTo` | `date` | yes | Inclusive; null = open-ended (R19). EF concurrency token (R36) |
+| `CreatedAtUtc` | `datetimeoffset(3)` | no | UTC |
+| `WithdrawnAtUtc` | `datetimeoffset(3)` | yes | Null until the first withdrawal; then the latest withdrawal's instant (R36) |
+
+| Object | Definition | Why |
+|---|---|---|
+| `PK_Services` | clustered on `Id` | ADR-0006 |
+| `IX_Services_Code_EffectiveFrom` | nonclustered on `(Code, EffectiveFrom)` | The overlap read (R35) and its lock; also the list order. Deliberately **not unique** |
+| `IX_Services_RouteId` | nonclustered on `RouteId` | Covers `FK_Services_Routes_RouteId` and the `routeId` filter |
+| `CK_Services_Direction` | `[Direction] IN (N'Forward', N'Reverse')` | R9, from any writer |
+| `CK_Services_OperatingDays` | at least one `RunsOn…` column is `1` | R17, from any writer |
+| `CK_Services_EffectivePeriod` | `[EffectiveTo] IS NULL OR [EffectiveTo] >= [EffectiveFrom] OR [WithdrawnAtUtc] IS NOT NULL` | A period can be empty only after a withdrawal (R19, R41) |
+| `CK_Services_CreatedAtUtc_Utc`, `CK_Services_WithdrawnAtUtc_Utc` | UTC checks | ADR-0018 |
 
 ### `timetable.ServiceStops`
 
 | Column | Type | Null | Notes |
 |---|---|---|---|
-| `ServiceId` | `uniqueidentifier` | no | `FK_ServiceStops_Services_ServiceId` |
-| `Position` | `int` | no | 1-based, contiguous per service; `CK_ServiceStops_Position` `>= 1`. Not the route position and not the ADR-0014 short index |
-| `StationId` | `uniqueidentifier` | no | `FK_ServiceStops_Stations_StationId` → `network.Stations(Id)` *(ADR-0025, pending)* |
-| *stop attributes* | | | *OQ45* |
+| `ServiceId` | `uniqueidentifier` | no | `FK_ServiceStops_Services_ServiceId` → `timetable.Services(Id)` |
+| `Position` | `int` | no | 1-based, contiguous in stop order. Not the route position and not the ADR-0014 short index |
+| `StationId` | `uniqueidentifier` | no | `FK_ServiceStops_Stations_StationId` → `network.Stations(Id)` (R29) |
 
-PK `(ServiceId, Position)`. A unique `(StationId, ServiceId)` only if OQ44/OQ45 forbid repeated stops; with `StationId` leading it also covers the station foreign key (F-003 Amendment 1 lesson: otherwise EF adds `IX_ServiceStops_StationId` by convention). Order-against-route is enforced by the aggregate, not the database (E5).
+| Object | Definition | Why |
+|---|---|---|
+| `PK_ServiceStops` | clustered on `(ServiceId, Position)` | One station per position. Contiguity, order, the closure and the minimum are enforced by the aggregate, since a check constraint cannot see other rows |
+| `CK_ServiceStops_Position` | `[Position] >= 1` | From any writer |
+| `IX_ServiceStops_StationId` | nonclustered on `StationId` | Covers the station foreign key (EF adds it by convention otherwise). Not unique: the full-circuit closure repeats a station (R14) |
 
-### Trains
+Both tables are the history: a service's stops never change, and `EffectiveFrom`, `EffectiveTo` and `WithdrawnAtUtc` answer when it applied without reading the audit ledger.
 
-`timetable.Trains` only if OQ42 is (a); columns wait for that ruling.
+### Grants to `ycr_app` (`Security_TimetableGrants`)
 
-### Grants to `ycr_app` (`Security_TimetableGrants`, E13)
+| Table | Granted | Deliberately absent |
+|---|---|---|
+| `Services` | `SELECT`, `INSERT`, `UPDATE(EffectiveTo, WithdrawnAtUtc)` | `DELETE`; `UPDATE` of any other column |
+| `ServiceStops` | `SELECT`, `INSERT` | `UPDATE`; `DELETE` |
 
-Under G7 (a): `Services` `SELECT`, `INSERT`, `UPDATE(IsActive, WithdrawnAtUtc)` only; `ServiceStops` `SELECT`, `INSERT` only. No `DELETE` (R33), no other `UPDATE`, no DDL. Under (b) the set is wider for draft rows and must be designed with FR-004.
+No DDL. If PLAN chooses `sp_getapplock` for R35, no grant is needed (`public` may execute it, as F-002's last-administrator lock does, `docs/07`). `DatabasePrivilegeTests` asserts presences and absences (S47). The Network tables and grants are unchanged.
 
-Migrations `yyyyMMddHHmmss_Timetable_<Change>`, `…_Identity_SeedServicePermissionGrants`, `…_Security_TimetableGrants`, reviewed per `docs/workflows/04-database-change.md`. Adding the `timetable` schema and its foreign keys alters no `network` column or index (ADR-0025 item 6 rules out alternate keys on Network tables).
+### Migrations
+
+`yyyyMMddHHmmss_Timetable_CreateServices` (schema `timetable`, both tables, all objects above and the two cross-schema foreign keys; EF model-built), `…_Identity_SeedServicePermissionGrants` (ten grants: `services.manage` × 2, `services.read` × 8, matching `docs/10` §Service permission grants), `…_Security_TimetableGrants`. Reviewed per `docs/workflows/04-database-change.md`. No `network` column, index or key changes (ADR-0025 item 6).
 
 ---
 
 ## 8. Audit, logging, metrics
 
-- **Audit** (ADR-0017, ADR-0021): through `IAuditWriter`, in the same `SaveChangesAsync` as the change, so a losing concurrent request writes no event.
+- **Audit** (ADR-0017, ADR-0021): through `IAuditWriter`, in the same `SaveChangesAsync` as the change, so a refused or losing request writes no event.
 
   | Action | When | `BeforeJson` | `AfterJson` |
   |---|---|---|---|
   | `Timetable.ServiceCreated` | S1 | null | snapshot |
-  | `Timetable.ServiceWithdrawn` | S20 *[OQ48]* | snapshot | snapshot |
-  | `Timetable.TrainCreated` … | only if OQ42 (a) | | |
+  | `Timetable.ServiceWithdrawn` | S30, and each later withdrawal (S35) | snapshot | snapshot |
 
-  `SubjectType` = `Timetable.Service` (new `TimetableAuditSubjects` constant, never a CLR name); `SubjectId` = service id; `AuthorizedByPermission` = `services.manage`; `PayloadVersion` = 1. Snapshot is an explicit record: `ServiceAuditSnapshot { `*`code, nameEn, nameMy`*`, routeId, routeCode, `*`direction`*`, stops: [{ position, stationId, stationCode }], `*`operatingDays`*`, effectiveFrom, `*`effectiveTo`*`, isActive, `*`withdrawnAtUtc`*` }`. Route and station codes are included so a ledger row reads without a join; they are stable because codes are never reused. No personal data, token or key (ADR-0021 rule 4).
-- **History.** Under G7 (a) the rows are the history, as for routes (F-003 §8): no feature reads the ledger as business history.
+  `SubjectType` = `Timetable.Service` (new `TimetableAuditSubjects` constant, never a CLR name); `SubjectId` = service id; `AuthorizedByPermission` = `services.manage`; `PayloadVersion` = 1. The snapshot is an explicit record, never the aggregate: `ServiceAuditSnapshot { code, nameEn, nameMy, routeId, routeCode, direction, stops: [{ position, stationId, stationCode }], operatingDays, effectiveFrom, effectiveTo, withdrawnAtUtc }`. Route and station codes are included so a ledger row reads without a join; they are stable because codes are never reused (F-001 R3, F-003 R14). No personal data, token or key (ADR-0021 rule 4).
+- **History.** Services are immutable except for `EffectiveTo` and `WithdrawnAtUtc`, so the rows are the history; each withdrawal's before and after dates are also in the ledger. No feature reads the ledger as business history.
 - **Logging** (`docs/20` §7): message templates, no personal data.
-- **Metrics** (`docs/17`): none proposed; request metrics come from the F-001 baseline.
+- **Metrics** (`docs/17`): none; request metrics come from the F-001 baseline.
 
 ---
 
 ## 9. Out of scope
 
-- Arrival and departure times, `ScheduleVersion`, publication, `schedules.*` — FR-004 under B1 (ruling B decides).
-- Fares and direction pricing (OQ17); "service type" beyond asking whether it exists (OQ43).
+- Arrival and departure times, dwell, `ScheduleVersion`, publication, `schedules.*` — FR-004, a later feature (B1).
+- Trains in any form (OQ42).
+- A public-holiday calendar and per-date operating exceptions (OQ47, still open with Myanma Railways).
+- Service type or class (OQ43; fares, OQ9/OQ17).
+- Editing a service in any way other than withdrawal; reactivation; deletion (OQ48, E11).
+- Any change to station or route endpoints (OQ46).
 - Ticketing, ticket validation, binding tickets to services (OQ4, OQ19), the QR payload.
-- Real service or train data (OQ1, R27).
-- Real-time train tracking (`docs/00`).
-- The ADR-0014 station short index.
-- Any change to station or route endpoints, unless OQ46 rules "refuse".
-- Editing `docs/business/mr-questions-pack.md`, `docs/glossary.md` and `docs/10-authorization-matrix.md` in stages 1–2 (T-044 instructions; stage 8 updates the glossary and `docs/10` per `docs/21`).
+- Real service data (OQ1, R27); real-time train tracking (`docs/00`); the ADR-0014 station short index.
+- Editing `docs/business/mr-questions-pack.md` and `docs/glossary.md` in stages 1–2; stage 8 updates the glossary, `docs/07` and `docs/08` per `docs/21`.
+
+**Known limitations (accepted by the rulings, hein, 2026-09-25):**
+- **OQ46:** a service keeps its route and stops after either is deactivated. It stays readable and withdrawable, and its reads show the inactive flags. Nothing withdraws it automatically.
+- **OQ47:** a service runs on its days of the week throughout its period, public holidays included; no single date can be added or cancelled. Until Myanma Railways answers, an exceptional pattern needs its own service, with its own code while periods overlap (R35).
+- **OQ48:** a mistake in a service can be corrected only by withdrawing it and creating a new one; a code whose service is open-ended cannot be reused until that service is withdrawn.
 
 ---
 
@@ -373,18 +483,14 @@ Required by `docs/21` §Specification.
 
 | Behaviour | Blocking item | Effect on F-004 |
 |---|---|---|
-| Scope of the feature | **Ruling B** | §5–§7 are written against B1 and change with the ruling |
-| Trains | **OQ42** | No `Train` aggregate, endpoint or table until ruled |
-| Service identity, names, type | **OQ43** | No identifier format or unique index until ruled |
-| Direction and extent | **OQ44** | No direction attribute or order check until ruled |
-| Stopping-pattern validation | **OQ45** | No stop rule beyond "stations exist" until ruled |
-| Inactive routes and stations | **OQ46** | No refusal or cascade; F-001/F-003 deactivation unchanged |
-| Operating days | **OQ47** | No operating-day model until ruled |
-| Effective period, change, withdrawal | **OQ48** | No change model, `PATCH` or withdrawal until ruled |
-| Role grants | **OQ49** | No grant seed until ruled |
-| Cross-schema foreign keys, contract shape | **ADR-0025** (Proposed) | R28 stands (ADR-0012); R29 and E4 wait for acceptance |
+| Past `EffectiveFrom` / `EffectiveTo` at creation | **OQ50** (new) | R39 and S40 undecided; the spec cannot be Approved until ruled |
+| Stop cap on a full circuit of a 200-station route | **Q2** (§0.10) | R31 applies 200 as ruled until hein confirms or changes it |
+| Create versus deactivation race | **Q3** (§0.10) | S51 proposed "accepted" until ruled |
+| Public holidays and per-date exceptions | **OQ47** (open part, still open with Myanma Railways) | Not implemented, no placeholder; known limitation (§9) |
+| Times, timetable versions, publication | FR-004 (B1) | Out of scope |
 | Real service data | **OQ1** | No seed; tests build their own (R27) |
-| Fare direction | **OQ17** | Out of scope |
+| Fare direction and service type | **OQ17**, **OQ9** | Out of scope |
+| Official Myanma Railways answers to OQ42–OQ49 | **Still open with Myanma Railways** | Not blocking: provisional tech-lead rulings apply (§0.9). An official, different answer supersedes the ruling and needs its own follow-up task |
 
 No placeholder rule may be implemented for any of these (AGENTS.md §When a business rule is missing).
 
@@ -392,7 +498,10 @@ No placeholder rule may be implemented for any of these (AGENTS.md §When a busi
 
 ## Notes for the next stage
 
-- Stage 2 continues after hein's rulings: a revision applies them to §0.9 (as F-003 §0.8), relabels §3, makes §4–§8 definite and removes what the rulings remove; `docs/19` gets a resolution block under each ruled OQ, and `docs/10` the approved grants and read-permission names. Then hein approves. Stage 3 (PLAN) must not start before that.
-- If B3 is chosen, discovery must first raise the timing questions (times per stop, overnight running, publication lead time, who publishes) as new OQs.
-- If ADR-0025 is accepted, PLAN adds the Contracts architecture rule (E4) before the first Timetable handler, so the rule is proven on a violating fixture while the real contract is still small.
-- Add OQ42–OQ49 to `docs/business/mr-questions-pack.md` (hein; listed in `progress.md`).
+- Stage 3 (PLAN, `docs/templates/plan.md`) starts only after hein rules on §0.10 and sets this spec Approved. It is a separate task and is not started by T-044.
+- PLAN chooses the R35 lock (application lock or key-range lock), proves it with S27–S29 and S37, and sets the body-size limits (R31).
+- PLAN adds the ADR-0025 item 4 architecture rule and its violating fixture before the first Timetable handler, together with the Network contract (E3) and its `internal` implementation.
+- PLAN extends `IdentitySeedTests` to parse `docs/10` §Service permission grants (today it reads only the station, route and identity sections) and moves its grant count from 24 to 34.
+- PLAN verifies how EF Core maps the cross-schema foreign keys without navigations (for example `HasOne<Route>().WithMany()` in `Configurations/Timetable`) and that `has-pending-model-changes` sees them.
+- Stage 8: `docs/07`, `docs/08` (remove `/trains` and `PATCH /services`, add the service endpoints), the glossary (`Service`, `ServiceStop`, direction, operating days, effective period, withdrawal; C7) and ADR-0025's `docs/20` §1 follow-up.
+- Add OQ42–OQ50 to `docs/business/mr-questions-pack.md` (hein; listed in `progress.md`), OQ42–OQ49 marked as provisionally ruled.

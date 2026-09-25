@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed — 2026-09-25 (claude, T-044). Needs hein's approval to become Accepted.
+Accepted — 2026-09-25 (hein). Drafted by claude (T-044); proposed 2026-09-25.
 
 ## Context
 
@@ -64,3 +64,4 @@ Negative:
 Follow-up work:
 - If Accepted, add a "Cross-module reads" row to `docs/20` §1 and a paragraph to `docs/07` §Module schemas.
 - The first user is F-004 (Timetable → Network). A reverse dependency (Network calling a Timetable contract, for example to refuse deactivating a route that services use) would create a two-way dependency between modules; a feature that needs one must say so explicitly and hein must rule on it.
+- **OQ46 ruling (hein, 2026-09-25; T-044):** deactivating a route or a station stays allowed and leaves services unchanged, so `Network` never calls `Timetable`; the dependency between the two modules stays one-way (Timetable → Network).
