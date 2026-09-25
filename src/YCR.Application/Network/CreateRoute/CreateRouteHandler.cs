@@ -104,9 +104,13 @@ public sealed class CreateRouteHandler(
         catch (UniqueConstraintViolationException violation)
             when (violation.ConstraintName == NetworkConstraints.RouteStationUniqueIndex)
         {
-            // Defence in depth (R7): Route.Create has already refused a repeat, so this is reached
-            // only if that check is ever bypassed. The index is the authority; the error code stays
-            // the one the pre-check gives.
+            // Defence in depth (R7; review C-1, kept as ruled by hein, 2026-09-25). Unreachable
+            // while Route.Create refuses every repeated station before the save, so no test drives
+            // this branch and none gets a seam to do so. It stays because the index, not the
+            // aggregate, is the integrity authority. The translation it depends on (named
+            // SQL Server unique violation → UniqueConstraintViolationException.ConstraintName) is
+            // covered by UniqueConstraintTranslationTests, and RouteModelTests pins the index name.
+            // The error code stays the one the pre-check gives.
             return NetworkErrors.RouteStationRepeated(FirstRepeatedOrFirst(command.StationIds));
         }
 

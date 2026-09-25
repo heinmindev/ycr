@@ -1,6 +1,6 @@
 # F-003: Route management
 
-Status: **Approved (hein, 2026-09-24)**, amended by Amendments 1–2 (hein, 2026-09-24, T-034; §0.9). Written by claude (T-032). Stages 1–2 of `docs/workflows/02-feature-development.md`. hein's rulings of 2026-09-24 on OQ36–OQ41 and E1–E8, and the approval-time decisions (A1, R25, `IX_RouteStations_StationId`, the creation/deactivation race), are recorded in §0.8 and applied throughout. The business rulings are **provisional tech-lead rulings — not a Myanma Railways answer**.
+Status: **Approved (hein, 2026-09-24)**, amended by Amendments 1–2 (hein, 2026-09-24, T-034) and Amendment 3 (hein, 2026-09-25, T-039; §0.9). Written by claude (T-032). Stages 1–2 of `docs/workflows/02-feature-development.md`. hein's rulings of 2026-09-24 on OQ36–OQ41 and E1–E8, and the approval-time decisions (A1, R25, `IX_RouteStations_StationId`, the creation/deactivation race), are recorded in §0.8 and applied throughout. The business rulings are **provisional tech-lead rulings — not a Myanma Railways answer**.
 
 Module(s): `Network` (routes only; station deactivation is unchanged); cross-cutting `Audit`, `Identity` (permission grants only)
 Related: FR-002, UC 2 "Manage routes" (`docs/03-use-cases.md` §Core use cases, item 2), FR-001 (stations), ADR-0004, ADR-0006, ADR-0012, ADR-0014, ADR-0017, ADR-0018, ADR-0021, `docs/20-coding-conventions.md` §3
@@ -143,12 +143,13 @@ The stage-2 ⛔ asked hein to rule on OQ36–OQ41 and E1–E8. hein ruled on all
 
 ### 0.9 Amendments after approval
 
-Recorded after the spec was Approved. They come from hein's rulings on the stage-3 plan questions (T-034, `plan.md` §Questions for hein). The approval stands; these amendments change only what they name.
+Recorded after the spec was Approved. Amendments 1–2 come from hein's rulings on the stage-3 plan questions (T-034, `plan.md` §Questions for hein); Amendment 3 from hein's rulings on the stage-4 deviation V7 and the stage-7 finding S-1 (T-039). The approval stands; these amendments change only what they name.
 
 | ID | Amendment | Label | Applied in |
 |---|---|---|---|
 | **Amendment 1 (hein, 2026-09-24, T-034 Q1)** | `UX_RouteStations_RouteId_StationId` on `(RouteId, StationId)` is replaced by **`UX_RouteStations_StationId_RouteId` on `(StationId, RouteId)`**. It enforces the same rule: a station appears at most once in one route. **`IX_RouteStations_StationId` is dropped.** No F-003 query filters `RouteStations` by `StationId` alone, and stations are never deleted, so nothing needs a separate index (the "IX" decision above). EF Core adds an index for every foreign key that no other index *leads* with, and adds it back if it is removed (verified on EF Core 10.0.12 at PLAN, `plan.md` O1–O3). With `StationId` as the unique index's leading column, the foreign key is covered and EF adds no extra index. | ENGINEERING DECISION (tech lead, hein, 2026-09-24; T-034 Q1 (a)) | R7; §7 |
 | **Amendment 2 (hein, 2026-09-24, T-034 Q2, Q3)** | **Q2:** `stationIds` has at most **200** elements; more is `400 Common.ValidationFailed` (new **R26**, **S5**). **Q3:** spec §9's glossary line is narrowed. Editing `docs/glossary.md` is out of scope for stages 1–2 only, and stage 8 updates it per `docs/21`. Editing `docs/business/mr-questions-pack.md` stays out of scope. | Q2: ENGINEERING DECISION / REQUIRED CONTROL (tech lead, hein, 2026-09-24; T-034 Q2 (b)). Q3: ENGINEERING DECISION (tech lead, hein, 2026-09-24; T-034 Q3 (a)) | R26; S5; §6; §9 |
+| **Amendment 3 (hein, 2026-09-25, T-039; stage-4 deviation V7 and review S-1)** | **V7:** at the endpoint, a blank or whitespace-only `code`, `nameEn` or `nameMy` is `400 Common.ValidationFailed`, from the shared request validator (`NotEmpty()`, as for stations in F-001). `Network.InvalidRouteCode` and `Network.InvalidRouteName` come from the domain (`RouteCode`, `BilingualName`) for format and length. The domain still refuses a blank value itself, below the validator. S11 is reworded to match. **S-1:** new **R27**: `POST /api/v1/routes` has an explicit request-body limit of 32 KB, set on that endpoint only; a larger body is refused with `413` before JSON binding. The other endpoints' limits are T-042, not F-003. | V7: ENGINEERING DECISION (tech lead, hein, 2026-09-25). R27: ENGINEERING DECISION / REQUIRED CONTROL (tech lead, hein, 2026-09-25; review S-1) | R27; S5; S11; §6 |
 
 ---
 
@@ -202,6 +203,7 @@ Provisional rulings are labelled "BUSINESS DECISION — provisional tech-lead ru
 | R24 | Route responses show each station's **current** code, names and active flag, read at query time; a route row stores only `StationId`. | ENGINEERING DECISION | E5; G8 |
 | R25 | `isClosed` is a required boolean on `POST /routes`; a missing value is `400 Common.ValidationFailed`. There is no default, so the API never picks a topology on the caller's behalf. | ENGINEERING DECISION (tech lead, hein, 2026-09-24) | R6; AGENTS.md rule 1 |
 | R26 | `stationIds` on `POST /routes` has at most 200 elements; a longer list is `400 Common.ValidationFailed`, and nothing is read or written. This is an input-size limit against API abuse, not a statement about how long a real route can be. | ENGINEERING DECISION / REQUIRED CONTROL (tech lead, hein, 2026-09-24; Amendment 2, T-034 Q2) | `docs/18` (API abuse); §0.9 |
+| R27 | `POST /routes` accepts a request body of at most 32 KB (32,768 bytes), set on that endpoint only. A larger body, whether its length is declared or it is sent chunked, is refused with `413` before JSON binding, as a ProblemDetails with no stack trace, exception type or internal path, and nothing is read or written. Malformed JSON is a bounded `400` with the same guarantees. The largest valid request (200 ids, a 10-character code, two 100-character names) is under 10 KB. | ENGINEERING DECISION / REQUIRED CONTROL (tech lead, hein, 2026-09-25; Amendment 3, review S-1) | `docs/18` (API abuse); §0.9 |
 
 **Blocking open questions:** none. OQ36–OQ41 are resolved for F-003 by provisional tech-lead rulings and remain open with Myanma Railways. OQ1 (real station and route data) and OQ17 (fare direction) stay open and do not block this spec (R23, §9).
 
@@ -220,7 +222,7 @@ Status codes follow ADR-0004. Every error response is ProblemDetails with `error
 
 ### Failures, each with its error code
 
-- **S5.** Validation → `400 Common.ValidationFailed`: missing `stationIds`; empty `stationIds`; a non-GUID station id; missing `code`, `nameEn` or `nameMy`; missing `isClosed` (R25); more than 200 `stationIds` (R26, Amendment 2). A list of exactly 200 passes validation and reaches the handler.
+- **S5.** Validation → `400 Common.ValidationFailed`: missing `stationIds`; empty `stationIds`; a non-GUID station id; missing `code`, `nameEn` or `nameMy`; a blank or whitespace-only `code`, `nameEn` or `nameMy` (S11, Amendment 3); missing `isClosed` (R25); more than 200 `stationIds` (R26, Amendment 2). A list of exactly 200 passes validation and reaches the handler.
 - **S6.** A station id that does not exist → `422 Network.RouteStationNotFound`; nothing is written (R16).
 - **S7.** An inactive station in the sequence → `422 Network.RouteStationInactive`; nothing is written (R11).
 - **S8.** A station repeated in the sequence → `422 Network.RouteStationRepeated`; nothing is written (R7). This includes `[A, B, C, A]` with `isClosed = true`: a closed route never repeats its first station (R6).
@@ -228,7 +230,7 @@ Status codes follow ADR-0004. Every error response is ProblemDetails with `error
   - open route (`isClosed = false`) with 1 station → `422 Network.RouteTooFewStations`; with 2 stations → `201`;
   - closed route (`isClosed = true`) with 2 stations → `422 Network.RouteTooFewStations`; with 3 stations → `201`.
 - **S10.** A code already used by an active route → `409 Network.RouteCodeAlreadyExists`; nothing is written (R14).
-- **S11.** A malformed code (1 character, 11 characters, lowercase, punctuation) → `400 Network.InvalidRouteCode`; a blank, whitespace-only or 101-character name after trimming → `400 Network.InvalidRouteName` (R13).
+- **S11.** *(As amended by Amendment 3, hein, 2026-09-25.)* A malformed code (1 character, 11 characters, lowercase, punctuation) → `400 Network.InvalidRouteCode`; a 101-character name after trimming → `400 Network.InvalidRouteName` (R13). These come from the domain. At the endpoint, a blank or whitespace-only code or name → `400 Common.ValidationFailed` from the shared request validator, as for stations; the domain's own refusal of a blank value is proven below the validator.
 - **S12.** GET, or POST `/routes/{id}/deactivate`, for an unknown route id → `404 Network.RouteNotFound`.
 - **S13.** `pageSize=201` → `400 Network.InvalidPageRequest` (`docs/20` §4; existing code).
 - **S14.** Anonymous request to any `/routes` endpoint → `401 Auth.Unauthenticated`.
@@ -278,7 +280,7 @@ Base path `/api/v1`, JSON camelCase, GUID ids, ProblemDetails with `errorCode` a
 
 | Method | Path | Request | Success | Error codes | Permission |
 |---|---|---|---|---|---|
-| POST | `/routes` | `CreateRouteRequest { code, nameEn, nameMy, isClosed, stationIds: Guid[] }` — the complete sequence, in order, at most 200 ids (R26) | `201` + `CreateRouteResponse { id }` and `Location` | `400 Common.ValidationFailed` · `400 Network.InvalidRouteCode` · `400 Network.InvalidRouteName` · `401` · `403` · `409 Network.RouteCodeAlreadyExists` · `422 Network.RouteStationNotFound` · `422 Network.RouteStationInactive` · `422 Network.RouteStationRepeated` · `422 Network.RouteTooFewStations` | `routes.manage` |
+| POST | `/routes` | `CreateRouteRequest { code, nameEn, nameMy, isClosed, stationIds: Guid[] }` — the complete sequence, in order, at most 200 ids (R26); body at most 32 KB (R27) | `201` + `CreateRouteResponse { id }` and `Location` | `400 Common.ValidationFailed` · `400 Network.InvalidRouteCode` · `400 Network.InvalidRouteName` · `400` malformed JSON (framework ProblemDetails, no `errorCode`) · `401` · `403` · `409 Network.RouteCodeAlreadyExists` · `413` body over 32 KB (framework ProblemDetails, no `errorCode`; R27) · `422 Network.RouteStationNotFound` · `422 Network.RouteStationInactive` · `422 Network.RouteStationRepeated` · `422 Network.RouteTooFewStations` | `routes.manage` |
 | GET | `/routes/{id}` | — | `200` + `RouteResponse { id, code, nameEn, nameMy, isClosed, isActive, createdAtUtc, deactivatedAtUtc, stations: [{ position, stationId, code, nameEn, nameMy, isActive }] }` | `401` · `403` · `404 Network.RouteNotFound` | `routes.read` |
 | GET | `/routes` | `?page=1&pageSize=50` (max 200); ordered by code; inactive routes included | `200` + `{ items: RouteSummaryResponse[], page, pageSize, totalCount }`; `RouteSummaryResponse { id, code, nameEn, nameMy, isClosed, isActive, stationCount, createdAtUtc, deactivatedAtUtc }` | `400 Network.InvalidPageRequest` · `401` · `403` | `routes.read` |
 | POST | `/routes/{id}/deactivate` | — | `204` | `401` · `403` · `404 Network.RouteNotFound` · `422 Network.RouteAlreadyInactive` | `routes.manage` |

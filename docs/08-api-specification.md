@@ -7,7 +7,7 @@ Base path:
 Initial resources:
 
 - GET/POST/PATCH `/stations`
-- GET/POST/PATCH `/routes`
+- GET/POST `/routes`, POST `/routes/{id}/deactivate` — implemented in F-003 (below). **`PATCH /routes` is not provided** (OQ41 ruling: code and names are fixed after creation), and there is no `PUT /routes/{id}/stations` (OQ38 ruling: sequences are immutable)
 - GET/POST/PATCH `/trains`
 - GET/POST/PATCH `/services`
 - POST `/schedules/versions`
@@ -134,6 +134,87 @@ shipped common-password blocklist.
   request.
 - `Identity.UnknownRole` exists for a role name that reaches a handler without passing request
   validation; through the API, validation answers `400 Common.ValidationFailed` first.
+
+## Implemented in F-003 — routes
+
+F-003 spec §6. A route is an ordered sequence of existing stations, created whole and never edited
+afterwards. The route **rules** below are **BUSINESS DECISION — provisional tech-lead rulings (hein,
+2026-09-24; T-032, OQ36–OQ41) — not a Myanma Railways answer**; an official, different answer
+supersedes them. Every endpoint also has the responses in §Applies to every protected endpoint. No
+route endpoint takes an `Idempotency-Key` (route management is neither financial nor retryable,
+`docs/20` §5), and no request or response carries a version token.
+
+| Method | Path | Request | Success | Error codes | Permission |
+|---|---|---|---|---|---|
+| POST | `/api/v1/routes` | `CreateRouteRequest { code, nameEn, nameMy, isClosed, stationIds }`. Body at most **32 KB** | `201` + `CreateRouteResponse { id }` and `Location: /api/v1/routes/{id}` | `400` `Common.ValidationFailed` · `400` `Network.InvalidRouteCode` · `400` `Network.InvalidRouteName` · `400` malformed JSON · `401` · `403` · `409` `Network.RouteCodeAlreadyExists` · `413` body over 32 KB · `422` `Network.RouteStationNotFound` · `422` `Network.RouteStationInactive` · `422` `Network.RouteStationRepeated` · `422` `Network.RouteTooFewStations` | `routes.manage` |
+| POST | `/api/v1/routes/{id}/deactivate` | — | `204` | `401` · `403` · `404` `Network.RouteNotFound` · `422` `Network.RouteAlreadyInactive` | `routes.manage` |
+| GET | `/api/v1/routes/{id}` | — | `200` + `RouteResponse` | `401` · `403` · `404` `Network.RouteNotFound` | `routes.read` |
+| GET | `/api/v1/routes` | `?page=1&pageSize=50` (max 200); ordered by `code`; inactive routes included | `200` + `{ items: RouteSummaryResponse[], page, pageSize, totalCount }` | `400` `Network.InvalidPageRequest` · `401` · `403` | `routes.read` |
+
+`POST /api/v1/stations/{id}/deactivate` is unchanged: deactivating a station that is in a route is
+allowed, the station stays in every sequence, and route reads show it with `isActive = false`
+(OQ39).
+
+**Contracts.**
+
+```text
+CreateRouteRequest   { code, nameEn, nameMy, isClosed: bool, stationIds: string[] }
+CreateRouteResponse  { id }
+RouteResponse        { id, code, nameEn, nameMy, isClosed, isActive, createdAtUtc, deactivatedAtUtc,
+                       stations: RouteStationResponse[] }        // in position order
+RouteStationResponse { position, stationId, code, nameEn, nameMy, isActive }
+RouteSummaryResponse { id, code, nameEn, nameMy, isClosed, isActive, stationCount, createdAtUtc,
+                       deactivatedAtUtc }
+```
+
+`stationIds` is the whole sequence, in order: at least one id, at most **200**, each a GUID in
+`D` format (`00000000-0000-0000-0000-000000000000`). `isClosed` is required and has no default.
+`position` is 1-based and contiguous; it is neither the station code nor the ADR-0014 station
+index. A route station's `code`, `nameEn`, `nameMy` and `isActive` are the station's **current**
+values, read at query time. `deactivatedAtUtc` is `null` while the route is active. The request has
+no actor field; audit actors come from the server.
+
+**Error codes, and where each comes from.**
+
+- **`400 Common.ValidationFailed`** — the request validator, before the handler runs: a missing,
+  empty or whitespace-only `code`, `nameEn` or `nameMy`; a missing `isClosed`; a missing or empty
+  `stationIds`; a `null` or non-GUID station id; more than 200 station ids. Nothing is read or
+  written (spec S5, S11 as amended by Amendment 3).
+- **`400 Network.InvalidRouteCode`** — the domain: a code that is not 2–10 characters of `A`–`Z`
+  and `0`–`9` after trimming (lowercase, punctuation, an inner space, too short, too long).
+- **`400 Network.InvalidRouteName`** — the domain: a name longer than 100 characters after
+  trimming.
+- **`409 Network.RouteCodeAlreadyExists`** — the code belongs to another route, **active or
+  inactive**; codes are never reused. Also the answer to the loser of two concurrent creates with
+  one code.
+- **`422 Network.RouteStationRepeated`** — a station appears twice. A closed route never repeats its
+  first station at the end.
+- **`422 Network.RouteTooFewStations`** — fewer than 2 stations on an open route, or fewer than 3 on
+  a closed one.
+- **`422 Network.RouteStationNotFound`** / **`Network.RouteStationInactive`** — a station id that
+  does not exist, or names an inactive station.
+- **`422 Network.RouteAlreadyInactive`** — deactivating an inactive route, including the loser of
+  two concurrent deactivations.
+
+When a request breaks several rules, the code is checked first, then the names, then the sequence
+(repeat, length, missing station, inactive station), then the uniqueness of the code.
+
+**Request-body limit (REQUIRED CONTROL, hein, 2026-09-25; spec R27, review S-1).** `POST
+/api/v1/routes` accepts a body of at most **32 KB (32,768 bytes)**. The largest valid request —
+200 ids, a 10-character code and two 100-character names — is under 10 KB. The limit is endpoint
+metadata (`IRequestSizeLimitMetadata`) that endpoint routing applies to the server before the body
+is read, so Kestrel refuses a larger body, with a declared length or chunked, **before JSON
+binding**. The answer is `413` as the framework's ProblemDetails (`type`, `title` "Content Too
+Large", `status`, `instance`, `traceId`), with no stack trace, exception type or server path.
+Malformed JSON is `400` in the same framework shape. Neither carries an `errorCode`, because
+neither reaches the application; that is the existing framework behaviour for a body that cannot be
+read or parsed, on every endpoint. The limit applies to this endpoint only: every other endpoint
+keeps the server's default until T-042 sets deliberate limits.
+
+**Not provided** (OQ38 and OQ41 rulings): no `PATCH /routes/{id}` (code, names and `isClosed` are
+fixed at creation), no `PUT /routes/{id}/stations` or other sequence replacement (to change the
+network, create a new route and deactivate the old one), no reactivation and no `DELETE`. The
+route endpoints appear in the Development-only OpenAPI document under the tag `Routes`.
 
 ## Blocked behavior
 

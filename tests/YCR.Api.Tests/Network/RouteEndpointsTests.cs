@@ -90,7 +90,10 @@ public sealed class RouteEndpointsTests(SqlServerFixture fixture) : ApiTestBase(
             document.RootElement.GetProperty("items")[0].EnumerateObject().Select(property => property.Name));
     }
 
-    /// <summary>S5 (with R25 and R26): shape failures are <c>400 Common.ValidationFailed</c>.</summary>
+    /// <summary>
+    /// S5 (with R25 and R26), and S11 as amended (Amendment 3, V7): shape failures, including a
+    /// whitespace-only code or name, are <c>400 Common.ValidationFailed</c>.
+    /// </summary>
     [Theory]
     [InlineData("missing stationIds")]
     [InlineData("empty stationIds")]
@@ -102,6 +105,8 @@ public sealed class RouteEndpointsTests(SqlServerFixture fixture) : ApiTestBase(
     [InlineData("missing isClosed")]
     [InlineData("201 ids")]
     [InlineData("whitespace nameEn")]
+    [InlineData("whitespace nameMy")]
+    [InlineData("whitespace code")]
     public async Task Post_WithInvalidBody_Returns400CommonValidationFailed(string invalidity)
     {
         using var client = AdminClient();
@@ -117,6 +122,8 @@ public sealed class RouteEndpointsTests(SqlServerFixture fixture) : ApiTestBase(
             case "missing nameMy": body.Remove("nameMy"); break;
             case "missing isClosed": body.Remove("isClosed"); break;
             case "whitespace nameEn": body["nameEn"] = "   "; break;
+            case "whitespace nameMy": body["nameMy"] = " \t "; break;
+            case "whitespace code": body["code"] = "   "; break;
             case "201 ids": body["stationIds"] = Enumerable.Range(0, 201).Select(_ => Guid.CreateVersion7().ToString()).ToArray(); break;
             default: throw new ArgumentOutOfRangeException(nameof(invalidity));
         }

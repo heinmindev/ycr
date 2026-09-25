@@ -218,3 +218,83 @@ No DDL is granted anywhere. The last-administrator lock uses `sp_getapplock`, wh
 already execute. `DatabasePrivilegeTests` asserts both the grants and the absences. Sessions and
 refresh tokens are never deleted in F-002; a retention job is a before-production follow-up
 (T-026).
+
+## F-003 route tables, constraints, indexes and grants
+
+Created by three migrations applied in this order under `ycr_migrator` (F-003 spec §7, plan
+§DB changes): `20260924145627_Network_CreateRoutes` (both tables, EF model-built),
+`20260924150657_Identity_SeedRoutePermissionGrants` (the ten `routes.manage`/`routes.read` role
+grants in `docs/10` §Route permission grants) and `20260924152836_Security_NetworkRouteGrants`
+(what `ycr_app` may do). All three are additive: `network.Stations` and every existing column are
+unchanged. Both foreign keys are `NO ACTION`. Both `*Utc` columns are `datetimeoffset(3)` with a
+`CK_<Table>_<Column>_Utc` check, and every check constraint is declared in the EF model as well as
+the migration, so `has-pending-model-changes` sees drift. No route data is seeded (OQ1; spec R23).
+
+**BUSINESS DECISION — provisional tech-lead rulings (hein, 2026-09-24; T-032, OQ37, OQ38, OQ41) —
+not a Myanma Railways answer:** a route's sequence, `IsClosed`, code and names never change after
+creation, a station appears at most once in a route, and a route can only be deactivated. The
+constraints and grants below are the database statement of those rulings.
+
+### `network.Routes`
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| `Id` | `uniqueidentifier` | no | PK, clustered, application-assigned through `IIdGenerator` (ADR-0006) |
+| `Code` | `nvarchar(10)` | no | 2–10 characters of `A`–`Z` and `0`–`9`, the station-code rule (OQ41); unique across all routes, never reused |
+| `NameEn` | `nvarchar(100)` | no | Owned value object `BilingualName`; required, 1–100 characters after trimming, not unique |
+| `NameMy` | `nvarchar(100)` | no | Myanmar Unicode, never Zawgyi (`docs/20` §6); same rules as `NameEn` |
+| `IsClosed` | `bit` | no | Closed (`1`) or open (`0`), fixed at creation (OQ37). A closed route runs from its last station back to its first; the first station is never repeated |
+| `IsActive` | `bit` | no | EF concurrency token, so of two concurrent deactivations exactly one wins |
+| `CreatedAtUtc` | `datetimeoffset(3)` | no | UTC value (ADR-0018) |
+| `DeactivatedAtUtc` | `datetimeoffset(3)` | yes | Null while active; set to the clock's UTC now by the same `UPDATE` that sets `IsActive = 0` |
+
+There is no `rowversion` and no direction column (OQ36: direction belongs to services and fares).
+
+| Object | Definition | Why it is there |
+|---|---|---|
+| `PK_Routes` | clustered on `Id` | ADR-0006 |
+| `UX_Routes_Code` | unique on `Code` | The concurrency authority for duplicate codes, inactive routes included, so a deactivated route's code is never reused. `CreateRouteHandler` matches this exact name to map the violation to `409 Network.RouteCodeAlreadyExists` |
+| `CK_Routes_CreatedAtUtc_Utc` | `DATEPART(TZOFFSET, [CreatedAtUtc]) = 0` | ADR-0018 |
+| `CK_Routes_DeactivatedAtUtc_Utc` | `[DeactivatedAtUtc] IS NULL OR DATEPART(TZOFFSET, [DeactivatedAtUtc]) = 0` | ADR-0018 |
+
+Rows are never deleted. Because sequences are immutable, the rows are the route history:
+`CreatedAtUtc` and `DeactivatedAtUtc` answer which routes were active on a date without reading the
+audit ledger.
+
+### `network.RouteStations`
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| `RouteId` | `uniqueidentifier` | no | `FK_RouteStations_Routes_RouteId` → `network.Routes(Id)`, `NO ACTION` |
+| `Position` | `int` | no | 1-based and contiguous (`1..n`) within the route. Not the ADR-0014 station index and not the station code |
+| `StationId` | `uniqueidentifier` | no | `FK_RouteStations_Stations_StationId` → `network.Stations(Id)`, `NO ACTION` |
+
+| Object | Definition | Why it is there |
+|---|---|---|
+| `PK_RouteStations` | clustered on `(RouteId, Position)` | One station per position. Contiguity and the minimum length (2 open, 3 closed) are enforced by the `Route` aggregate, because a check constraint cannot see other rows |
+| `CK_RouteStations_Position` | `[Position] >= 1` | Rejects zero and negative positions from any writer |
+| `UX_RouteStations_StationId_RouteId` | unique on `(StationId, RouteId)` | The database authority that a station appears at most once in one route (OQ37). `Route.Create` refuses a repeat first; `CreateRouteHandler` keeps a catch for this exact name as defence in depth. `StationId` leads, so the index also covers the station foreign key |
+| `FK_RouteStations_Routes_RouteId` | → `network.Routes(Id)`, `NO ACTION` | EF's default for this required relationship is `Cascade`, so `NO ACTION` is set explicitly and pinned by `RouteModelTests` |
+| `FK_RouteStations_Stations_StationId` | → `network.Stations(Id)`, `NO ACTION` | A sequence never names a missing station |
+
+**Why there is no `IX_RouteStations_StationId`** (spec Amendment 1, hein, 2026-09-24, T-034 Q1).
+No F-003 query or write filters `RouteStations` by `StationId` alone: route reads and the station
+count use `PK_RouteStations` as a range on `RouteId`, and inserts validate their foreign keys through
+`PK_Routes` and `PK_Stations`. The reverse check on `DELETE FROM network.Stations` never runs,
+because `ycr_app` has no `DELETE` there and stations are never deleted. The index was designed for a
+station-deactivation check that the OQ39 ruling removed. EF Core adds an index by convention for
+every foreign key that no other index leads with, and adds it back if a migration drops it; making
+`StationId` the leading column of the unique index covers the foreign key, so EF adds nothing. A
+later "routes through station X" query can use the unique index.
+
+### Grants to `ycr_app` (`Security_NetworkRouteGrants`)
+
+| Table | Granted | Deliberately absent |
+|---|---|---|
+| `Routes` | `SELECT`, `INSERT`; `UPDATE` of `IsActive`, `DeactivatedAtUtc` only | `DELETE`; `UPDATE` of `Id`, `Code`, `NameEn`, `NameMy`, `IsClosed`, `CreatedAtUtc` |
+| `RouteStations` | `SELECT`, `INSERT` | `UPDATE`; `DELETE` |
+
+No DDL is granted. `RouteStations` is insert-only, so the database, not only the application,
+guarantees that a stored sequence never changes. `DatabasePrivilegeTests` asserts both the grants
+and the absences. `Down()` revokes exactly these grants; widening them needs a new migration, a
+spec change and a review.

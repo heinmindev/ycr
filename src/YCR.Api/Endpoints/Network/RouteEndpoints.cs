@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using YCR.Api.Common;
 using YCR.Api.Contracts.Network;
 using YCR.Application.Common.Authorization;
@@ -24,6 +25,19 @@ namespace YCR.Api.Endpoints.Network;
 /// </remarks>
 public static class RouteEndpoints
 {
+    /// <summary>
+    /// The request-body limit of <c>POST /routes</c>, in bytes: 32 KB (spec R27, Amendment 3;
+    /// REQUIRED CONTROL, hein, 2026-09-25, review S-1).
+    /// </summary>
+    /// <remarks>
+    /// 200 GUID ids with a code and two 100-character names fit in under 10 KB. The limit is
+    /// endpoint metadata (<see cref="RequestSizeLimitAttribute"/> implements
+    /// <c>IRequestSizeLimitMetadata</c>): endpoint routing copies it into the server's
+    /// <c>IHttpMaxRequestBodySizeFeature</c> before the body is read, so Kestrel refuses a larger
+    /// body before JSON binding allocates it. Every other endpoint keeps the server default (T-042).
+    /// </remarks>
+    public const long CreateRouteMaxRequestBodyBytes = 32 * 1024;
+
     public static RouteGroupBuilder MapRouteEndpoints(this RouteGroupBuilder api)
     {
         ArgumentNullException.ThrowIfNull(api);
@@ -39,6 +53,7 @@ public static class RouteEndpoints
                     $"/api/v1/routes/{id}",
                     new CreateRouteResponse(id))))
             .RequireAuthorization(Permissions.RoutesManage)
+            .WithMetadata(new RequestSizeLimitAttribute(CreateRouteMaxRequestBodyBytes))
             .AddEndpointFilter<ValidationFilter<CreateRouteRequest>>()
             .WithName("CreateRoute")
             .WithSummary(
