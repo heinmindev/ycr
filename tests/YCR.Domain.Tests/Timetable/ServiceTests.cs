@@ -253,6 +253,61 @@ public sealed class ServiceTests
     }
 
     [Fact]
+    public void Create_OnTwoStationRoute_SucceedsInBothDirections()
+    {
+        var stations = new[]
+        {
+            new ServiceRouteStationFacts(Guid.Parse("00000000-0000-0000-0001-000000000001"), true),
+            new ServiceRouteStationFacts(Guid.Parse("00000000-0000-0000-0001-000000000002"), true)
+        };
+        var route = new ServiceRouteFacts(RcId, true, true, stations);
+
+        foreach (var direction in Enum.GetValues<Direction>())
+        {
+            var stops = direction == Direction.Forward
+                ? new[] { stations[0].StationId, stations[1].StationId }
+                : new[] { stations[1].StationId, stations[0].StationId };
+            var result = Service.Create(ServiceId, Code(), Name(), route, direction, stops, Weekdays(), Period(), NowUtc);
+
+            Assert.True(result.IsSuccess, $"{direction} on a two-station route");
+        }
+    }
+
+    [Fact]
+    public void Create_OnThreeStationRoute_FullCircuitUsesExactlyFourStops()
+    {
+        var stations = Enumerable.Range(1, 3)
+            .Select(index => Guid.Parse($"00000000-0000-0000-0001-{index:x12}"))
+            .Select(station => new ServiceRouteStationFacts(station, true))
+            .ToArray();
+        var route = new ServiceRouteFacts(RcId, true, true, stations);
+        var stops = new[] { stations[0].StationId, stations[1].StationId, stations[2].StationId, stations[0].StationId };
+
+        var result = Service.Create(ServiceId, Code(), Name(), route, Direction.Forward, stops, Weekdays(), Period(), NowUtc);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(4, result.Value.Stops.Count);
+        Assert.Equal(stops, result.Value.Stops.Select(stop => stop.StationId));
+    }
+
+    [Fact]
+    public void Create_OnTwoHundredStationRoute_FullCircuitUsesExactlyTwoHundredOneStops()
+    {
+        var stations = Enumerable.Range(1, 200)
+            .Select(index => Guid.Parse($"00000000-0000-0000-0001-{index:x12}"))
+            .Select(station => new ServiceRouteStationFacts(station, true))
+            .ToArray();
+        var route = new ServiceRouteFacts(RcId, true, true, stations);
+        var stops = stations.Select(station => station.StationId).Append(stations[0].StationId).ToArray();
+
+        var result = Service.Create(ServiceId, Code(), Name(), route, Direction.Forward, stops, Weekdays(), Period(), NowUtc);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(201, result.Value.Stops.Count);
+        Assert.Equal(stops, result.Value.Stops.Select(stop => stop.StationId));
+    }
+
+    [Fact]
     public void Create_OnSmallRoutes_AgreesWithWalkingSimulation()
     {
         var checkedLists = 0;
