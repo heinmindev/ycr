@@ -143,3 +143,48 @@ with 0 warnings and 0 errors. `git diff --check` is clean for the review changes
 ### Findings
 
 None.
+
+## Stage 7 — Security review
+
+**Reviewed SHA:** `67797d6` (plus the stage-5 tests and the Stage 6 report at `8c94408`).
+
+**Threat categories reviewed:** `docs/18` API abuse, unauthorized configuration, privilege
+escalation, insider manipulation, and data disclosure; authorization rules in `docs/10`; audit
+provenance in ADR-0017/ADR-0021; cross-module and database controls in ADR-0025.
+
+**Verdict:** **READY — no open Critical or High findings.** No Medium or Low security findings were
+identified either.
+
+**Controls verified:**
+
+- All four service endpoints have explicit authorization: `services.manage` for create/withdraw and
+  `services.read` for get/list. API tests prove anonymous `401`, `services.read` cannot write, and
+  each station/route permission cannot read or write services. The seed migration and
+  `Seed_MatchesDocs10GrantTables` assert the ten service grants: manage only for
+  `SystemAdministrator`/`RailwayAdministrator`, read for all eight roles, with no station/route
+  permission implying a service right.
+- `ycr_app` has only the required timetable `SELECT`/`INSERT` grants and column-scoped `UPDATE` on
+  `EffectiveTo` and `WithdrawnAtUtc`. Database tests assert no table-level UPDATE, no other column
+  UPDATE, no DELETE, no DDL/ALTER/CONTROL, and no timetable schema permission that would add an
+  `EXECUTE` grant. `sp_getapplock` is callable through `public`; the application role receives no
+  extra lock permission.
+- The code lock is keyed by an already validated `ServiceCode`, passed as a SQL parameter, and held
+  only by the API transaction. It is exclusive, transaction-owned, and times out at 30 seconds with
+  a thrown error rather than an unlocked operation. Forced same-code tests prove blocking and
+  different-code independence; API callers cannot supply a resource name or open a transaction.
+- Real-Kestrel tests enforce the 32 KiB create and 1 KiB withdraw limits before JSON binding for
+  declared and chunked bodies, bounded malformed-JSON responses, and the 200-stop cap. The largest
+  valid create reaches the handler. No service endpoint logs request bodies or credentials.
+- Myanmar Unicode round-trips through API and application tests. API response records and audit
+  snapshots contain service configuration, stable route/station identifiers and codes only; no
+  password, token, refresh cookie, private key, or personal data is included. Actor, permission,
+  address, and correlation fields are taken from the server-side `ICurrentUser`; the request-body
+  actor injection test proves caller fields cannot replace them.
+- The CI smoke additions exercise anonymous service authorization and the create/read/list/withdraw
+  flow with generated, masked credentials. The `/proc` check prints only a numeric match count for
+  `Time__` overrides; it does not print the process environment or any secret. The API log/content
+  root check prints only the expected path and pass/fail status.
+
+### Findings
+
+None.
