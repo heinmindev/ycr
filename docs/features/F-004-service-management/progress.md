@@ -94,3 +94,26 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** `approval` (⛔ stage 3). Engineering: plan Q1–Q3. No new business OQ. OQ42–OQ50 still open with Myanma Railways (provisional rulings apply); OQ47 holiday/exception part open (known limitation). OQ1, OQ4, OQ17, OQ19 unchanged.
 
 **State of the branch:** documentation only; all work committed on `feature/F-004` and pushed.
+
+---
+
+## 2026-09-25 12:30 Asia/Yangon — claude — T-045
+
+**Stage:** 3 (PLAN) — complete. Plan **Approved (hein, 2026-09-25)**, revision 2.
+**Commit:** approved plan at `e81b7f3` on `feature/F-004`; this entry is the commit after it.
+
+**Done this session:**
+- Applied hein's rulings on plan Q1–Q3 (2026-09-25, ENGINEERING DECISIONS). §Questions for hein replaced by §Rulings on the plan questions.
+  - **Q1:** `BilingualName` and `CodeFormat` move to `YCR.Domain.Common`; callers pass their module's error. P2, the file tables, the test tables (the rewritten `BilingualName` test keeps exactly its assertions) and step 1 updated. The existing architecture tests that cover the move are named.
+  - **Q2:** the explicit transaction for `sp_getapplock` is accepted as the second use of the F-002 P14 exception. P10 updated. Stage 8 now includes a `docs/20` rule on when a handler may open its own transaction, and ADR-0026 "Application locks for set invariants" (Proposed at stage 8, accepted by hein at stage 9).
+  - **Q3:** `Time:LocalTimeZone` = `Asia/Yangon` and `ILocalCalendar.Today()`. Both the Api and the Worker validate the zone at startup; the Worker's `Program.cs` and `appsettings.json` are added. New tests: `AsiaYangon_ResolvesInThisEnvironment`, `ResolveZone_WithMissingOrUnknownZone_ThrowsWithClearMessage`, the 17:29:59Z/17:30:00Z midnight theory, the Api startup tests and `WorkerStartupTests` (Integration). R-4, steps 7–9 and the `docs/15` stage-8 item updated.
+- Recorded tzdata facts (checked with `docker` on 2026-09-25). CI runs directly on `ubuntu-latest`, not in a .NET image. `mcr.microsoft.com/dotnet/runtime-deps:10.0` (Ubuntu 24.04.5) has `tzdata` and `Asia/Yangon`. The plain `…-noble-chiseled` image has no `Asia/Yangon`; `…-noble-chiseled-extra` has it. The pulled images were removed afterwards.
+- Status set to Approved, revision 2. The test count is now about 179 (163 new).
+
+**Evidence:** documentation only; no build or test run, because no repository code changed. Commands: `git pull` (both checkouts), `docker run`/`docker create`/`docker export` against the three `runtime-deps` tags, `git diff --stat`, `git commit`, `git push`.
+
+**Next step (exact):** T-046 (stage 4) against the approved plan `e81b7f3`, starting with plan step 1. It is a separate task and was not started here.
+
+**Blockers / open questions:** none blocking. OQ42–OQ50 are still open with Myanma Railways (the provisional rulings apply). OQ47's holiday/exception part is still open (a known limitation). OQ1, OQ4, OQ17 and OQ19 are unchanged.
+
+**State of the branch:** documentation only; all work committed on `feature/F-004` and pushed.
