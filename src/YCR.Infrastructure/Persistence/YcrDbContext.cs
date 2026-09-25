@@ -2,18 +2,22 @@ using Microsoft.EntityFrameworkCore;
 using YCR.Application.Common;
 using YCR.Application.Identity;
 using YCR.Application.Network;
+using YCR.Application.Timetable;
 using YCR.Domain.Identity;
 using YCR.Domain.Network;
+using YCR.Domain.Timetable;
 using YCR.Infrastructure.Audit;
 
 namespace YCR.Infrastructure.Persistence;
 
 public sealed class YcrDbContext(DbContextOptions<YcrDbContext> options)
-    : DbContext(options), INetworkDbContext, IIdentityDbContext
+    : DbContext(options), INetworkDbContext, IIdentityDbContext, ITimetableDbContext
 {
     public DbSet<Station> Stations => Set<Station>();
 
     public DbSet<Route> Routes => Set<Route>();
+
+    public DbSet<Service> Services => Set<Service>();
 
     public DbSet<StaffUser> Users => Set<StaffUser>();
 

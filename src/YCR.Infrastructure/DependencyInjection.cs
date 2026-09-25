@@ -6,6 +6,7 @@ using YCR.Application.Common.Abstractions;
 using YCR.Application.Identity;
 using YCR.Application.Identity.Abstractions;
 using YCR.Application.Network;
+using YCR.Application.Timetable;
 using YCR.Domain.Identity;
 using YCR.Infrastructure.Audit;
 using YCR.Infrastructure.Identifiers;
@@ -23,6 +24,8 @@ public static class DependencyInjection
         services.AddDbContext<YcrDbContext>(options =>
             options.UseSqlServer(connectionString));
         services.AddScoped<INetworkDbContext>(services =>
+            services.GetRequiredService<YcrDbContext>());
+        services.AddScoped<ITimetableDbContext>(services =>
             services.GetRequiredService<YcrDbContext>());
         services.AddScoped<IIdentityDbContext>(services =>
             services.GetRequiredService<YcrDbContext>());

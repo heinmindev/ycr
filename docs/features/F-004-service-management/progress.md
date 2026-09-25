@@ -179,3 +179,25 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** none.
 
 **State of the branch:** builds; tests green; committed and pushed.
+
+---
+
+## 2026-09-25 14:45 Asia/Yangon — claude — T-046
+
+**Stage:** 4 (IMPLEMENT) — plan step 4 of 9 done.
+**Commit:** step 4 is the commit that adds this entry.
+
+**Done:**
+- **Step 4 — persistence.** `Permissions.ServicesManage`/`ServicesRead` (OQ49 comment); `YCR.Application.Timetable.ITimetableDbContext` (`Services`, `Database`, `SaveChangesAsync`; no `DbSet<ServiceStop>`); `Configurations/Timetable/ServiceConfiguration.cs` and `ServiceStopConfiguration.cs` (spec §7: columns and types, the six check constraints in the model, `EffectiveTo` the only concurrency token, owned `BilingualName` and `OperatingDays` (`Days` ignored), `NeverRuns`/`DomainEvents` ignored, the three indexes declared and named (P16), `HasOne<Route>()`/`HasOne<Station>().WithMany()` `NO ACTION` with no navigation, `HasMany(Stops)` `NO ACTION`); `YcrDbContext` implements `ITimetableDbContext`; `AddInfrastructure` registers it.
+- **Migration `20260925065623_Timetable_CreateServices`** — EF-generated, reviewed by hand: `EnsureSchema timetable`, `CreateTable Services` (17 columns exactly as spec §7, five checks, `FK_Services_Routes_RouteId` → `network.Routes` with no `onDelete` = NO ACTION), `CreateTable ServiceStops` (`PK (ServiceId, Position)`, `CK_ServiceStops_Position`, `FK_…_Services_ServiceId`, `FK_…_Stations_StationId` → `network.Stations`), three `CreateIndex` — nothing against `network`. **V8:** `DropSchema("timetable")` added by hand to `Down()` before first apply. The snapshot diff is additive plus the two `"YCR.Domain.Network.BilingualName"` owned-type strings becoming `"YCR.Domain.Common.BilingualName"` (the V1 follow-up). **V4:** `has-pending-model-changes` → "No changes have been made to the model since the last migration."
+- Tests: `TimetableModelTests` (6: columns/types/keys, exact index set in model and migration, both cross-schema FKs NO ACTION without navigations in model and migration, every check constraint, Up touches only `timetable`, Down drops tables then schema); `StationModelTests.Model_WithUtcColumn_DeclaresItsCheckConstraint` + 2 rows (changed-tests item 13); `TimetableMigrationTests.TimetableConstraints_RejectInvalidRows` (6 rows), `…AllowAnEmptyPeriodOnlyAfterWithdrawal`, `ForeignKeys_RejectAServiceOrStopNamingNoNetworkRow` (migrator); `ModuleInterfacesTests.ModuleInterfaces_TimetableContext_ResolvesToSameInstance` (same instance and same transaction; no query, because `ycr_app` has no timetable grant until step 6).
+- **RED confirmed:** `TimetableModelTests` did not compile (CS0246 `Timetable_CreateServices`). With `ITimetableDbContext` present but no configuration, registration or migration: `TimetableMigrationTests` 8/8 failed, the two new UTC rows failed, `ModuleInterfaces_TimetableContext_…` failed.
+- **V-note (not a deviation):** one assertion in my new `TimetableModelTests` first used `GetValueConverter()!.ProviderClrType`, which is null on the design-time model for `HasConversion<string>()`; it asserts `GetProviderClrType() == typeof(string)` instead — same claim. One `Assert.Empty(… .Where(…))` became `Assert.DoesNotContain` (xUnit2029, warnings are errors).
+
+**Evidence:** `dotnet test YCR.sln` **911 total, 911 passed, 0 failed, 0 skipped**; build 0 warnings.
+
+**Next step (exact):** plan step 5 — migration `Identity_SeedServicePermissionGrants`; changed-tests items 1–10 (already edited in the working tree, uncommitted, to be run RED against the unseeded database first).
+
+**Blockers / open questions:** none.
+
+**State of the branch:** builds; tests green; step 4 committed and pushed. The step-5 test edits (items 1–10) are in the working tree, deliberately not in this commit.
