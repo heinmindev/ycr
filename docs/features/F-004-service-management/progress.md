@@ -201,3 +201,23 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** none.
 
 **State of the branch:** builds; tests green; step 4 committed and pushed. The step-5 test edits (items 1–10) are in the working tree, deliberately not in this commit.
+
+---
+
+## 2026-09-25 15:20 Asia/Yangon — claude — T-046
+
+**Stage:** 4 (IMPLEMENT) — plan step 5 of 9 done.
+**Commit:** step 5 is the commit that adds this entry.
+
+**Done:**
+- **Step 5 — seed.** Migration `20260925071216_Identity_SeedServicePermissionGrants` (EF-generated shell, empty model diff, snapshot unchanged; body hand-written as raw SQL like `Identity_SeedRoutePermissionGrants`): exactly the ten `docs/10` §Service permission grants rows (`services.manage` → SystemAdministrator, RailwayAdministrator; `services.read` → all eight), role ids re-declared; `Down()` deletes exactly those ten pairs. Header comment carries the OQ49 provisional-ruling label. No role, user, `trains.*` or `schedules.*` row. V4 still clean.
+- **Changed-tests items 1–10, exactly as the plan lists, each still a strict equality:** (1) `IdentitySeedTests.Seed_ProducesExactlyEightRolesAndTwentyFourGrants` → renamed `…ThirtyFourGrants`, 24 → 34, the ten service rows added to the expected set; (2) `Seed_MatchesDocs10GrantTables` heading list + `## Service permission grants` (the section parses with the existing bullet parser and must yield grants); (3) `DatabasePrivilegeTests.ApplicationCredential_CannotWriteRolesOrGrants` 24 → 34; (4) `RouteMigrationTests.Migrate_FromF002Schema_…` total 24 → 34 (`routes.%` still 10); (5) `…Migrate_DownToF002_…` forward-again total 24 → 34 (the 14 after rollback unchanged); (6) `UserAdministrationEndpointTests.ListRoles_…` 24 → 34; (7) `AdministrationHandlerTests.ListRoles_…` SystemAdministrator list + `services.manage`, `services.read`, ReportingUser list + `services.read`; (8) `SessionHandlerTests.Resolve_ActiveSession_…` + both; (9) `SessionHandlerTests.GetCurrentUser_…` + both (RailwayAdministrator); (10) `PasswordEndpointTests.Me_…` + `ServicesManage`, `ServicesRead`. Only comments beside them changed otherwise. No other existing test broke.
+- **RED confirmed:** with items 1–10 edited and no seed migration, the ten tests were run by name → **10 failed, 0 passed**. After the migration, all ten pass in the full run.
+
+**Evidence:** `dotnet test YCR.sln` **911 total, 911 passed, 0 failed, 0 skipped** (no new test cases in this step; ten existing ones changed); build 0 warnings; `has-pending-model-changes` clean.
+
+**Next step (exact):** plan step 6 — migration `Security_TimetableGrants`; `DatabasePrivilegeTests` timetable cases (except the applock one) + the three DDL rows (item 12); `TimetableMigrationTests.Migrate_FromF003Schema_…` and `Migrate_DownToF003_…`.
+
+**Blockers / open questions:** none.
+
+**State of the branch:** builds; tests green; committed and pushed.

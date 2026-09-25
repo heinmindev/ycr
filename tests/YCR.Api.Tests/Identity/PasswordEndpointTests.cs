@@ -121,9 +121,10 @@ public sealed class PasswordEndpointTests(SqlServerFixture fixture) : RealAuthAp
         Assert.Equal(
             [RoleNames.RailwayAdministrator, RoleNames.StationManager],
             root.GetProperty("roles").EnumerateArray().Select(role => role.GetString()!).Order(StringComparer.Ordinal));
-        // F-003 adds the route grants to these roles (docs/10 §Route permission grants, OQ40).
+        // F-003 adds the route grants to these roles (docs/10 §Route permission grants, OQ40), and
+        // F-004 the service grants (docs/10 §Service permission grants, OQ49).
         Assert.Equal(
-            [Permissions.RoutesManage, Permissions.RoutesRead, Permissions.StationsManage, Permissions.StationsRead],
+            [Permissions.RoutesManage, Permissions.RoutesRead, Permissions.ServicesManage, Permissions.ServicesRead, Permissions.StationsManage, Permissions.StationsRead],
             root.GetProperty("permissions").EnumerateArray().Select(permission => permission.GetString()!).Order(StringComparer.Ordinal));
     }
 
