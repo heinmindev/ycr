@@ -33,3 +33,26 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** `approval` (⛔ stage 2). Business: OQ42–OQ49 — all blocking. Scope: ruling B. Engineering: ADR-0025 Proposed; ADR-0024 still Proposed (needed only under OQ48 (b) / B2 / B3). Unchanged background: OQ1 (no seed data), OQ4 and OQ19 (not blocking; see spec G11), OQ17 (out of scope).
 
 **State of the branch:** documentation only; nothing to build or test. All work committed on `feature/F-004` and pushed.
+
+---
+
+## 2026-09-25 11:43 Asia/Yangon — claude — T-044
+
+**Stage:** 2 (SPECIFY), revision applying hein's rulings — stopped at the stage-2 ⛔ again.
+**Commit:** spec at `6cf674d` on `feature/F-004`; this entry is the commit after it.
+
+**Done this session:**
+- Applied hein's rulings of 2026-09-25 (B → B1; OQ42–OQ49 as provisional tech-lead rulings, not a Myanma Railways answer; ADR-0025 Accepted; E1–E13) to `spec.md`: Status "Draft — all rulings applied, awaiting approval"; §0.3 closure notes (C1–C5); §0.7 outcome B1; §0.9 rulings table; new §0.10 (OQ50, Q2, Q3, consequences); §1–§9 and Blocked behaviour rewritten for B1 — rules R1–R42, scenarios S1–S52.
+- `docs/19`: resolution block under each of OQ42–OQ49 (OQ47 partly resolved: holidays and per-date exceptions stay open); **new OQ50** (past `EffectiveFrom`/`EffectiveTo` at creation), raised because OQ48 rules withdrawals but not creation.
+- `docs/10`: preamble exception list, §Service permission grants — resolved (OQ49) in the route-section bullet format, `services.read` in the inventory, `trains.manage` marked not used in Phase 1.
+- ADR-0025: Status Accepted (hein, 2026-09-25); README row Accepted; OQ46 note added to Follow-up only (Decision untouched).
+
+**New OQ to add to `docs/business/mr-questions-pack.md`:** **OQ50** — may a service be created with an effective period starting (or ending) before today, e.g. the timetable in force at go-live? Network Operations / Planning.
+
+**Evidence:** documentation only; no build or test run because no code changed. `IdentitySeedTests` reads only the station, route and identity sections of `docs/10`, so the new section does not affect it (PLAN extends it). Commands: `git pull` (both checkouts), `git diff --stat`, `git ls-files --eol`, `git commit`, `git push`.
+
+**Next step (exact):** hein rules on spec §0.10 — OQ50 (a/b/c), Q2 (stop cap 200 or 201), Q3 (accept the create-vs-deactivation race or serialise) — and sets the spec Approved. Stage 3 (PLAN) must not start before that.
+
+**Blockers / open questions:** `approval` (⛔ stage 2). Business: OQ50 (blocking). Engineering: Q2, Q3. OQ42–OQ49 still open with Myanma Railways (not blocking); OQ47 holiday/exception part open (not blocking, known limitation). OQ1, OQ4, OQ17, OQ19 unchanged.
+
+**State of the branch:** documentation only; all work committed on `feature/F-004` and pushed.
