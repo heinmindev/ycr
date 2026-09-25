@@ -335,3 +335,30 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** none.
 
 **State of the branch:** builds; tests green locally and in CI; committed and pushed.
+
+---
+
+## 2026-09-26 00:01 Asia/Yangon — claude — T-050
+
+**Stage:** 8 (DOCUMENT) — done. No review findings to remediate (codex stages 5–7 at `1bae50f`, `8c94408`, `71f0bab`: READY, no findings).
+**Commit:** docs at `c5d8516`; this entry is the commit after it.
+
+**Done:** the plan's stage-8 list, written against the code at `67797d6` (plus stage-5 tests), not only the plan:
+- `docs/07`: §Core tables (`Trains` not used, OQ42; `TrainServices` → `Services`); §Module schemas ADR-0025 paragraph (cross-schema keys only to a never-deleted table's primary key, `NO ACTION`, no navigation, created by the referencing migration; why; one-way Timetable → Network); new §F-004 section: both tables, every check, index and key, the two cross-schema `NO ACTION` keys, why both convention indexes are declared, the access-path table, the three migration names, the code lock, the `ycr_app` grants and what is withheld.
+- `docs/08`: §Initial resources marks `/trains` not provided (OQ42) and `PATCH /services` not provided (OQ48); new "Implemented in F-004 — services": four endpoints, permissions, contracts, day names, 200-stop cap, error codes in check order (R37) and the withdrawal order, 32 KiB / 1 KiB limits, framework `400`/`413`, lock timeout `500`, absent endpoints.
+- `docs/20`: §1 "Cross-module reads" row (ADR-0025); §6 the own-transaction rule (ADR-0026: set invariant one unique index cannot enforce, lock scoped to the smallest key, transaction-owned, 30 s, timeout = `500`); §8 local dates only through `ILocalCalendar.Today()`.
+- `docs/15`: new §F-004: `Time:LocalTimeZone`, both hosts refuse to start (messages), ICU/tzdata, the 2026-09-25 image facts (no plain `-chiseled`), content root = output directory (API), Worker reads its zone next to its DLL.
+- `docs/local-development.md`: §2.3 migration count 6 → 12 (it was stale since F-003); §5 content root and time zone; two troubleshooting rows.
+- ADR-0026 "Application locks for set invariants", **Proposed**, and its row in `docs/decisions/README.md`.
+- `docs/glossary.md`: `Service` rewritten (C7); Service code, Direction (Forward/Reverse, wrap, full circuit), ServiceStop / stop, Operating days, Effective period, Withdrawal; Asia/Yangon local date extended; Myanmar terms all OPEN QUESTION.
+- Not changed: spec, plan, `docs/10` (hein's T-050 instruction overrides the plan's "record the seed migration name in docs/10"; the name is in `docs/07`), `docs/19`, README (lists no endpoints), no code.
+
+**Facts found while writing (no behaviour mismatch with the spec):** (1) the unhandled-exception `500` carries `errorCode` `Common.UnexpectedError` (`ProblemDetailsSetup.cs`), so ADR-0026 and `docs/08` say that rather than "no errorCode"; (2) `dotnet run --project` runs both hosts with the project directory as working directory (`RunWorkingDirectory`, checked with `dotnet msbuild -getProperty`), which holds the same `appsettings.json`, so the local-dev commands work from the repo root; only a built DLL must be started from its output directory.
+
+**Evidence:** local `dotnet test YCR.sln` **1161 total, 1161 passed, 0 failed, 0 skipped**. CI at `c5d8516`: push run [36164377902](https://github.com/heinmindev/ycr/actions/runs/36164377902) — Build and test success (1161/1161, 0 skipped), API smoke test success, Secret scan success, Trunk-only skipped (push); pull_request run [36164382540](https://github.com/heinmindev/ycr/actions/runs/36164382540) — all four jobs success, Trunk-only included.
+
+**Next step (exact):** T-051 — codex re-reviews the stage-8 docs and ADR-0026 against the code at `c5d8516` (not claude, AGENTS.md rule 11).
+
+**Blockers / open questions:** none.
+
+**State of the branch:** builds; tests green locally and in CI; committed and pushed.
