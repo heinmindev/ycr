@@ -6,7 +6,7 @@
 stage-4 progress checkpoint).
 
 **Result:** Every live scenario in spec §4 is traced below. S51 is explicitly excluded by the
-approved spec because it is an accepted, untested interleaving. Four focused domain tests were
+approved spec because it is an accepted, untested interleaving. Three focused domain tests were
 added for the requested stop-order boundaries: a two-station route, a three-station full circuit,
 and a 200-station full circuit of exactly `n + 1` stops. The stage-5 additions are in
 `tests/YCR.Domain.Tests/Timetable/ServiceTests.cs`.
@@ -82,7 +82,7 @@ and a 200-station full circuit of exactly `n + 1` stops. The stage-5 additions a
 | R33 no delete/reactivation/edit | `AbsentEndpoints_AreNotRouted`, the timetable grants absence assertions, and `Service_ExposesNoMutatorOtherThanWithdraw`. |
 | R41/R42 empty-period semantics | `WithdrawService_BeforeEffectiveFrom_NeverRunsAndFreesTheCode`, `GetService_ThatNeverRuns_ReturnsStoredDatesAndNeverRunsTrue`, and `EffectivePeriodTests`' empty-period overlap cases. |
 
-**Test additions:** four focused domain tests were added for the requested 2/3/200 station stop-order
+**Test additions:** three focused domain tests were added for the requested 2/3/200 station stop-order
 boundaries. The implementation was mutated locally by changing the cyclic guard from `travelled >
 limit` to `travelled >= limit`; `dotnet test tests/YCR.Domain.Tests/YCR.Domain.Tests.csproj --no-restore`
 then failed **23 tests**, including the new 3- and 200-station full-circuit tests and existing wrap,
@@ -97,3 +97,49 @@ database-lock timeout. The production lock was restored exactly.
 
 ## Stage 6 — Code review
 
+**Reviewed SHA:** `67797d6` (plus the stage-5 test/report commit `1bae50f`).
+
+**Verdict:** **READY**. No Critical, High, Medium, or Low findings were identified in the
+reviewed implementation.
+
+**Checks performed:**
+
+- The shared-kernel move contains only the common bilingual-name and code-format rules. Existing
+  station and route behavior remains covered by the F-001/F-003 suites; the Common architecture
+  rule rejects a dependency on any module. The Network contract exposes only primitive record
+  values, `NetworkReader` is `internal`, and the contract/domain/context fixture tests fail on the
+  prohibited shapes. Timetable application code has no Network domain or context dependency.
+- `Service.Create` keeps the approved R37 order: code, names, period/today, route, then route/stops
+  and stop-state checks; overlap is checked last under the code lock. The cyclic algorithm was
+  checked at 2, 3, and 200 stations and at exactly `n + 1` full-circuit stops; the stage-5 mutation
+  check made the order tests fail when the boundary changed.
+- `sp_getapplock` is exclusive, transaction-owned, parameterized, scoped to the validated service
+  code, and configured with the planned 30-second timeout. Both create and withdraw begin the
+  explicit transaction before acquiring it, and the forced same-code tests cover both operation
+  orders plus different-code non-blocking behavior. Timeout/negative return values throw instead
+  of allowing an unlocked write.
+- Withdrawal changes only `EffectiveTo` and `WithdrawnAtUtc` in one guarded update. The nullable
+  `EffectiveTo` concurrency token maps a stale writer to
+  `Timetable.ServiceChangedConcurrently`; the audit row rolls back with the transaction. The SQL
+  test proves no stop-row update and the database grant tests prove the application role has no
+  other timetable update or delete privilege.
+- `Timetable_CreateServices`, the permission-seed migration, and `Security_TimetableGrants` match
+  the EF model. Cross-schema route/station keys are `NO ACTION`, have no Network navigations, and
+  the migration Down operations remove only their owned objects/grants. The required command
+  `dotnet ef migrations has-pending-model-changes --project src/YCR.Infrastructure
+  --startup-project src/YCR.Infrastructure` passed with no pending changes (using the required
+  design-time connection environment variable).
+- `ILocalCalendar` resolves the configured IANA zone, and both API and Worker fail closed when it is
+  missing or unresolvable. The endpoint metadata and real-Kestrel tests enforce the 32 KiB create
+  and 1 KiB withdraw body limits before binding. The API smoke job starts from the output directory,
+  checks the shipped content root, and exercises the service create/read/list/withdraw flow.
+- DTOs and explicit snapshots keep EF entities and personal/security data out of API responses and
+  audit payloads. No API endpoint evaluates domain rules or accepts actor fields.
+
+**Verification:** `dotnet test YCR.sln --no-restore` passed with **1,161 passed, 0 failed, 0
+skipped**. `dotnet build src/YCR.Infrastructure/YCR.Infrastructure.csproj --no-restore` passed
+with 0 warnings and 0 errors. `git diff --check` is clean for the review changes.
+
+### Findings
+
+None.
