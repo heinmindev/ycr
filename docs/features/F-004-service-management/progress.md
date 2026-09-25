@@ -56,3 +56,22 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** `approval` (⛔ stage 2). Business: OQ50 (blocking). Engineering: Q2, Q3. OQ42–OQ49 still open with Myanma Railways (not blocking); OQ47 holiday/exception part open (not blocking, known limitation). OQ1, OQ4, OQ17, OQ19 unchanged.
 
 **State of the branch:** documentation only; all work committed on `feature/F-004` and pushed.
+
+---
+
+## 2026-09-25 11:48 Asia/Yangon — claude — T-044
+
+**Stage:** 2 (SPECIFY) — complete. Spec **Approved (hein, 2026-09-25)**.
+**Commit:** approved spec at `c2ea4f0` on `feature/F-004`; this entry is the commit after it.
+
+**Done this session:**
+- Applied hein's final rulings (2026-09-25): **OQ50** (past `EffectiveFrom` allowed; a given `EffectiveTo` not before today, `422 Timetable.ServiceEffectiveToInPast`; overlap unchanged; `CreatedAtUtc`/audit record entry time) — R37, R39, §6 error list, S40 rewritten, S40a added, `docs/19` OQ50 resolution block; **Q2** (keep 200 stops; a full circuit of a 200-station route is a known limitation) — R31, §9; **Q3** (create vs deactivation race accepted) — §5 paragraph, S51; readings 1 and 2 confirmed; the periods-only overlap consequence recorded in §9 known limitations.
+- §0.10 records all of the above with the date; blocking markers removed ("Blocking open questions: none"); Blocked behaviour keeps OQ47's holiday/exception part, FR-004, OQ1, OQ9/OQ17 and the Myanma Railways follow-up only. Status set to "Approved (hein, 2026-09-25)".
+
+**Evidence:** documentation only; no build or test run because no code changed. Commands: `git pull` (both checkouts), `git diff --stat`, `git commit`, `git push`.
+
+**Next step (exact):** T-045 (stage 3, PLAN) against the approved spec `c2ea4f0` — a separate task; not started here.
+
+**Blockers / open questions:** none blocking. OQ42–OQ50 still open with Myanma Railways (provisional rulings apply); OQ47 holiday/exception part open (known limitation). OQ1, OQ4, OQ17, OQ19 unchanged.
+
+**State of the branch:** documentation only; all work committed on `feature/F-004` and pushed.
