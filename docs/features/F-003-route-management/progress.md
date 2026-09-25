@@ -306,3 +306,20 @@ Baseline before step 1: 643/643.
 **Blockers / open questions:** none blocking. For hein: V3 and V7 above; whether to open a PR now so the trunk-only CI job runs on this branch.
 
 **State of the branch:** builds; tests green; everything committed and pushed.
+
+## 2026-09-25 08:20 Asia/Yangon — agent: codex — T-036
+
+**Stage:** 5 (TEST) — complete.
+**Commit:** pending stage-5 commit.
+**Done this session:**
+- Traced every live scenario S1–S3, S5–S15, S17, S21–S26 and S28–S30, including R26's 200-id boundary, in `review-codex.md` §Stage 5.
+- Traced R10 grants, R18 positions, R24 current station projections and A1 `DeactivatedAtUtc` despite having no dedicated scenario numbers.
+- No additional test code was needed; existing tests assert each listed behavior.
+
+**Evidence:** `dotnet test YCR.sln` — 789 passed, 0 failed, 0 skipped. Report added at `docs/features/F-003-route-management/review-codex.md`.
+
+**Next step (exact):** commit and push the stage-5 report, then claim T-037 from the coordination checkout.
+
+**Blockers / open questions:** none.
+
+**State of the branch:** tests green; report and progress are uncommitted.
