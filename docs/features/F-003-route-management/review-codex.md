@@ -155,3 +155,64 @@ endpoint is authenticated and the platform has a default body limit, but the fea
 or test a deliberate abuse bound.
 
 **Stage 7 result:** S-1 is Medium; there are **zero open Critical/High findings**.
+
+## Re-review of fa3642c
+
+**Reviewed range:** `d40d756..2f381bc` on `feature/F-003`; implementation fix `fa3642c`, with
+`2f381bc` containing only review-status lines and the progress checkpoint. `fa3642c` is an ancestor
+of the branch head.
+
+### S-1 — Closed
+
+- `POST /api/v1/routes` alone carries `RequestSizeLimitAttribute(32 * 1024)` through endpoint
+  metadata (`src/YCR.Api/Endpoints/Network/RouteEndpoints.cs:56`). A repository search found no
+  request-size metadata on any other endpoint; those limits remain T-042's scope.
+- `RouteRequestLimitTests` runs the API on real Kestrel via `WebApplicationFactory.UseKestrel(0)`.
+  Declared-length and chunked bodies over 32 KiB both return `413`; three malformed JSON bodies
+  return `400`; all responses are framework ProblemDetails under 1 KiB with status and trace ID,
+  no stack, exception, framework/parser detail, server path or database name. The 200-id request
+  with 10-character code and 100-character names returns `422 Network.RouteStationNotFound`,
+  proving the largest valid request reaches the handler.
+- The required mutation was run locally: after removing the metadata, the seven-test class ran
+  **5 passed / 2 failed / 0 skipped**; both oversize cases changed to `400 BadRequest` instead of
+  the expected `413 RequestEntityTooLarge`. The metadata was restored exactly, rebuilt, and the
+  final class ran **7 passed / 0 failed / 0 skipped**.
+- The mechanism matches the deployed hosting path: `RequestSizeLimitAttribute` implements
+  `IRequestSizeLimitMetadata`, endpoint routing applies it to Kestrel's
+  `IHttpMaxRequestBodySizeFeature` before the body is read. The real-Kestrel tests exercise that
+  feature; `TestServer` is intentionally not used because it has no body-size feature.
+
+### C-1 — Closed
+
+The named `UX_RouteStations_StationId_RouteId` catch remains in
+`src/YCR.Application/Network/CreateRoute/CreateRouteHandler.cs:104-115`; only its comment changed.
+The comment matches hein's ruling: this is defense in depth, unreachable while `Route.Create`
+rejects repeats, with no test seam added. `UniqueConstraintTranslationTests` covers the named SQL
+Server translation and `RouteModelTests` pins the constraint name. No behavior changed.
+
+### Amendment 3 and documentation
+
+Amendment 3 is consistent with the validator, domain rules and tests: V7 is `400
+Common.ValidationFailed` for whitespace-only `code`, `nameEn` and `nameMy`; format/length failures
+remain the domain's `Network.InvalidRouteCode`/`Network.InvalidRouteName`; R27 is the route-only
+32 KiB limit. S5 gained the two missing whitespace rows, and S11/R27/§6 describe the same behavior.
+
+The stage-8 docs were checked against the migrations and endpoints:
+
+- `docs/07` matches route columns, UTC and position checks, primary/unique indexes, both `NO ACTION`
+  foreign keys, the absence of `IX_RouteStations_StationId`, the three migration names, and the
+  exact `ycr_app` grants/absences.
+- `docs/08` matches all four route endpoints, request/response contracts, permissions, error codes
+  and sources, precedence, the 32 KiB Kestrel limit, and the framework 400/413 shape.
+- `docs/glossary.md` adds exactly three route entries; each Myanmar term remains `OPEN QUESTION`.
+- The only changed paths under `docs/` are `07`, `08`, the F-003 spec/progress/review files, and
+  the glossary. `README.md`, `docs/10`, `docs/19`, and the MR question pack are unchanged.
+
+### Verification and verdict
+
+`dotnet test YCR.sln --no-restore` on the restored branch: **798 passed, 0 failed, 0 skipped**.
+`git diff --check` is clean. No new findings were identified.
+
+**Final verdict: READY FOR HUMAN APPROVAL.** S-1 and C-1 are closed, Amendment 3 and the stage-8
+documentation match the implemented behavior, and there are no new Critical, High, or Medium
+findings in this re-review.
