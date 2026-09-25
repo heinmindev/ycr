@@ -36,7 +36,7 @@ public sealed class CreateStationHandler(
             return code.Error;
         }
 
-        var name = BilingualName.Create(command.NameEn, command.NameMy);
+        var name = BilingualName.Create(command.NameEn, command.NameMy, NetworkErrors.InvalidStationName);
         if (name.IsFailure)
         {
             return name.Error;

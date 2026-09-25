@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using YCR.Application.Network;
+using YCR.Domain.Common;
 using YCR.Domain.Network;
 using YCR.Infrastructure.Persistence;
 using YCR.TestSupport;
@@ -57,7 +58,7 @@ public sealed class ModuleInterfacesTests(SqlServerFixture fixture) : IAsyncLife
         moduleContext.Stations.Add(Station.Create(
             id,
             StationCode.Create("SHW").Value,
-            BilingualName.Create("Shwedagon", "ရွှေတိဂုံ").Value,
+            BilingualName.Create("Shwedagon", "ရွှေတိဂုံ", NetworkErrors.InvalidStationName).Value,
             DateTimeOffset.UtcNow));
 
         await concreteContext.SaveChangesAsync(cancellationToken);

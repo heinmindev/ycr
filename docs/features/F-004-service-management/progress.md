@@ -117,3 +117,25 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** none blocking. OQ42–OQ50 are still open with Myanma Railways (the provisional rulings apply). OQ47's holiday/exception part is still open (a known limitation). OQ1, OQ4, OQ17 and OQ19 are unchanged.
 
 **State of the branch:** documentation only; all work committed on `feature/F-004` and pushed.
+
+---
+
+## 2026-09-25 13:25 Asia/Yangon — claude — T-046
+
+**Stage:** 4 (IMPLEMENT) — plan step 1 of 9 done.
+**Commit:** step 1 is the commit that adds this entry on `feature/F-004`.
+
+**Done this session:**
+- Claimed T-046 (`claim/T-046`; ledger `3886e07` on `main`). Preconditions checked: branch head `f4026fc`, spec Approved (hein, 2026-09-25), plan Approved revision 2 (`e81b7f3`).
+- **Step 1 — shared kernel (P2, ruling Q1).** `git mv` of `Network/NetworkCodeFormat.cs` → `Common/CodeFormat.cs` (class renamed, regex unchanged, comment adds service codes, OQ43) and `Network/BilingualName.cs` → `Common/BilingualName.cs` (namespace `YCR.Domain.Common`; only `Create(en, my, Error whenInvalid)`, the two-argument overload removed). `StationCode`/`RouteCode` call `CodeFormat`; `CreateStationHandler` passes `NetworkErrors.InvalidStationName`.
+- Changed-tests items 15–16 exactly: `BilingualNameTests` moved to `tests/YCR.Domain.Tests/Common/` (namespace `YCR.Domain.Tests.Common`); `…WithoutErrorArgument_StillReturnsInvalidStationName` → `…WithStationError_WhenInvalid_ReturnsInvalidStationName`, its two assertions unchanged (`IsFailure`; `NetworkErrors.InvalidStationName` for `("   ", "Yangon Myanmar")`); `Create_WithValidNames_ReturnsTrimmedNames` and the `AssertValidationFailure` helper only gained the explicit station error. Call sites (no assertion change): `StationTests` ×3, `LedgerMigrationTests` ×2, `MigrationBundleTests`, `ModuleInterfacesTests`, `UniqueConstraintTranslationTests` (those four Infrastructure test files also gained `using YCR.Domain.Common;`).
+- **V1 passed:** `dotnet ef migrations has-pending-model-changes` → "No changes have been made to the model since the last migration." The snapshot's `"YCR.Domain.Network.BilingualName"` owned-type string is left as generated; it is rewritten by `Timetable_CreateServices` in step 4.
+- No new test in step 1 (the plan names none); the ruling-Q1 architecture tests (`CommonKernel_WithModuleDependency_DetectsViolation`, `ApplicationAndDomainRules_ForEveryBoundedContext_HaveNoSourceViolations`, `DomainModuleBoundary_…`, `DomainLayerRules_…`, `ApiRules_…`) ran unchanged and passed.
+
+**Evidence:** baseline before any change: `dotnet test YCR.sln` 798 total (one failure in that run was caused by my step-1 edits landing while the lazy migration bundle was being built; not a pre-existing failure). After step 1: `dotnet build YCR.sln` 0 warnings, 0 errors; `dotnet test YCR.sln` **798 total, 798 passed, 0 failed, 0 skipped**.
+
+**Next step (exact):** plan step 2 — Timetable domain (`ServiceCode`, `Direction`, `OperatingDays`, `EffectivePeriod`, `ServiceRouteFacts`, `ServiceStop`, `Service`, `TimetableErrors`) with every `YCR.Domain.Tests` row of the plan.
+
+**Blockers / open questions:** none.
+
+**State of the branch:** builds; tests green; committed and pushed.

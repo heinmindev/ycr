@@ -1,14 +1,14 @@
 using YCR.Domain.Common;
 using YCR.Domain.Network;
 
-namespace YCR.Domain.Tests.Network;
+namespace YCR.Domain.Tests.Common;
 
 public sealed class BilingualNameTests
 {
     [Fact]
     public void Create_WithValidNames_ReturnsTrimmedNames()
     {
-        var result = BilingualName.Create("  Yangon  ", "  Yangon Myanmar  ");
+        var result = BilingualName.Create("  Yangon  ", "  Yangon Myanmar  ", NetworkErrors.InvalidStationName);
 
         Assert.True(result.IsSuccess);
         Assert.Equal("Yangon", result.Value.En);
@@ -79,9 +79,9 @@ public sealed class BilingualNameTests
     }
 
     [Fact]
-    public void BilingualName_Create_WithoutErrorArgument_StillReturnsInvalidStationName()
+    public void BilingualName_Create_WithStationError_WhenInvalid_ReturnsInvalidStationName()
     {
-        var result = BilingualName.Create("   ", "Yangon Myanmar");
+        var result = BilingualName.Create("   ", "Yangon Myanmar", NetworkErrors.InvalidStationName);
 
         Assert.True(result.IsFailure);
         Assert.Equal(NetworkErrors.InvalidStationName, result.Error);
@@ -89,7 +89,7 @@ public sealed class BilingualNameTests
 
     private static void AssertValidationFailure(string? en, string? my)
     {
-        var result = BilingualName.Create(en, my);
+        var result = BilingualName.Create(en, my, NetworkErrors.InvalidStationName);
 
         Assert.True(result.IsFailure);
         Assert.Equal(ErrorType.Validation, result.Error.Type);

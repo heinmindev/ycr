@@ -1,5 +1,6 @@
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using YCR.Domain.Common;
 using YCR.Domain.Network;
 using YCR.Infrastructure.Persistence;
 using YCR.TestSupport;
@@ -95,7 +96,7 @@ public sealed class MigrationBundleTests(SqlServerFixture fixture) : IAsyncLifet
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         var code = StationCode.Create("INS").Value;
-        var name = BilingualName.Create("Insein", "အင်းစိန်").Value;
+        var name = BilingualName.Create("Insein", "အင်းစိန်", NetworkErrors.InvalidStationName).Value;
         var id = Guid.CreateVersion7();
 
         await using (var writer = NewContext())
