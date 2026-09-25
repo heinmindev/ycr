@@ -309,3 +309,29 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** `engineering` — G1, G2 above. No business OQ.
 
 **State of the branch:** builds; `dotnet test YCR.sln` green locally (1158/1158, 0 skipped, Windows); CI red for G1 and G2 only; all work committed and pushed.
+
+---
+
+## 2026-09-25 21:49 Asia/Yangon — claude — T-046
+
+**Stage:** 4 (IMPLEMENT) — **plan step 9 of 9 done; all steps done.** Resumed 20:57 after hein's rulings on G1 and G2 (ENGINEERING DECISIONS, 2026-09-25, recorded in the T-046 row).
+**Commit:** code at `67797d6`; this entry is the commit after it.
+
+**Done:**
+- **Plan Amendment 1 (hein, 2026-09-25, T-046 G1)** recorded in plan §Amendments during implementation, §Test plan and §Review history. `LocalCalendarTests.AsiaYangon_ResolvesInThisEnvironment` now: (1) binds `LocalTimeOptions` from an in-memory `Time:LocalTimeZone = Asia/Yangon` and resolves it with `LocalTimeOptions.ResolveZone`; (2) asserts `GetUtcOffset` is exactly +06:30 at 1 Jan 00:00 and 1 Jul 00:00 local (as local `DateTime`) of every year 2026–2040, and at the instants one second before and at each of those local midnights; (3) asserts every adjustment rule whose `DateStart..DateEnd` overlaps 2026-01-01..2040-12-31 has `DaylightDelta` zero. `SupportsDaylightSavingTime` is no longer asserted. The midnight-crossing theory is unchanged.
+  - Windows: the class 9/9. Linux: the same assertions in `mcr.microsoft.com/dotnet/sdk:10.0` (Ubuntu 24.04.5): 9 adjustment rules, **none** overlapping 2026–2040 (so assertion (3) holds vacuously there, as on Windows), `SupportsDaylightSavingTime` true, 0 failures; then green in CI on `ubuntu-latest`.
+- **Plan Amendment 2 (hein, 2026-09-25, T-046 G2)** recorded in plan §Amendments, §OpenAPI/.http/smoke, step 9 and §Stage 8 (`docs/15`, `docs/local-development.md`: the API and the Worker run with their output directory as content root). `ci.yml` "Run the API" has `working-directory: src/YCR.Api/bin/Release/net10.0` and runs `dotnet YCR.Api.dll`; no `Time__` variable anywhere in the job. New smoke checks after the health checks: the API log's `Content root path:` is `$GITHUB_WORKSPACE/src/YCR.Api/bin/Release/net10.0`; `/proc/<api pid>/environ` has no `Time__`, `ASPNETCORE_Time__` or `DOTNET_Time__` variable.
+  - **Auth values:** the shipped `appsettings.json` `Auth` section (`Issuer`/`Audience` `YCR.Api`, `PrincipalCacheSeconds` 15, `AllowedOrigins` `[]`, rate limits 5/20/30) equals the `AuthOptions` code defaults the job relied on before, and the job's `Auth__*` environment values still override; nothing changed, so no stop was needed. The file also brings `Logging` (Microsoft.AspNetCore at Warning) and `AllowedHosts: *`.
+  - **Failure experiment:** throwaway branch `feature/F-004-g2-experiment` = `67797d6` + only the "Run the API" start reverted to the repository root (`7f1a16f`). Run [36150209178](https://github.com/heinmindev/ycr/actions/runs/36150209178): **API smoke test failure** at "Run the API" ("API did not become healthy"; log `System.InvalidOperationException: Time:LocalTimeZone is not configured…`), smoke step skipped; build and test and secret scan success. The branch was deleted afterwards. So the check that really fails when the file is not read is the API's own fail-closed startup; the content-root assertion names the cause.
+  - **Worker:** unchanged in the job. Its `Program.Main` builds configuration from `AppContext.BaseDirectory`, not the working directory, so the bootstrap reads its shipped `appsettings.json` wherever it is started; the smoke's `bootstrap-administrator exits 0` (no `Time__` variable given) proves its zone check passes on the runner. Its no-command host path (`Host.CreateApplicationBuilder`) still takes the working directory as content root, hence the stage-8 docs line.
+- **Step 9:** `YCR.Api.http` "Services (F-004)" section (header, `@serviceId`; on a closed route: Forward create 201, a wrap 201, a full circuit 201, out of order 422 `Timetable.ServiceStopsOutOfOrder`, same code overlapping 409 `Timetable.ServiceCodePeriodOverlap`, list, list by `routeId`, read, withdraw 204, withdraw later 422 `Timetable.WithdrawalDoesNotShorten`, the timetable-change pair; each comment names the permission and the errors). `api-smoke` service checks as plan step 9 lists (anonymous 401 + `Auth.Unauthenticated`; route `SMOKE2`; `SV1` from Yangon today 201 — the request also carries `nameEn`/`nameMy`, which the plan's sketch left out and the contract requires; read 200 with two stops; list 200; withdraw from today+30 204; again 422 `Timetable.WithdrawalDoesNotShorten`). `CiWorkflowTests` unchanged and green (confirmed).
+
+**Evidence:** `dotnet test YCR.sln` locally **1158 total, 1158 passed, 0 failed, 0 skipped**; build 0 warnings. CI run [36150203657](https://github.com/heinmindev/ycr/actions/runs/36150203657) at `67797d6` on `feature/F-004`: **Build and test success** (1158/1158, 0 skipped), **API smoke test success** (every check PASS, 0 FAIL, the new content-root, `Time__` and service checks included), **Secret scan success**, Trunk-only skipped (runs only on a PR or `main`).
+
+**Deviations:** none beyond the two amendments. Observation: assertion (3) of Amendment 1 is vacuous on both hosts today (no rule overlaps the horizon); it would bite if tzdata ever gained a rule for 2026–2040.
+
+**Next step (exact):** T-046 to `review`. Stage 5 (scenario tests), code review and security review go to a different agent (AGENTS.md); not started by T-046.
+
+**Blockers / open questions:** none.
+
+**State of the branch:** builds; tests green locally and in CI; committed and pushed.
