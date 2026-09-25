@@ -99,4 +99,55 @@ it does not block the review verdict.
 
 ## Stage 7 — Security review
 
-Pending T-038.
+**Reviewed SHA:** `910724e207dd2223c8d16088547b6ed1763617c0`
+
+**Threat coverage:** `docs/18` API abuse, unauthorized configuration, privilege escalation and
+data disclosure categories; ADR-0017/0021 audit controls; `docs/09` authentication and
+`docs/10` route grants.
+
+**Verdict:** **READY — no open Critical or High findings.**
+
+**Controls verified:**
+
+- All four endpoints require authorization: `routes.manage` on create/deactivate and `routes.read`
+  on get/list. API tests cover anonymous `401`, wrong-permission `403`, and station permissions
+  granting no route right. Seed migration tests assert the exact ten role grants from `docs/10`.
+- `ycr_app` has route `SELECT`/`INSERT`, column-scoped `UPDATE(IsActive, DeactivatedAtUtc)`, and
+  RouteStations `SELECT`/`INSERT` only. Database tests assert absent DELETE, table-level UPDATE,
+  forbidden column UPDATE, ALTER/CONTROL, and DDL. No migration grants DDL.
+- `stationIds` is required, non-empty, GUID-D validated and capped at 200 before the handler;
+  `pageSize` is capped at 200 in the application paging guard. Malformed IDs and the 201-id case
+  return the validation ProblemDetails shape. Route/domain bounds enforce 2–10 code characters
+  and 1–100 trimmed name characters.
+- Myanmar Unicode round-trips through the API and application tests. Route snapshots contain only
+  route configuration and stable station identifiers/codes, with no personal data, secrets, tokens,
+  cookies or keys. Explicit response DTOs prevent EF entities from leaving the API.
+- Audit actor, role, permission, client IP and correlation values are read from `ICurrentUser` by
+  the infrastructure writer. The actor-field injection test proves request body and forwarded-header
+  values do not replace server context.
+- CI route smoke checks use masked/generated credentials and tokens; route responses are checked by
+  status and selected JSON fields without echoing secrets. The existing CI secret scan remains in the
+  workflow, and the smoke/API logs are only uploaded on failure.
+
+### Findings
+
+#### S-1 — Medium — Route body size is bounded only after JSON model binding
+
+**Threat:** API abuse / resource exhaustion (`docs/18`).
+
+**Evidence:** `CreateRouteRequestValidator` limits `StationIds.Count` to 200 and the domain limits
+field lengths, but both run after ASP.NET has deserialized the request (`src/YCR.Api/Contracts/Network/RouteContracts.cs:52-76`).
+`src/YCR.Api/Program.cs` and `RouteEndpoints` do not set an explicit route request-size limit or
+JSON depth/field-size limit. A caller can therefore send a large JSON body containing far more than
+200 array elements or very large strings; the server allocates and parses it before returning the
+validation error. The tests cover malformed IDs and 201 ids, but not a huge body or malformed JSON
+at the hosting boundary.
+
+**Recommended fix:** Add an explicit request-size limit for `POST /routes` (and, if the hosting
+policy requires it, a bounded JSON depth/string policy) below the platform default, and add API tests
+for an oversized body and malformed JSON that verify a bounded, non-sensitive 4xx response. Keep the
+200-id validation as the business/API contract after binding. This finding is Medium because the
+endpoint is authenticated and the platform has a default body limit, but the feature does not state
+or test a deliberate abuse bound.
+
+**Stage 7 result:** S-1 is Medium; there are **zero open Critical/High findings**.
