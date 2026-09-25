@@ -238,7 +238,14 @@ jobs:
       # F-002: the deployed shape needs a signing key and an allowed origin, or startup refuses
       # (S26a, R9). Both come from the environment, as they would from a deployment's secret
       # store; the key never touches the disk.
+      #
+      # F-004 plan Amendment 2 (hein, 2026-09-25, T-046 G2): the API starts from its build output
+      # directory, so that directory is its content root and the shipped appsettings.json is what
+      # it reads — including Time:LocalTimeZone, which has deliberately NO environment override
+      # here. Started from the repository root, no appsettings.json is read and the API refuses to
+      # start ("Time:LocalTimeZone is not configured"), which fails this step.
       - name: Run the API
+        working-directory: src/YCR.Api/bin/Release/net10.0
         env:
           ASPNETCORE_ENVIRONMENT: Production
           ASPNETCORE_URLS: http://127.0.0.1:5080
@@ -251,7 +258,7 @@ jobs:
         run: |
           # The built assembly, run directly. `dotnet run` would background a launcher whose PID
           # is not the API's, leaving nothing reliable to stop afterwards.
-          dotnet src/YCR.Api/bin/Release/net10.0/YCR.Api.dll > "$RUNNER_TEMP/api.log" 2>&1 &
+          dotnet YCR.Api.dll > "$RUNNER_TEMP/api.log" 2>&1 &
           echo $! > "$RUNNER_TEMP/api.pid"
           for attempt in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:5080/health/live > /dev/null 2>&1; then
@@ -282,6 +289,14 @@ jobs:
 
           check "/health/ready is 200" 200 \
             "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:5080/health/ready)"
+
+          # F-004 Amendment 2 (G2): the API is running, so it read a Time:LocalTimeZone it can
+          # resolve (it refuses to start otherwise), and nothing in this job's environment sets
+          # one — so it came from the shipped appsettings.json in the content root named here.
+          check "the API's content root is its build output directory" "1" \
+            "$(grep -cF "Content root path: $GITHUB_WORKSPACE/src/YCR.Api/bin/Release/net10.0" "$RUNNER_TEMP/api.log" || true)"
+          check "the API process has no Time__ environment override" "0" \
+            "$(tr '\0' '\n' < "/proc/$(cat "$RUNNER_TEMP/api.pid")/environ" | grep -cE '^(ASPNETCORE_|DOTNET_)?Time__' || true)"
 
           # The document maps every route and the permission each one requires. A deployed
           # instance has no reason to hand that out, so it is Development-only.
@@ -382,6 +397,31 @@ jobs:
           check "POST /api/v1/routes/{id}/deactivate is 204" 204 "$(send -X POST "$api/api/v1/routes/$route/deactivate")"
           check "deactivating it again is 422" 422 "$(send -X POST "$api/api/v1/routes/$route/deactivate")"
           check "and says Network.RouteAlreadyInactive" "Network.RouteAlreadyInactive" "$(jq -r .errorCode "$reply")"
+
+          # F-004: services in the deployed shape, through the seeded services.* grants
+          # (Identity_SeedServicePermissionGrants), the Security_TimetableGrants grants, the Network
+          # contract and the service-code lock under ycr_app, with the same administrator token.
+          # Dates are Asia/Yangon dates, as the API's "today" is (Time:LocalTimeZone).
+          today=$(TZ=Asia/Yangon date +%F)
+          later=$(TZ=Asia/Yangon date -d '+30 days' +%F)
+          body=$(curl -s "$api/api/v1/services")
+          check "anonymous GET /api/v1/services is Auth.Unauthenticated" "Auth.Unauthenticated" "$(echo "$body" | jq -r .errorCode)"
+          check "anonymous GET /api/v1/services is 401" 401 "$(curl -s -o /dev/null -w '%{http_code}' "$api/api/v1/services")"
+          # The F-003 route above was deactivated by its own checks; a service needs an active one.
+          check "POST /api/v1/routes SMOKE2 is 201" 201 "$(send -X POST "$api/api/v1/routes" -H "Content-Type: application/json" \
+            -d "{\"code\":\"SMOKE2\",\"nameEn\":\"Smoke route 2\",\"nameMy\":\"လမ်းကြောင်း\",\"isClosed\":false,\"stationIds\":[\"$sma\",\"$smb\"]}")"
+          route2=$(jq -r .id "$reply")
+          check "POST /api/v1/services SV1 is 201" 201 "$(send -X POST "$api/api/v1/services" -H "Content-Type: application/json" \
+            -d "{\"code\":\"SV1\",\"nameEn\":\"Smoke service\",\"nameMy\":\"ရထား\",\"routeId\":\"$route2\",\"direction\":\"Forward\",\"stopStationIds\":[\"$sma\",\"$smb\"],\"operatingDays\":[\"Monday\"],\"effectiveFrom\":\"$today\"}")"
+          service=$(jq -r .id "$reply")
+          check "GET /api/v1/services/{id} is 200" 200 "$(send "$api/api/v1/services/$service")"
+          check "the service reads back with two stops" 2 "$(jq '.stops | length' "$reply")"
+          check "GET /api/v1/services is 200" 200 "$(send "$api/api/v1/services")"
+          check "POST /api/v1/services/{id}/withdraw is 204" 204 "$(send -X POST "$api/api/v1/services/$service/withdraw" \
+            -H "Content-Type: application/json" -d "{\"withdrawFrom\":\"$later\"}")"
+          check "withdrawing it again from the same date is 422" 422 "$(send -X POST "$api/api/v1/services/$service/withdraw" \
+            -H "Content-Type: application/json" -d "{\"withdrawFrom\":\"$later\"}")"
+          check "and says Timetable.WithdrawalDoesNotShorten" "Timetable.WithdrawalDoesNotShorten" "$(jq -r .errorCode "$reply")"
 
           # D10: a second bootstrap is refused (exit 1) and creates nothing.
           printf '%s\n' "$YCR_SMOKE_ADMIN_INITIAL_PASSWORD" | \

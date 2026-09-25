@@ -1,5 +1,7 @@
 using System.Globalization;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using YCR.Application.Common.Abstractions;
 using YCR.Infrastructure.Time;
 using YCR.TestSupport;
@@ -13,19 +15,53 @@ namespace YCR.Infrastructure.Tests.Time;
 public sealed class LocalCalendarTests
 {
     /// <summary>
-    /// V6: the IANA id resolves on the host the tests run on — the Windows dev machines through ICU,
-    /// and in CI the Linux <c>ubuntu-latest</c> runner through its tzdata. Asia/Yangon is UTC+06:30
-    /// and has no daylight saving.
+    /// V6, as amended by plan Amendment 1 (hein, 2026-09-25, T-046 G1): the IANA id bound from
+    /// <c>Time:LocalTimeZone</c> resolves on the host the tests run on — the Windows dev machines
+    /// through ICU, and in CI the Linux <c>ubuntu-latest</c> runner through its tzdata — and over the
+    /// service horizon 2026–2040 it is UTC+06:30 with no daylight saving. The test asserts behaviour,
+    /// not <see cref="TimeZoneInfo.SupportsDaylightSavingTime"/>: Linux tzdata carries pre-1946
+    /// historical rules for Asia/Yangon, which make that flag true and are allowed.
     /// </summary>
     [Fact]
     public void AsiaYangon_ResolvesInThisEnvironment()
     {
-        var zone = LocalTimeOptions.ResolveZone("Asia/Yangon");
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                [LocalTimeOptions.ConfigurationKey] = "Asia/Yangon",
+            })
+            .Build();
+        using var provider = new ServiceCollection()
+            .AddSingleton<IConfiguration>(configuration)
+            .AddOptions<LocalTimeOptions>().BindConfiguration(LocalTimeOptions.SectionName).Services
+            .BuildServiceProvider();
 
-        Assert.Equal(new TimeSpan(6, 30, 0), zone.BaseUtcOffset);
-        Assert.False(zone.SupportsDaylightSavingTime);
-        Assert.Empty(zone.GetAdjustmentRules());
+        var zone = LocalTimeOptions.ResolveZone(provider.GetRequiredService<IOptions<LocalTimeOptions>>().Value.LocalTimeZone);
+
+        var yangon = new TimeSpan(6, 30, 0);
+        for (var year = HorizonFirstYear; year <= HorizonLastYear; year++)
+        {
+            foreach (var month in new[] { 1, 7 })
+            {
+                var localMidnight = new DateTime(year, month, 1, 0, 0, 0, DateTimeKind.Unspecified);
+                Assert.Equal(yangon, zone.GetUtcOffset(localMidnight));
+
+                // Both sides of that local midnight, as instants: 17:29:59Z and 17:30:00Z the day before.
+                var midnightUtc = new DateTimeOffset(localMidnight, yangon).ToUniversalTime();
+                Assert.Equal(yangon, zone.GetUtcOffset(midnightUtc.AddSeconds(-1)));
+                Assert.Equal(yangon, zone.GetUtcOffset(midnightUtc));
+            }
+        }
+
+        var horizonStart = new DateTime(HorizonFirstYear, 1, 1);
+        var horizonEnd = new DateTime(HorizonLastYear, 12, 31);
+        Assert.All(
+            zone.GetAdjustmentRules().Where(rule => rule.DateStart <= horizonEnd && rule.DateEnd >= horizonStart),
+            rule => Assert.Equal(TimeSpan.Zero, rule.DaylightDelta));
     }
+
+    private const int HorizonFirstYear = 2026;
+    private const int HorizonLastYear = 2040;
 
     /// <summary>R38: local midnight in Asia/Yangon is 17:30:00Z the day before.</summary>
     [Theory]
