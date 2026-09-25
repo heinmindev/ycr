@@ -50,7 +50,52 @@ rules. Removed S4, S16, S18–S20 and S27 remain intentionally unimplemented per
 
 ## Stage 6 — Code review
 
-Pending T-037.
+**Reviewed SHA:** `910724e207dd2223c8d16088547b6ed1763617c0`
+
+**Verdict:** **READY**. No Critical or High findings. The implementation matches the approved
+specification and plan in the reviewed scope.
+
+**Checks performed:**
+
+- `StationCode` now delegates only the existing pattern to `NetworkCodeFormat`; the existing
+  station tests still pin trimming and all accepted/rejected forms. `BilingualName.Create` keeps
+  its original station overload and adds an explicit error overload for routes; station behavior is
+  unchanged.
+- `Route.Create` validates in the planned order: repeated station, minimum length, missing station,
+  then inactive station. The handler validates code and names first, performs station validation,
+  then checks duplicate route code, matching the plan's error precedence.
+- Duplicate-code races map `UX_Routes_Code` by constraint name. The route-station unique-index catch
+  is retained as defense in depth and does not broaden unrelated database errors.
+- `IsActive` is the EF concurrency token. Deactivation sets `IsActive` and `DeactivatedAtUtc`
+  before one `SaveChangesAsync`; the SQL test proves the single guarded `UPDATE` contains exactly
+  those two columns and no `RouteStations` update. Concurrency losers map to
+  `Network.RouteAlreadyInactive`, with the audit insert rolled back.
+- Route endpoints require the intended permissions and map application DTOs to response records;
+  no EF entity is returned. Route projections read current station fields and list queries page and
+  count in SQL.
+- Audit snapshots are explicit records containing the approved route fields and stable station
+  codes. The audit writer derives actor, permission, address and correlation fields from server
+  context, and create/deactivate changes plus audit rows share one unit of work.
+- The three migrations match the EF model and their `Down()` methods reverse only their own objects
+  and grants. The exact CI command `dotnet ef migrations has-pending-model-changes --project
+  src/YCR.Infrastructure --startup-project src/YCR.Infrastructure` passed with no pending changes.
+- `dotnet test YCR.sln` passed with **789/789, 0 skipped**.
+
+### Findings
+
+#### C-1 — Low — Unreachable route-station constraint mapping has no focused test
+
+**Evidence:** `src/YCR.Application/Network/CreateRoute/CreateRouteHandler.cs:104-110` catches
+`UX_RouteStations_StationId_RouteId`, while `Route.Create` rejects every repeated station before
+`SaveChangesAsync` (`src/YCR.Domain/Network/Route.cs:81-88`). The stage-5 race and duplicate tests
+therefore cannot reach this catch; the existing infrastructure test proves translation generally,
+not this handler mapping.
+
+**Recommendation:** Keep the catch as defense in depth because the named database constraint is the
+integrity authority, and add a focused application test seam that supplies that named violation (or
+explicitly document the catch as untestable infrastructure defense). Do not remove the mapping or
+turn unrelated database errors into a route conflict. This is a testability/maintenance item only;
+it does not block the review verdict.
 
 ## Stage 7 — Security review
 
