@@ -264,3 +264,24 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** none.
 
 **State of the branch:** builds; tests green; committed and pushed.
+
+---
+
+## 2026-09-25 18:15 Asia/Yangon — claude — T-046
+
+**Stage:** 4 (IMPLEMENT) — plan step 8 of 9 done (locally green).
+**Commit:** step 8 is the commit that adds this entry.
+
+**Done:**
+- **Step 8 — API and Worker.** `Api/Contracts/Timetable/ServiceContracts.cs` (`CreateServiceRequest` + validator per P6, `MaxStopStationIds = 200` REQUIRED CONTROL; `WithdrawServiceRequest` + validator; the responses mapped from DTOs; exact day names ordinal, dates `yyyy-MM-dd` invariant, GUIDs `D`); `Api/Endpoints/Timetable/ServiceEndpoints.cs` (four endpoints, tag `Services`, `services.manage`/`services.read`, `RequestSizeLimitAttribute` 32 KiB create / 1 KiB withdraw as `CreateServiceMaxRequestBodyBytes` / `WithdrawServiceMaxRequestBodyBytes`); `Program.cs` maps them and binds `LocalTimeOptions` from `Time`, validated through `LocalTimeOptions.ResolveZone`, `ValidateOnStart()`; Api `appsettings.json` `"Time": { "LocalTimeZone": "Asia/Yangon" }`. **Worker:** `Program.Main` builds its configuration once (as the bootstrap path did), resolves `Time:LocalTimeZone` through the same resolver before either start path, and on failure writes the message to stderr and returns 1; Worker `appsettings.json` gains the same `Time` section.
+- Tests (44 named): `Timetable/ServiceEndpointsTests` (34), `Timetable/ServiceRequestLimitTests` (5, real Kestrel), `Identity/ServicePermissionGrantTests` (2, real tokens), `Common/LocalTimeZoneStartupTests` (2, unmodified host), `IntegrationTests/Worker/WorkerStartupTests` (1 theory, 4 rows, the real process); changed-tests item 14: `DeployedShapeTests.ProtectedEndpoint_Anonymous_…` + the four service rows.
+- **RED confirmed:** the Timetable API tests did not compile (CS0234 `YCR.Api.Contracts.Timetable`, `YCR.Api.Endpoints.Timetable`). With that folder set aside and no production code: `LocalTimeZoneStartupTests` 3 failed (the host started), `ServicePermissionGrantTests` 9/9 failed, the four new `DeployedShapeTests` rows failed, `WorkerStartupTests` 4/4 failed. `Startup_WithAsiaYangon_Starts` passed before and after (a regression guard).
+- One test-side correction: `AnyServiceEndpoint_Anonymous_Returns401` (test-handler mode, as the plan maps it) first also asserted the `Auth.Unauthenticated` body, which the test handler's challenge does not write (F-003's `Get_Anonymous_Returns401` asserts the status only for the same reason). The body is asserted for the same four endpoints on the unmodified host by the four new `DeployedShapeTests` rows.
+- **V7 recorded:** `GET /api/v1/services?routeId=abc` → framework `400`, `application/problem+json`, `{type, title, status, instance, traceId}`, no `errorCode` — exactly as a malformed `page` today; T-042's question (R-5).
+- The empty `Time__LocalTimeZone` environment value reaches configuration on Windows (the Worker case with `""` exits 1 with the "not configured" message).
+
+**Evidence:** targeted: Api Timetable 120/120, startup+grants+deployed 30/30, Integration 24/24; `dotnet test YCR.sln` **1158 total, 1158 passed, 0 failed, 0 skipped**; build 0 warnings.
+
+**Found while preparing step 9 — a plan gap (see the next entry).**
+
+**State of the branch:** builds; tests green locally; committed and pushed.

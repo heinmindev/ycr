@@ -1,3 +1,5 @@
+using YCR.Infrastructure.Time;
+
 namespace YCR.Worker;
 
 /// <summary>
@@ -13,16 +15,29 @@ internal static class Program
 {
     public static async Task<int> Main(string[] args)
     {
+        var environment = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") ?? "Production";
+        var configuration = new ConfigurationBuilder()
+            .SetBasePath(AppContext.BaseDirectory)
+            .AddJsonFile("appsettings.json", optional: true)
+            .AddJsonFile($"appsettings.{environment}.json", optional: true)
+            .AddEnvironmentVariables()
+            .Build();
+
+        // ADR-0018 §Time; F-004 plan P11 (ENGINEERING DECISION, tech lead, hein, 2026-09-25; ruling
+        // Q3): before either start path, refuse to run without a Time:LocalTimeZone this host can
+        // resolve — the same resolver the API uses, and never a fixed-offset fallback.
+        try
+        {
+            LocalTimeOptions.ResolveZone(configuration[LocalTimeOptions.ConfigurationKey]);
+        }
+        catch (InvalidOperationException exception)
+        {
+            await Console.Error.WriteLineAsync(exception.Message);
+            return 1;
+        }
+
         if (BootstrapAdministratorCli.Matches(args))
         {
-            var environment = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") ?? "Production";
-            var configuration = new ConfigurationBuilder()
-                .SetBasePath(AppContext.BaseDirectory)
-                .AddJsonFile("appsettings.json", optional: true)
-                .AddJsonFile($"appsettings.{environment}.json", optional: true)
-                .AddEnvironmentVariables()
-                .Build();
-
             await using var services = new ServiceCollection()
                 .AddLogging(logging => logging
                     .AddConfiguration(configuration.GetSection("Logging"))
