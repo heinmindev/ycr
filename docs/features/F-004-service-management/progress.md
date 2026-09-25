@@ -159,3 +159,23 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** none.
 
 **State of the branch:** builds; tests green; committed and pushed.
+
+---
+
+## 2026-09-25 14:10 Asia/Yangon — claude — T-046
+
+**Stage:** 4 (IMPLEMENT) — plan step 3 of 9 done.
+**Commit:** step 3 is the commit that adds this entry.
+
+**Done:**
+- **Step 3 — the Network contract (ADR-0025, P14, P15).** `YCR.Application.Network.Contracts.INetworkReader` (three read methods) and `RouteReference`, `RouteStationReference`, `RouteSummaryReference`, `StationReference` (exactly the plan's records); `internal sealed class NetworkReader` in `YCR.Application.Network` (`AsNoTracking`, whole value objects projected and unwrapped after materialisation, `Contains` for id lists, the `GetRouteHandler` two-statement shape); `AddApplication` registers it scoped. `ArchitectureRules.ContractsMustNotDependOnModuleDomainOrContext` exactly as the plan's snippet. Fixtures: `Violations/ContractViolations.cs` (`ContractExposingNetworkDomain`, `…NetworkContext`, `…EntityFramework`) and `Violations/TimetableBoundaryViolations.cs` (`TimetableUsingNetworkDomain`, `…NetworkContext`, the permitted `…NetworkContracts`).
+- Tests: `ContractsRule_WithDomainContextOrEfFixtures_DetectsViolations`, `TimetableApplication_DependingOnNetworkDomainOrContext_IsDetected`, `TimetableApplication_DependingOnNetworkContracts_IsAllowed`; `NetworkReaderTests` (4); `DependencyInjectionTests.AddApplication_RegistersNetworkReaderAsScoped`. Existing architecture tests unchanged; `HandlerTypes_IncludesEveryHandlerDefined` still 26 (NetworkReader is not a `*Handler`).
+- **RED confirmed:** the architecture tests did not compile without the rule (CS0117 `ContractsMustNotDependOnModuleDomainOrContext`); the two Timetable boundary tests confirm the *existing* allowlist rule, so their RED was the missing fixtures (they cannot fail once the fixtures compile, which is what they prove). With the contract types present but no `NetworkReader`/registration: 5 failed (`No service for type 'YCR.Application.Network.Contracts.INetworkReader' has been registered`; the DI test on its `Assert.Single`).
+
+**Evidence:** targeted runs Architecture 20/20, Application (reader + DI) 12/12; `dotnet test YCR.sln` **894 total, 894 passed, 0 failed, 0 skipped**; build 0 warnings.
+
+**Next step (exact):** plan step 4 — permissions constants, `ITimetableDbContext`, `ServiceConfiguration`/`ServiceStopConfiguration`, `YcrDbContext`, DI, migration `Timetable_CreateServices` (+ hand-added `DropSchema`), V4; `TimetableModelTests`, the two UTC rows, `TimetableConstraints_*`, `ForeignKeys_*`, `ModuleInterfaces_TimetableContext_…`.
+
+**Blockers / open questions:** none.
+
+**State of the branch:** builds; tests green; committed and pushed.

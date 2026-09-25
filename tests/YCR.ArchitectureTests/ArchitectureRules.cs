@@ -135,5 +135,20 @@ public static class ArchitectureRules
         .NotDependOnAny(Types().That().ResideInNamespaceMatching("^Microsoft\\.AspNetCore\\.Identity(?:\\..*)?$"))
         .WithoutRequiringPositiveResults();
 
+    /// <summary>
+    /// ADR-0025 item 4 (REQUIRED CONTROL; F-004 plan P15): a module's contract is built from
+    /// primitives and its own records only. It exposes no module domain type, no module context and
+    /// nothing from EF Core, because an <c>IQueryable&lt;Station&gt;</c> leaks the domain as surely
+    /// as a <c>Station</c>.
+    /// </summary>
+    public static readonly IArchRule ContractsMustNotDependOnModuleDomainOrContext = Types().That()
+        .ResideInNamespaceMatching("^YCR\\.Application\\.[^.]+\\.Contracts(?:\\..*)?$")
+        .Should()
+        .NotDependOnAny(Types().That()
+            .HaveFullNameMatching("^YCR\\.Domain\\.(?!Common(?:\\.|$)).+")
+            .Or().HaveFullNameMatching("^YCR\\.Application\\.[^.]+\\.I[^.]*DbContext$")
+            .Or().ResideInNamespaceMatching("^Microsoft\\.EntityFrameworkCore(?:\\..*)?$"))
+        .WithoutRequiringPositiveResults();
+
     private static string RegexEscape(string value) => System.Text.RegularExpressions.Regex.Escape(value);
 }

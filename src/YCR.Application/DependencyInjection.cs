@@ -1,6 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using YCR.Application.Identity;
+using YCR.Application.Network;
+using YCR.Application.Network.Contracts;
 
 namespace YCR.Application;
 
@@ -25,6 +27,10 @@ public static class DependencyInjection
         {
             services.AddScoped(handler);
         }
+
+        // ADR-0025 item 2 (F-004 plan P14): the Network module's read contract for other modules.
+        // Scoped, because it runs on the caller's scoped context and so shares its transaction.
+        services.AddScoped<INetworkReader, NetworkReader>();
 
         // ADR-0023 item 4 (amended; S-1): each host registers the gate for its environment first.
         // This fallback blocks privileged roles, so a host that forgets fails closed.

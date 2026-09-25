@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using YCR.Application.Identity;
+using YCR.Application.Network.Contracts;
 using YCR.Application.Network.CreateStation;
 using YCR.Application.Network.DeactivateStation;
 using YCR.Application.Network.GetStation;
@@ -60,6 +61,23 @@ public sealed class DependencyInjectionTests
         }
 
         Assert.Equal(26, handlers.Count);
+    }
+
+    /// <summary>
+    /// F-004 plan P14, ADR-0025 item 2: the Network contract resolves to the Network module's
+    /// internal implementation, scoped because it runs on the scoped context.
+    /// </summary>
+    [Fact]
+    public void AddApplication_RegistersNetworkReaderAsScoped()
+    {
+        var services = new ServiceCollection().AddApplication();
+
+        var descriptor = Assert.Single(services, candidate => candidate.ServiceType == typeof(INetworkReader));
+
+        Assert.Equal(ServiceLifetime.Scoped, descriptor.Lifetime);
+        Assert.NotNull(descriptor.ImplementationType);
+        Assert.Equal("YCR.Application.Network.NetworkReader", descriptor.ImplementationType.FullName);
+        Assert.False(descriptor.ImplementationType.IsPublic);
     }
 
     /// <summary>S-1 (ADR-0023 item 4 as amended): a host that registers no gate fails closed.</summary>
