@@ -1,5 +1,6 @@
 using YCR.Domain.Common;
 using YCR.Domain.Network;
+using YCR.Domain.Timetable;
 
 namespace YCR.Domain.Tests.Common;
 
@@ -85,6 +86,28 @@ public sealed class BilingualNameTests
 
         Assert.True(result.IsFailure);
         Assert.Equal(NetworkErrors.InvalidStationName, result.Error);
+    }
+
+    [Theory]
+    [InlineData("", "Service Myanmar")]
+    [InlineData("Service", "")]
+    [InlineData("   ", "Service Myanmar")]
+    [InlineData("Service", "   ")]
+    [InlineData("101", "Service Myanmar")]
+    [InlineData("Service", "101")]
+    public void BilingualName_Create_WithServiceError_WhenInvalid_ReturnsInvalidServiceName(string en, string my)
+    {
+        // "101" stands for a name of 101 characters after trimming; InlineData cannot build one.
+        var overlong = "  " + new string('A', 101) + "  ";
+
+        var result = BilingualName.Create(
+            en == "101" ? overlong : en,
+            my == "101" ? overlong : my,
+            TimetableErrors.InvalidServiceName);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(TimetableErrors.InvalidServiceName, result.Error);
+        Assert.Equal("Timetable.InvalidServiceName", result.Error.Code);
     }
 
     private static void AssertValidationFailure(string? en, string? my)

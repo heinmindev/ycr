@@ -139,3 +139,23 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** none.
 
 **State of the branch:** builds; tests green; committed and pushed.
+
+---
+
+## 2026-09-25 13:50 Asia/Yangon — claude — T-046
+
+**Stage:** 4 (IMPLEMENT) — plan step 2 of 9 done.
+**Commit:** step 2 is the commit that adds this entry.
+
+**Done:**
+- **Step 2 — Timetable domain** (`src/YCR.Domain/Timetable/`): `TimetableErrors` (all 17 codes; the per-stop and per-route codes take the offending id, `ServiceCodePeriodOverlap` the code), `ServiceCode` (P3), `Direction` (P8), `OperatingDays` (P7; throws on empty/repeated; `Days` Monday first), `EffectivePeriod` (`ForNewService` R19→R39; `Overlaps` inclusive, null unbounded, an empty period overlaps nothing, R42), `ServiceRouteFacts`/`ServiceRouteStationFacts` (P4), `ServiceStop` (P1), `Service` (`Create` with the plan's stop algorithm steps 1–7 verbatim, `Withdraw` per P12, `NeverRuns`; no events, P21).
+- Tests (44 named, as the plan counts): `Common/BilingualNameTests.BilingualName_Create_WithServiceError_WhenInvalid_ReturnsInvalidServiceName`; `Timetable/ServiceCodeTests` (2), `OperatingDaysTests` (3), `EffectivePeriodTests` (8), `ServiceTests` (30), including the walking-simulation oracle over every stop list of length ≤ n+1 on open and closed routes of 3–6 stations in both directions (1,427,744 lists; the count is asserted).
+- **RED confirmed:** (1) the tests alone did not compile (CS0246/CS0234: `YCR.Domain.Timetable` types missing); (2) with the real types but `Service.CheckStops`, `Service.Withdraw`, `EffectivePeriod.ForNewService` and `Overlaps` short-circuited by temporary stubs, `dotnet test tests/YCR.Domain.Tests` → **43 failed** (every refused-pattern, precedence, oracle, withdrawal and overlap case). Stubs removed (the staged files are byte-identical to what is committed); then 214/214.
+
+**Evidence:** `dotnet test YCR.sln` **886 total, 886 passed, 0 failed, 0 skipped** (798 + 88 new cases).
+
+**Next step (exact):** plan step 3 — the Network contract (`INetworkReader` + records, `internal NetworkReader`, DI), `ContractsMustNotDependOnModuleDomainOrContext`, Contracts and Timetable fixtures, three architecture tests, `NetworkReaderTests` (4), `AddApplication_RegistersNetworkReaderAsScoped`.
+
+**Blockers / open questions:** none.
+
+**State of the branch:** builds; tests green; committed and pushed.
