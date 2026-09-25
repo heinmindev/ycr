@@ -221,3 +221,24 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** none.
 
 **State of the branch:** builds; tests green; committed and pushed.
+
+---
+
+## 2026-09-25 15:55 Asia/Yangon — claude — T-046
+
+**Stage:** 4 (IMPLEMENT) — plan step 6 of 9 done.
+**Commit:** step 6 is the commit that adds this entry.
+
+**Done:**
+- **Step 6 — grants.** Migration `20260925072603_Security_TimetableGrants` (EF shell, empty model diff; raw SQL exactly spec §7 / S47: `GRANT SELECT, INSERT` on `Services`; `GRANT UPDATE ([EffectiveTo], [WithdrawnAtUtc])` on `Services`; `GRANT SELECT, INSERT` on `ServiceStops`; `Down()` revokes in reverse order; no `DELETE`, no other `UPDATE`, no DDL, no `EXECUTE`). V4 clean.
+- Tests: `DatabasePrivilegeTests.ApplicationCredential_HasExactlyTheTimetableGrants` (presences; absences of `DELETE`/`ALTER`/`CONTROL`/table-level `UPDATE` on both tables, `UPDATE` on each of the 15 fixed `Services` columns and the 3 `ServiceStops` columns, and no schema- or object-level permission other than SELECT/INSERT/UPDATE in `timetable`), `…CanWithdrawAServiceButNotRewriteIt` (executed: the two-column update succeeds; nine rewrites/deletes denied; rows unchanged), `…CannotInsertAServiceOrStopNamingNoNetworkRow` (S48, error 547 as `ycr_app`); `ApplicationCredential_AttemptingDdl_IsDenied` + the three timetable rows (changed-tests item 12); `TimetableMigrationTests.Migrate_FromF003Schema_CreatesTimetableObjectsGrantsAndSeed` (from `20260924152836_Security_NetworkRouteGrants` with a station, a route and its sequence row; network rows survive; no service rows; exact tables, six checks, five indexes with uniqueness and key columns, three FKs with referenced schema and NO_ACTION/NO_ACTION, the exact grant set, the ten `services.%` rows by role, 34 total) and `Migrate_DownToF003_RemovesTimetableObjectsGrantsAndSeedRowsAndKeepsNetwork` (with a service and stop in place; schema and tables gone, network rows kept, grants and seed gone, 24 total, the F-003 route grant untouched; forward again restores the grants and 34).
+- Note on counting: the grant set is six `sys.database_permissions` rows (two column-level `UPDATE`s); the plan's "five grant rows" counts the column-level `UPDATE` once. The test asserts the exact six-row set.
+- **RED confirmed:** before the migration the five new tests failed (5/5); the 10 `…AttemptingDdl_IsDenied` rows passed before and after, as expected: they assert an absence the migration keeps absent, so the three new rows cannot show a RED. After the migration: 15/15.
+
+**Evidence:** `dotnet test YCR.sln` **919 total, 919 passed, 0 failed, 0 skipped**; build 0 warnings; `has-pending-model-changes` clean.
+
+**Next step (exact):** plan step 7 — `ILocalCalendar` + `LocalCalendar` + `LocalTimeOptions.ResolveZone`; `IServiceCodeLock` + `SqlServerServiceCodeLock`; audit subjects/actions/snapshot; the four handlers with DTOs; DI test 26 → 30; every Application test row; `ApplicationCredential_CanTakeTheServiceCodeApplock`; `LocalCalendarTests`.
+
+**Blockers / open questions:** none.
+
+**State of the branch:** builds; tests green; committed and pushed.
