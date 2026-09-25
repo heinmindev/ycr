@@ -60,7 +60,13 @@ public sealed class DependencyInjectionTests
             Assert.Contains(handlers, handler => handler.FullName == $"YCR.Application.Identity.{name}.{name}Handler");
         }
 
-        Assert.Equal(26, handlers.Count);
+        // F-004: services.
+        Assert.Contains(typeof(YCR.Application.Timetable.CreateService.CreateServiceHandler), handlers);
+        Assert.Contains(typeof(YCR.Application.Timetable.WithdrawService.WithdrawServiceHandler), handlers);
+        Assert.Contains(typeof(YCR.Application.Timetable.GetService.GetServiceHandler), handlers);
+        Assert.Contains(typeof(YCR.Application.Timetable.ListServices.ListServicesHandler), handlers);
+
+        Assert.Equal(30, handlers.Count);
     }
 
     /// <summary>

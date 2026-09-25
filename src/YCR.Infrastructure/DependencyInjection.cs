@@ -7,11 +7,14 @@ using YCR.Application.Identity;
 using YCR.Application.Identity.Abstractions;
 using YCR.Application.Network;
 using YCR.Application.Timetable;
+using YCR.Application.Timetable.Abstractions;
 using YCR.Domain.Identity;
 using YCR.Infrastructure.Audit;
 using YCR.Infrastructure.Identifiers;
 using YCR.Infrastructure.Identity;
 using YCR.Infrastructure.Persistence;
+using YCR.Infrastructure.Time;
+using YCR.Infrastructure.Timetable;
 
 namespace YCR.Infrastructure;
 
@@ -36,6 +39,15 @@ public static class DependencyInjection
         services.TryAddSingleton(TimeProvider.System);
         // Scoped, because it writes into the caller's unit of work.
         services.AddScoped<IAuditWriter, AuditWriter>();
+
+        // ADR-0018 §Time, F-004 plan P11 (ruling Q3): "today" in Time:LocalTimeZone. Each host binds
+        // and validates LocalTimeOptions at startup, so a missing zone never reaches a request.
+        services.AddOptions<LocalTimeOptions>();
+        services.AddSingleton<ILocalCalendar, LocalCalendar>();
+
+        // F-004 plan P9: the R35 service-code lock. Scoped, because it runs in the caller's
+        // transaction on the scoped context.
+        services.AddScoped<IServiceCodeLock, SqlServerServiceCodeLock>();
 
         services.AddIdentityServices();
 

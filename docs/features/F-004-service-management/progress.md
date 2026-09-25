@@ -242,3 +242,25 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** none.
 
 **State of the branch:** builds; tests green; committed and pushed.
+
+---
+
+## 2026-09-25 17:05 Asia/Yangon — claude — T-046
+
+**Stage:** 4 (IMPLEMENT) — plan step 7 of 9 done.
+**Commit:** step 7 is the commit that adds this entry.
+
+**Done:**
+- **Step 7 — Application.** `ILocalCalendar` (Application/Common/Abstractions); `Infrastructure/Time/LocalTimeOptions` (`Time`, `Time:LocalTimeZone`, the one `ResolveZone` with the two plan messages) and `internal LocalCalendar` (TimeProvider instant → configured zone → `DateOnly`); `IServiceCodeLock` + `internal SqlServerServiceCodeLock` (`sp_getapplock` on `timetable.ServiceCode:<CODE>`, Exclusive, Transaction-owned, 30 s, resource passed as a parameter through `ExecuteSqlAsync`, `THROW 50035` on a negative result, `InvalidOperationException` without a transaction); `TimetableAuditSubjects`, `TimetableAuditActions`, `ServiceAuditSnapshot` (+ `ServiceStopAuditSnapshot`, spec §8 shape); `ServiceReadMapping`; `CreateService`, `WithdrawService`, `GetService` (+ `ServiceDto`, `ServiceRouteDto`, `ServiceStopDto`, `ServiceProjection`), `ListServices` (+ `ServiceSummaryDto`) exactly as P5/P12/P17. DI: `ILocalCalendar` singleton, `IServiceCodeLock` scoped, `AddOptions<LocalTimeOptions>()` (each host binds and validates it, step 8).
+- Tests (51 named): `Timetable/CreateServiceHandlerTests` (23), `WithdrawServiceHandlerTests` (15, incl. forced S29 ×2, unforced S29, forced S37 theory, R36 backstop, V2 SQL), `ServiceQueryHandlerTests` (8), `ListServicesSqlTests` (1, V3); support `TimetableHandlerTestBase`, `TimetableTestData`, `GatedServiceCodeLock`, `AuditRecordHook`; `DatabasePrivilegeTests.ApplicationCredential_CanTakeTheServiceCodeApplock` (V5); `Time/LocalCalendarTests` (3, V6 on Windows). Changed-tests item 11: `DependencyInjectionTests.HandlerTypes_IncludesEveryHandlerDefined` names the four handlers, 26 → 30.
+- **V2 confirmed:** withdrawal is one `UPDATE [timetable].[Services] SET [EffectiveTo], [WithdrawnAtUtc] … WHERE [Id] = @p AND [EffectiveTo] IS NULL` the first time and `… AND [EffectiveTo] = @p` afterwards; nothing against `ServiceStops`. (EF writes only changed columns: in my first draft of the test the second withdrawal ran at the same clock instant, so `WithdrawnAtUtc` did not change and was correctly left out; the test now advances the clock between the two, as real withdrawals are.) **V3 confirmed:** three round trips — `COUNT`, the page (`ORDER BY [Code], [EffectiveFrom], [Id]`, `OFFSET/FETCH`, correlated `COUNT(*)` over `ServiceStops`), one Network summary read. **V5 confirmed** under `ycr_app`. **V6** resolves on this Windows machine; CI proof is step 9.
+- **RED confirmed:** (1) the tests did not compile before the production code (CS0246/CS0234 on the commands, DTOs, `IServiceCodeLock`, `YCR.Infrastructure.Time`); (2) mutation check with the real code in place: `SqlServerServiceCodeLock.AcquireAsync` returning before `sp_getapplock`, and `LocalCalendar.Today()` returning the UTC date → **8 failed**: both forced S29 tests, both S37 rows, S27 (five parallel creates), `CreateService_AtYangonMidnight_…(17:30:00Z)`, `Today_AroundYangonMidnight_…(17:30:00Z)`, `ApplicationCredential_CanTakeTheServiceCodeApplock`. The unforced S29 test still passed under the mutation, as an unforced test may (it asserts outcomes, not an interleaving; the forced tests carry the proof). Mutations reverted (files restored from the staged originals; no `MUTATION` marker left).
+- Two test-side fixes while going green, neither touching an assertion's intent: `ServiceQueryHandlerTests`' row snapshot used an aggregate inside `STRING_AGG` (SQL error) → `CROSS APPLY`; the V2 clock advance above.
+
+**Evidence:** targeted: Application Timetable 88/88, LocalCalendarTests 9/9, applock 1/1; `dotnet test YCR.sln` **1017 total, 1017 passed, 0 failed, 0 skipped**; build 0 warnings.
+
+**Next step (exact):** plan step 8 — `ServiceContracts` (+ validators, 200 cap), `ServiceEndpoints` (+ 32 KiB / 1 KiB), `Program.cs` (mapping; `LocalTimeOptions` bound and validated on start), Api `appsettings.json`; Worker `Program.cs` zone check before both start paths + `appsettings.json`; every Api test row, `DeployedShapeTests` (+4 rows, item 14), `ServiceRequestLimitTests`, `ServicePermissionGrantTests`, `LocalTimeZoneStartupTests`, `WorkerStartupTests`; V7.
+
+**Blockers / open questions:** none.
+
+**State of the branch:** builds; tests green; committed and pushed.

@@ -2,6 +2,8 @@ using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using YCR.Application.Identity.Abstractions;
+using YCR.Application.Timetable.Abstractions;
+using YCR.Domain.Timetable;
 using YCR.Infrastructure.Persistence;
 using YCR.TestSupport;
 
@@ -475,6 +477,53 @@ public sealed class DatabasePrivilegeTests(SqlServerFixture fixture) : IAsyncLif
         await firstTransaction.CommitAsync(cancellationToken);
         await waiting.WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
         await secondTransaction.CommitAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// F-004 V5 / plan P9: <c>ycr_app</c> can take the R35 service-code lock with no grant; the lock
+    /// refuses to run without a transaction; a second transaction on the same code waits; a
+    /// transaction on another code does not.
+    /// </summary>
+    [Fact]
+    public async Task ApplicationCredential_CanTakeTheServiceCodeApplock()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var provider = new ServiceCollection()
+            .AddLogging()
+            .AddInfrastructure(database.ApplicationConnectionString)
+            .BuildServiceProvider();
+        await using var firstScope = provider.CreateAsyncScope();
+        await using var sameCodeScope = provider.CreateAsyncScope();
+        await using var otherCodeScope = provider.CreateAsyncScope();
+        var firstContext = firstScope.ServiceProvider.GetRequiredService<YcrDbContext>();
+        var sameCodeContext = sameCodeScope.ServiceProvider.GetRequiredService<YcrDbContext>();
+        var otherCodeContext = otherCodeScope.ServiceProvider.GetRequiredService<YcrDbContext>();
+        var firstLock = firstScope.ServiceProvider.GetRequiredService<IServiceCodeLock>();
+        var sameCodeLock = sameCodeScope.ServiceProvider.GetRequiredService<IServiceCodeLock>();
+        var otherCodeLock = otherCodeScope.ServiceProvider.GetRequiredService<IServiceCodeLock>();
+        var code = ServiceCode.Create("S101").Value;
+
+        // Without a transaction the lock refuses to run unowned.
+        await Assert.ThrowsAsync<InvalidOperationException>(() => firstLock.AcquireAsync(code, cancellationToken));
+
+        await using var firstTransaction = await firstContext.Database.BeginTransactionAsync(cancellationToken);
+        await firstLock.AcquireAsync(code, cancellationToken);
+
+        // Another code is another resource: no waiting.
+        await using var otherCodeTransaction = await otherCodeContext.Database.BeginTransactionAsync(cancellationToken);
+        await otherCodeLock.AcquireAsync(ServiceCode.Create("S202").Value, cancellationToken)
+            .WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
+        await otherCodeTransaction.CommitAsync(cancellationToken);
+
+        // The same code waits until the first transaction ends.
+        await using var sameCodeTransaction = await sameCodeContext.Database.BeginTransactionAsync(cancellationToken);
+        var waiting = sameCodeLock.AcquireAsync(code, cancellationToken);
+        await Task.Delay(TimeSpan.FromMilliseconds(750), cancellationToken);
+        Assert.False(waiting.IsCompleted, "The second transaction acquired the code lock while the first still held it.");
+
+        await firstTransaction.CommitAsync(cancellationToken);
+        await waiting.WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
+        await sameCodeTransaction.CommitAsync(cancellationToken);
     }
 
     [Fact]
