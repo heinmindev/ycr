@@ -10,6 +10,7 @@ Binding for humans and agents. It implements ADR-0012 to ADR-0018 and preserves 
 | Module errors | `src/YCR.Domain/<Module>/<Module>Errors.cs` | ″ |
 | Use case (command or query) | `src/YCR.Application/<Module>/<UseCase>/` | `YCR.Application.<Module>.<UseCase>` |
 | Public module API for other modules | `src/YCR.Application/<Module>/Contracts/` | `YCR.Application.<Module>.Contracts` |
+| Cross-module reads (ADR-0025) | Contract: an interface plus `sealed record` results in `src/YCR.Application/<Module>/Contracts/`, built only from primitives, `Guid`, `DateOnly`, `DateTimeOffset`, strings and other Contracts records — never a domain type, a context interface or an EF Core type. Implementation: an `internal sealed class` in `src/YCR.Application/<Module>/` (outside `Contracts`), reading through `I<Module>DbContext` with `AsNoTracking`, registered against the interface in `AddApplication`. Read-only. The architecture rule `ContractsMustNotDependOnModuleDomainOrContext` fails the build otherwise. Example: `INetworkReader` / `NetworkReader` | `YCR.Application.<Module>.Contracts` (contract); `YCR.Application.<Module>` (implementation) |
 | Module persistence interface (ADR-0012 item 2) | `src/YCR.Application/<Module>/I<Module>DbContext.cs` | `YCR.Application.<Module>` |
 | Audit subject constants and snapshot records (ADR-0021) | `src/YCR.Application/<Module>/` | ″ |
 | EF configuration | `src/YCR.Infrastructure/Persistence/Configurations/<Module>/` | |
@@ -207,6 +208,7 @@ public sealed class StationConfiguration : IEntityTypeConfiguration<Station>
 - Money: `decimal(18,2)` + `char(3)` currency (ADR-0018). Dates: `date`. Instants: `datetimeoffset(3)` with UTC values for `*Utc` fields.
 - Text: `nvarchar` for anything a person may type or read, including Myanmar Unicode. Never store Zawgyi.
 - Concurrency: aggregates that can be changed at the same time (Ticket, CashierSession, Refund) have a `rowversion` concurrency token.
+- **When a handler may open its own transaction (ADR-0026, Proposed; ENGINEERING DECISION, tech lead, hein, 2026-09-25, F-004 plan ruling Q2).** The default stays one `SaveChangesAsync` per handler (ADR-0004), and a rule that one unique index can enforce uses the index. A handler may open its own transaction **only** to guard a **set invariant across rows that one unique index cannot enforce** (an overlap, a count, a minimum), and then exactly like this: begin a transaction on the module context → take an exclusive, **transaction-owned** `sp_getapplock` through a module Application abstraction (`I<Module><Concept>Lock`), scoped to the **smallest key that covers the invariant** and named `<schema>.<Concept>` or `<schema>.<Concept>:<key>` (the key from a validated value object, passed as a parameter) → read everything that decides → let the domain decide → add or change and audit → **one `SaveChangesAsync`** → commit. Reads that do not decide (for example another module's contract) happen before the transaction. The lock timeout is **30 s**; a timeout or deadlock is an unexpected failure (the opaque `500`, ADR-0004), never a business error. Uses: `identity.SystemAdministrators` (F-002 R27) and `timetable.ServiceCode:<code>` (F-004 R35).
 - Financial history is never updated in place. Corrections are new rows (reversal, adjustment).
 
 ## 7. Logging and audit
@@ -220,4 +222,5 @@ public sealed class StationConfiguration : IEntityTypeConfiguration<Station>
 - Invent fares, station codes, validity windows, refund rules or role rights. Add an OPEN QUESTION to `docs/19` and stop.
 - Add NuGet packages without stating why in the plan.
 - Use `DateTime.Now`, `DateTime.UtcNow`, `Guid.NewGuid()` or `new Random()` in domain or application code. Use `TimeProvider`, `IIdGenerator` and injected services.
+- Compute a local calendar date any other way than `ILocalCalendar.Today()`, or hard-code a zone or an offset such as `+06:30`. "Today" is `TimeProvider.GetUtcNow()` converted to the zone in `Time:LocalTimeZone` (the IANA id `Asia/Yangon`, in both hosts' `appsettings.json`, validated at startup; ADR-0018 §Time, F-004 plan P11). Handlers pass the date into the domain.
 - Catch-and-ignore exceptions, or add `[Skip]` or `#pragma` to silence failing tests or analyzers.

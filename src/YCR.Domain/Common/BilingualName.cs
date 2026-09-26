@@ -1,9 +1,7 @@
-using YCR.Domain.Common;
-
-namespace YCR.Domain.Network;
+namespace YCR.Domain.Common;
 
 /// <summary>
-/// A station or route name in English and Myanmar Unicode.
+/// A name in English and Myanmar Unicode: a station's, a route's or a service's.
 /// </summary>
 /// <remarks>
 /// DECISION (tech lead, hein, 2026-09-22; T-014) - final; not a Myanma Railways answer:
@@ -12,9 +10,15 @@ namespace YCR.Domain.Network;
 /// needs its own follow-up task.
 /// <para>
 /// Route names follow the same rule: BUSINESS DECISION — provisional tech-lead ruling (hein,
-/// 2026-09-24; T-032, OQ41) — not a Myanma Railways answer. Only the error differs
-/// (<c>Network.InvalidRouteName</c>), so a route passes it through
-/// <see cref="Create(string?, string?, Error)"/> (F-003 plan P3).
+/// 2026-09-24; T-032, OQ41) — not a Myanma Railways answer. So do service names: BUSINESS
+/// DECISION — provisional tech-lead ruling (hein, 2026-09-25; T-044, OQ43) — not a Myanma
+/// Railways answer.
+/// </para>
+/// <para>
+/// ENGINEERING DECISION (F-004 plan P2, ruling Q1, tech lead, hein, 2026-09-25): the type lives in
+/// the shared kernel, and every caller passes its own module's error
+/// (<c>Network.InvalidStationName</c>, <c>Network.InvalidRouteName</c>,
+/// <c>Timetable.InvalidServiceName</c>), so the kernel names no module.
 /// </para>
 /// </remarks>
 public sealed record BilingualName
@@ -28,10 +32,6 @@ public sealed record BilingualName
     public string En { get; }
 
     public string My { get; }
-
-    /// <summary>A station name; an invalid one is <see cref="NetworkErrors.InvalidStationName"/>.</summary>
-    public static Result<BilingualName> Create(string? en, string? my) =>
-        Create(en, my, NetworkErrors.InvalidStationName);
 
     /// <summary>A name whose owner supplies the error to return when it is invalid.</summary>
     public static Result<BilingualName> Create(string? en, string? my, Error whenInvalid)

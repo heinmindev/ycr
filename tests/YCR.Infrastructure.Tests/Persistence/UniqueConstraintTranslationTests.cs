@@ -1,6 +1,7 @@
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using YCR.Application.Common;
+using YCR.Domain.Common;
 using YCR.Domain.Network;
 using YCR.Infrastructure.Persistence;
 using YCR.TestSupport;
@@ -134,7 +135,7 @@ public sealed class UniqueConstraintTranslationTests(SqlServerFixture fixture) :
         Station.Create(
             Guid.CreateVersion7(),
             StationCode.Create(code).Value,
-            BilingualName.Create(nameEn, "ပဲခူး").Value,
+            BilingualName.Create(nameEn, "ပဲခူး", NetworkErrors.InvalidStationName).Value,
             DateTimeOffset.UtcNow);
 
     private YcrDbContext NewContext() =>

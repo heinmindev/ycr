@@ -26,6 +26,8 @@
 | [0022](ADR-0022-migrator-db-owner-role.md) | Migrator `db_owner` role | Accepted |
 | [0023](ADR-0023-staff-account-security-and-access-tokens.md) | Staff account security and access tokens | Accepted |
 | [0024](ADR-0024-client-held-version-for-edits.md) | Client-held version for edits composed from an earlier read | Proposed |
+| [0025](ADR-0025-cross-module-references.md) | Cross-module references: contract shape and foreign keys | Accepted |
+| [0026](ADR-0026-application-locks-for-set-invariants.md) | Application locks for set invariants | Proposed |
 
 Rules for agents:
 - **Accepted** ADRs are binding. Do not work against one; propose a new ADR that supersedes it.

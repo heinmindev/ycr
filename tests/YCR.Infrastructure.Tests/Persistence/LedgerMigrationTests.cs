@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using YCR.Application.Common.Abstractions;
 using YCR.Application.Common.Authorization;
 using YCR.Application.Network;
+using YCR.Domain.Common;
 using YCR.Domain.Network;
 using YCR.Infrastructure;
 using YCR.Infrastructure.Persistence;
@@ -116,7 +117,7 @@ public sealed class LedgerMigrationTests(SqlServerFixture fixture) : IAsyncLifet
         var station = Station.Create(
             stationId,
             StationCode.Create("YGN").Value,
-            BilingualName.Create("Yangon Central", "ရန်ကုန်ဘူတာကြီး").Value,
+            BilingualName.Create("Yangon Central", "ရန်ကုန်ဘူတာကြီး", NetworkErrors.InvalidStationName).Value,
             DateTimeOffset.UtcNow);
 
         await using var provider = BuildProvider(currentUser);
@@ -219,7 +220,7 @@ public sealed class LedgerMigrationTests(SqlServerFixture fixture) : IAsyncLifet
         var station = Station.Create(
             Guid.CreateVersion7(),
             StationCode.Create("DNN").Value,
-            BilingualName.Create("Danyingon", "ဒညင်းကုန်း").Value,
+            BilingualName.Create("Danyingon", "ဒညင်းကုန်း", NetworkErrors.InvalidStationName).Value,
             DateTimeOffset.UtcNow);
 
         await using var provider = BuildProvider(new StubCurrentUser { CorrelationId = "corr-snapshot" });

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using YCR.Application.Network;
+using YCR.Domain.Common;
 using YCR.Domain.Network;
 using YCR.Infrastructure.Persistence;
 using YCR.TestSupport;
@@ -57,7 +58,7 @@ public sealed class ModuleInterfacesTests(SqlServerFixture fixture) : IAsyncLife
         moduleContext.Stations.Add(Station.Create(
             id,
             StationCode.Create("SHW").Value,
-            BilingualName.Create("Shwedagon", "ရွှေတိဂုံ").Value,
+            BilingualName.Create("Shwedagon", "ရွှေတိဂုံ", NetworkErrors.InvalidStationName).Value,
             DateTimeOffset.UtcNow));
 
         await concreteContext.SaveChangesAsync(cancellationToken);
@@ -84,5 +85,31 @@ public sealed class ModuleInterfacesTests(SqlServerFixture fixture) : IAsyncLife
 
         // Reachable under ycr_app: the seeded catalogue is readable through the interface.
         Assert.Equal(8, await identityContext.Roles.CountAsync(cancellationToken));
+    }
+
+    /// <summary>
+    /// F-004 (ADR-0012 item 3): the Timetable module's interface is the same shared instance, so a
+    /// transaction opened on its <c>Database</c> is the transaction the Network contract's reads run
+    /// in (ADR-0025 item 2).
+    /// </summary>
+    [Fact]
+    public async Task ModuleInterfaces_TimetableContext_ResolvesToSameInstance()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var provider = new ServiceCollection()
+            .AddInfrastructure(database.ApplicationConnectionString)
+            .BuildServiceProvider();
+
+        await using var scope = provider.CreateAsyncScope();
+        var concreteContext = scope.ServiceProvider.GetRequiredService<YcrDbContext>();
+        var timetableContext = scope.ServiceProvider.GetRequiredService<YCR.Application.Timetable.ITimetableDbContext>();
+        var networkContext = scope.ServiceProvider.GetRequiredService<INetworkDbContext>();
+
+        Assert.Same(concreteContext, timetableContext);
+        Assert.Same(networkContext, timetableContext);
+
+        await using var transaction = await timetableContext.Database.BeginTransactionAsync(cancellationToken);
+        Assert.Same(transaction, concreteContext.Database.CurrentTransaction);
+        await transaction.RollbackAsync(cancellationToken);
     }
 }

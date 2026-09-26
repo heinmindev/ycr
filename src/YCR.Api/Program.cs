@@ -7,11 +7,13 @@ using YCR.Api.Common.Authorization;
 using YCR.Api.Endpoints.Health;
 using YCR.Api.Endpoints.Identity;
 using YCR.Api.Endpoints.Network;
+using YCR.Api.Endpoints.Timetable;
 using YCR.Application;
 using YCR.Application.Common.Abstractions;
 using YCR.Application.Identity;
 using YCR.Infrastructure;
 using YCR.Infrastructure.Persistence;
+using YCR.Infrastructure.Time;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,6 +27,16 @@ var connectionString = builder.Configuration.GetConnectionString("Application")
         + "REQUIRED CONTROL and .env.example).");
 
 builder.Services.AddInfrastructure(connectionString);
+
+// ADR-0018 §Time; F-004 plan P11 (ENGINEERING DECISION, tech lead, hein, 2026-09-25; ruling Q3):
+// "today" is the date in Time:LocalTimeZone (the IANA id Asia/Yangon, shipped in appsettings.json).
+// Resolved at startup through the one resolver, so a missing zone, or one this host cannot resolve,
+// stops the host with a message naming the setting before it serves a request. Never a fixed
+// offset.
+builder.Services.AddOptions<LocalTimeOptions>()
+    .BindConfiguration(LocalTimeOptions.SectionName)
+    .Validate(options => LocalTimeOptions.ResolveZone(options.LocalTimeZone) is not null)
+    .ValidateOnStart();
 
 // F-002 (ADR-0016, ADR-0023): the framework JwtBearerHandler is the one scheme; the principal is
 // rebuilt from the database on every (uncached) request.
@@ -82,6 +94,7 @@ api.MapAuthEndpoints();
 api.MapUserEndpoints();
 api.MapStationEndpoints();
 api.MapRouteEndpoints();
+api.MapServiceEndpoints();
 app.MapHealthEndpoints();
 
 await app.RunAsync();

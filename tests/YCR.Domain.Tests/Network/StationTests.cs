@@ -12,7 +12,7 @@ public sealed class StationTests
     {
         var id = Guid.Parse("11111111-1111-1111-1111-111111111111");
         var code = StationCode.Create("YGN").Value;
-        var name = BilingualName.Create("Yangon", "Yangon Myanmar").Value;
+        var name = BilingualName.Create("Yangon", "Yangon Myanmar", NetworkErrors.InvalidStationName).Value;
 
         var station = Station.Create(id, code, name, CreatedAtUtc);
 
@@ -29,7 +29,7 @@ public sealed class StationTests
     {
         var id = Guid.Parse("11111111-1111-1111-1111-111111111111");
         var code = StationCode.Create("YGN").Value;
-        var name = BilingualName.Create("Yangon", "Yangon Myanmar").Value;
+        var name = BilingualName.Create("Yangon", "Yangon Myanmar", NetworkErrors.InvalidStationName).Value;
         var nonUtc = new DateTimeOffset(2026, 9, 20, 6, 30, 0, TimeSpan.FromHours(6.5));
 
         Assert.Throws<ArgumentException>(() => Station.Create(id, code, name, nonUtc));
@@ -66,7 +66,7 @@ public sealed class StationTests
         return Station.Create(
             Guid.Parse("11111111-1111-1111-1111-111111111111"),
             StationCode.Create("YGN").Value,
-            BilingualName.Create("Yangon", "Yangon Myanmar").Value,
+            BilingualName.Create("Yangon", "Yangon Myanmar", NetworkErrors.InvalidStationName).Value,
             CreatedAtUtc);
     }
 }

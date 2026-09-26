@@ -5,8 +5,8 @@
 - Stations
 - Routes
 - RouteStations
-- Trains
-- TrainServices
+- ~~Trains~~ — not used in Phase 1 (OQ42 provisional ruling, hein, 2026-09-25: there is no `Train` concept; use case 3 is met by services)
+- Services (`timetable.Services`; formerly listed as `TrainServices`, renamed by F-004 E2 to the aggregate's plural, `docs/20` §2)
 - ServiceStops
 - ScheduleVersions
 - FareRuleSets
@@ -33,6 +33,21 @@
 ## Module schemas and approved cross-cutting tables
 
 **ENGINEERING DECISION (tech lead, cite ADR-0012):** operational tables use one schema per module (`network`, `timetable`, `fare`, `ticketing`, `payments`, `operations`, `identity`, `audit`). Reporting reads through read-only views/projections.
+
+**ENGINEERING DECISION (tech lead, cite ADR-0025):** a table in one module's schema may carry a
+foreign key to another module's table only under these conditions: it references that table's
+**primary key** (never an alternate key or unique index, ADR-0025 item 6); the referenced rows are
+**never deleted** (`ycr_app` holds no `DELETE` on the referenced table); the key is **`NO ACTION`**;
+it is configured in `YCR.Infrastructure` with **no navigation property** on either side; and it is
+created by the **referencing** module's migration. Why: the database is then the authority that a
+stored cross-module identifier names a real row, whoever wrote it (AGENTS.md rule 5), at no cost
+on delete, because the target is never deleted. The referencing handler still checks existence and
+state through the owning module's read-only contract first, to return a stable error code; the key
+is the backstop (ADR-0025 item 7). The cost is coupling: dropping or re-keying a referenced table,
+or extracting a module into its own database, needs these keys removed first. The existing
+cross-schema keys are `timetable.Services.RouteId` → `network.Routes(Id)` and
+`timetable.ServiceStops.StationId` → `network.Stations(Id)` (§F-004 below). The dependency is
+one-way: `network` has no key into `timetable`, and Network never calls Timetable (OQ46 ruling).
 
 **ENGINEERING DECISION (tech lead, cite ADR-0017):** `audit.AuditEvents` is append-only ledger-backed; it is not the former generic `AuditLogs` table.
 
@@ -298,3 +313,117 @@ No DDL is granted. `RouteStations` is insert-only, so the database, not only the
 guarantees that a stored sequence never changes. `DatabasePrivilegeTests` asserts both the grants
 and the absences. `Down()` revokes exactly these grants; widening them needs a new migration, a
 spec change and a review.
+
+## F-004 timetable tables, constraints, indexes and grants
+
+Created by three migrations applied in this order under `ycr_migrator` (F-004 spec §7, plan
+§DB changes): `20260925065623_Timetable_CreateServices` (the `timetable` schema and both tables, EF
+model-built), `20260925071216_Identity_SeedServicePermissionGrants` (the ten
+`services.manage`/`services.read` role grants in `docs/10` §Service permission grants) and
+`20260925072603_Security_TimetableGrants` (what `ycr_app` may do). All three are additive on F-003's
+schema: no `network` table, column, index, key or grant changes (ADR-0025 item 6). Every foreign
+key is `NO ACTION`. Both `*Utc` columns are `datetimeoffset(3)` with a `CK_<Table>_<Column>_Utc`
+check, and every check constraint is declared in the EF model as well as the migration, so
+`has-pending-model-changes` sees drift. No service data is seeded (OQ1; spec R27).
+
+**BUSINESS DECISION — provisional tech-lead rulings (hein, 2026-09-25; T-044, OQ42–OQ50) — not a
+Myanma Railways answer:** a service is immutable except for withdrawal, is never deleted, and two
+services with one code may not have overlapping effective periods. The constraints, the code lock
+and the grants below are the database statement of those rulings.
+
+### `timetable.Services`
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| `Id` | `uniqueidentifier` | no | PK, clustered, application-assigned through `IIdGenerator` (ADR-0006) |
+| `Code` | `nvarchar(10)` | no | 2–10 characters of `A`–`Z` and `0`–`9` (OQ43). **Not unique**: a code may be reused by a service whose period does not overlap (R35) |
+| `NameEn` | `nvarchar(100)` | no | Owned value object `BilingualName`; required, 1–100 characters after trimming, not unique |
+| `NameMy` | `nvarchar(100)` | no | Myanmar Unicode, never Zawgyi (`docs/20` §6); same rules as `NameEn` |
+| `RouteId` | `uniqueidentifier` | no | `FK_Services_Routes_RouteId` → `network.Routes(Id)` |
+| `Direction` | `nvarchar(10)` | no | `Forward` or `Reverse`, relative to the route's station order (OQ44); stored as text |
+| `RunsOnMonday` … `RunsOnSunday` | `bit` × 7 | no | Operating days; owned value object `OperatingDays` (OQ47) |
+| `EffectiveFrom` | `date` | no | First date of the period |
+| `EffectiveTo` | `date` | yes | Last date, inclusive; null = open-ended. EF concurrency token (R36) |
+| `CreatedAtUtc` | `datetimeoffset(3)` | no | UTC value (ADR-0018) |
+| `WithdrawnAtUtc` | `datetimeoffset(3)` | yes | Null until the first withdrawal; then the **latest** withdrawal's instant, written by the same `UPDATE` as `EffectiveTo` |
+
+There is no `rowversion` and no status column: whether a service runs on a date follows from its
+period and operating days.
+
+| Object | Definition | Why it is there |
+|---|---|---|
+| `PK_Services` | clustered on `Id` | ADR-0006 |
+| `IX_Services_Code_EffectiveFrom` | nonclustered on `(Code, EffectiveFrom)`, **not unique** | The overlap read under the code lock (R35) and the list order (`Code, EffectiveFrom`, then `Id`, which a non-unique nonclustered index carries in its key). It cannot be unique: the rule is "no overlapping periods", not "no equal codes" |
+| `IX_Services_RouteId` | nonclustered on `RouteId` | Covers `FK_Services_Routes_RouteId` and the `?routeId=` list filter |
+| `FK_Services_Routes_RouteId` | → `network.Routes(Id)`, `NO ACTION` | Cross-schema key (§Module schemas, ADR-0025): a service never names a missing route, whoever writes it |
+| `CK_Services_Direction` | `[Direction] IN (N'Forward', N'Reverse')` | From any writer |
+| `CK_Services_OperatingDays` | at least one `RunsOn…` column is `1` | From any writer |
+| `CK_Services_EffectivePeriod` | `[EffectiveTo] IS NULL OR [EffectiveTo] >= [EffectiveFrom] OR [WithdrawnAtUtc] IS NOT NULL` | A period can be empty (end before start: the service never runs) only after a withdrawal |
+| `CK_Services_CreatedAtUtc_Utc` | `DATEPART(TZOFFSET, [CreatedAtUtc]) = 0` | ADR-0018 |
+| `CK_Services_WithdrawnAtUtc_Utc` | `[WithdrawnAtUtc] IS NULL OR DATEPART(TZOFFSET, [WithdrawnAtUtc]) = 0` | ADR-0018 |
+
+### `timetable.ServiceStops`
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| `ServiceId` | `uniqueidentifier` | no | `FK_ServiceStops_Services_ServiceId` → `timetable.Services(Id)` |
+| `Position` | `int` | no | 1-based and contiguous (`1..k`) in stop order within the service. Not the route position and not the ADR-0014 station index |
+| `StationId` | `uniqueidentifier` | no | `FK_ServiceStops_Stations_StationId` → `network.Stations(Id)` |
+
+| Object | Definition | Why it is there |
+|---|---|---|
+| `PK_ServiceStops` | clustered on `(ServiceId, Position)` | One station per position; also covers the `ServiceId` foreign key. Contiguity, order, the full-circuit closure and the minimum of two stops are enforced by the `Service` aggregate, because a check constraint cannot see other rows |
+| `CK_ServiceStops_Position` | `[Position] >= 1` | From any writer |
+| `IX_ServiceStops_StationId` | nonclustered on `StationId`, **not unique** | Covers the station foreign key. Not unique: a full circuit repeats its first station as its last stop |
+| `FK_ServiceStops_Services_ServiceId` | → `timetable.Services(Id)`, `NO ACTION` | EF's default for this required relationship is `Cascade`, so `NO ACTION` is set explicitly |
+| `FK_ServiceStops_Stations_StationId` | → `network.Stations(Id)`, `NO ACTION` | Cross-schema key (§Module schemas, ADR-0025): a stop never names a missing station |
+
+There is no key to `network.RouteStations`: that a stop is on the service's route is the
+aggregate's rule, and a key to another module's alternate key is not allowed (ADR-0025 item 6).
+
+**Both convention indexes are declared.** EF Core adds an index by convention for every foreign
+key that no other index leads with: here `IX_Services_RouteId` and `IX_ServiceStops_StationId`
+(the `ServiceId` key is covered by `PK_ServiceStops`). Both are declared explicitly in the
+configuration with `HasDatabaseName`, and `TimetableModelTests` pins the exact index set of each
+table, so no index appears by accident (the F-003 `IX_RouteStations_StationId` lesson).
+`IX_ServiceStops_StationId` serves no F-004 query; a later "services calling at station X" read
+will use it.
+
+| Query or write | Access path |
+|---|---|
+| Create, under the code lock: the periods of one code | `IX_Services_Code_EffectiveFrom` seek |
+| `INSERT` foreign-key validation | `PK_Routes`, `PK_Stations`, `PK_Services` |
+| Withdraw: the code by id; reload with stops | `PK_Services`; `PK_ServiceStops` range on `ServiceId` |
+| Get one service and its stops | `PK_Services`; `PK_ServiceStops` range |
+| List: `ORDER BY Code, EffectiveFrom, Id`, `COUNT`, `OFFSET/FETCH`, `stopCount` subquery | `IX_Services_Code_EffectiveFrom` ordered scan; `PK_ServiceStops` prefix |
+| List `?routeId=` | `IX_Services_RouteId` |
+| Reverse key checks on `DELETE FROM network.Routes` / `network.Stations` | never run: `ycr_app` has no `DELETE` there |
+
+Rows are never deleted and a service's stops never change, so the rows are the history:
+`EffectiveFrom`, `EffectiveTo` and `WithdrawnAtUtc` answer when a service applied without reading
+the audit ledger. `Down()` of `Timetable_CreateServices` drops `ServiceStops`, `Services` and the
+`timetable` schema; after real services exist, recovery is a restore, not `Down()`.
+
+### The service-code lock (R35)
+
+"No overlapping periods for one code" cannot be a unique index. `CreateServiceHandler` and
+`WithdrawServiceHandler` therefore open a transaction, take an exclusive, transaction-owned
+`sp_getapplock` on the resource `timetable.ServiceCode:<CODE>` (passed as a parameter; 30 s
+timeout), and only then read the code's periods and write. Two requests on one code run one after
+the other; requests on different codes never wait. A timeout is an opaque `500`. `sp_getapplock`
+is executable by `public`, so, like F-002's last-administrator lock, it needs no grant. The general
+rule is in `docs/20` §6 and ADR-0026 (Proposed). `EffectiveTo` is the concurrency token behind the
+lock, for a writer that bypasses it (R36).
+
+### Grants to `ycr_app` (`Security_TimetableGrants`)
+
+| Table | Granted | Deliberately absent |
+|---|---|---|
+| `Services` | `SELECT`, `INSERT`; `UPDATE` of `EffectiveTo`, `WithdrawnAtUtc` only | `DELETE`; `UPDATE` of `Id`, `Code`, `NameEn`, `NameMy`, `RouteId`, `Direction`, every `RunsOn…` column, `EffectiveFrom`, `CreatedAtUtc` |
+| `ServiceStops` | `SELECT`, `INSERT` | `UPDATE`; `DELETE` |
+
+No DDL and no `EXECUTE` is granted (the code lock needs none). These grants are the database
+statement that a service is immutable except for withdrawal and is never deleted (spec R20, R33),
+so even arbitrary SQL under the application credential cannot rewrite or delete a service or its
+stops. `DatabasePrivilegeTests` asserts both the grants and the absences. `Down()` revokes exactly
+these grants; widening them needs a new migration, a spec change and a review.

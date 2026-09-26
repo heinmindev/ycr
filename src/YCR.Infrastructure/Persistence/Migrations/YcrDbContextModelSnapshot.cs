@@ -332,6 +332,83 @@ namespace YCR.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("YCR.Domain.Timetable.Service", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<string>("Direction")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<DateOnly>("EffectiveFrom")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("EffectiveTo")
+                        .IsConcurrencyToken()
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("RouteId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("WithdrawnAtUtc")
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.HasKey("Id")
+                        .HasName("PK_Services");
+
+                    b.HasIndex("RouteId")
+                        .HasDatabaseName("IX_Services_RouteId");
+
+                    b.HasIndex("Code", "EffectiveFrom")
+                        .HasDatabaseName("IX_Services_Code_EffectiveFrom");
+
+                    b.ToTable("Services", "timetable", t =>
+                        {
+                            t.HasCheckConstraint("CK_Services_CreatedAtUtc_Utc", "DATEPART(TZOFFSET, [CreatedAtUtc]) = 0");
+
+                            t.HasCheckConstraint("CK_Services_Direction", "[Direction] IN (N'Forward', N'Reverse')");
+
+                            t.HasCheckConstraint("CK_Services_EffectivePeriod", "[EffectiveTo] IS NULL OR [EffectiveTo] >= [EffectiveFrom] OR [WithdrawnAtUtc] IS NOT NULL");
+
+                            t.HasCheckConstraint("CK_Services_OperatingDays", "[RunsOnMonday] = 1 OR [RunsOnTuesday] = 1 OR [RunsOnWednesday] = 1 OR [RunsOnThursday] = 1 OR [RunsOnFriday] = 1 OR [RunsOnSaturday] = 1 OR [RunsOnSunday] = 1");
+
+                            t.HasCheckConstraint("CK_Services_WithdrawnAtUtc_Utc", "[WithdrawnAtUtc] IS NULL OR DATEPART(TZOFFSET, [WithdrawnAtUtc]) = 0");
+                        });
+                });
+
+            modelBuilder.Entity("YCR.Domain.Timetable.ServiceStop", b =>
+                {
+                    b.Property<Guid>("ServiceId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("StationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("ServiceId", "Position")
+                        .HasName("PK_ServiceStops");
+
+                    b.HasIndex("StationId")
+                        .HasDatabaseName("IX_ServiceStops_StationId");
+
+                    b.ToTable("ServiceStops", "timetable", t =>
+                        {
+                            t.HasCheckConstraint("CK_ServiceStops_Position", "[Position] >= 1");
+                        });
+                });
+
             modelBuilder.Entity("YCR.Infrastructure.Audit.AuditEvent", b =>
                 {
                     b.Property<Guid>("Id")
@@ -445,7 +522,7 @@ namespace YCR.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("YCR.Domain.Network.Route", b =>
                 {
-                    b.OwnsOne("YCR.Domain.Network.BilingualName", "Name", b1 =>
+                    b.OwnsOne("YCR.Domain.Common.BilingualName", "Name", b1 =>
                         {
                             b1.Property<Guid>("RouteId")
                                 .HasColumnType("uniqueidentifier");
@@ -493,7 +570,7 @@ namespace YCR.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("YCR.Domain.Network.Station", b =>
                 {
-                    b.OwnsOne("YCR.Domain.Network.BilingualName", "Name", b1 =>
+                    b.OwnsOne("YCR.Domain.Common.BilingualName", "Name", b1 =>
                         {
                             b1.Property<Guid>("StationId")
                                 .HasColumnType("uniqueidentifier");
@@ -522,6 +599,105 @@ namespace YCR.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("YCR.Domain.Timetable.Service", b =>
+                {
+                    b.HasOne("YCR.Domain.Network.Route", null)
+                        .WithMany()
+                        .HasForeignKey("RouteId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_Services_Routes_RouteId");
+
+                    b.OwnsOne("YCR.Domain.Timetable.OperatingDays", "OperatingDays", b1 =>
+                        {
+                            b1.Property<Guid>("ServiceId")
+                                .HasColumnType("uniqueidentifier");
+
+                            b1.Property<bool>("RunsOnFriday")
+                                .HasColumnType("bit")
+                                .HasColumnName("RunsOnFriday");
+
+                            b1.Property<bool>("RunsOnMonday")
+                                .HasColumnType("bit")
+                                .HasColumnName("RunsOnMonday");
+
+                            b1.Property<bool>("RunsOnSaturday")
+                                .HasColumnType("bit")
+                                .HasColumnName("RunsOnSaturday");
+
+                            b1.Property<bool>("RunsOnSunday")
+                                .HasColumnType("bit")
+                                .HasColumnName("RunsOnSunday");
+
+                            b1.Property<bool>("RunsOnThursday")
+                                .HasColumnType("bit")
+                                .HasColumnName("RunsOnThursday");
+
+                            b1.Property<bool>("RunsOnTuesday")
+                                .HasColumnType("bit")
+                                .HasColumnName("RunsOnTuesday");
+
+                            b1.Property<bool>("RunsOnWednesday")
+                                .HasColumnType("bit")
+                                .HasColumnName("RunsOnWednesday");
+
+                            b1.HasKey("ServiceId");
+
+                            b1.ToTable("Services", "timetable");
+
+                            b1.WithOwner()
+                                .HasForeignKey("ServiceId");
+                        });
+
+                    b.OwnsOne("YCR.Domain.Common.BilingualName", "Name", b1 =>
+                        {
+                            b1.Property<Guid>("ServiceId")
+                                .HasColumnType("uniqueidentifier");
+
+                            b1.Property<string>("En")
+                                .IsRequired()
+                                .HasMaxLength(100)
+                                .HasColumnType("nvarchar(100)")
+                                .HasColumnName("NameEn");
+
+                            b1.Property<string>("My")
+                                .IsRequired()
+                                .HasMaxLength(100)
+                                .HasColumnType("nvarchar(100)")
+                                .HasColumnName("NameMy");
+
+                            b1.HasKey("ServiceId");
+
+                            b1.ToTable("Services", "timetable");
+
+                            b1.WithOwner()
+                                .HasForeignKey("ServiceId");
+                        });
+
+                    b.Navigation("Name")
+                        .IsRequired();
+
+                    b.Navigation("OperatingDays")
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("YCR.Domain.Timetable.ServiceStop", b =>
+                {
+                    b.HasOne("YCR.Domain.Timetable.Service", null)
+                        .WithMany("Stops")
+                        .HasForeignKey("ServiceId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_ServiceStops_Services_ServiceId");
+
+                    b.HasOne("YCR.Domain.Network.Station", null)
+                        .WithMany()
+                        .HasForeignKey("StationId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_ServiceStops_Stations_StationId");
+                });
+
             modelBuilder.Entity("YCR.Domain.Identity.AuthSession", b =>
                 {
                     b.Navigation("Tokens");
@@ -540,6 +716,11 @@ namespace YCR.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("YCR.Domain.Network.Route", b =>
                 {
                     b.Navigation("Stations");
+                });
+
+            modelBuilder.Entity("YCR.Domain.Timetable.Service", b =>
+                {
+                    b.Navigation("Stops");
                 });
 #pragma warning restore 612, 618
         }

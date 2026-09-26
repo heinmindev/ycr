@@ -11,7 +11,7 @@
 | Reports | ✓ | ✓ | ✓ | limited | limited | ✓ | ✓ |
 | Audit logs | ✓ | ✓ | - | - | - | - | ✓ |
 
-**The table above is a proposal only, and the permission inventory below governs**, except for `stations.manage`/`stations.read`, `routes.manage`/`routes.read` and the identity permissions per the rulings below. Where the two disagree, the inventory wins: a capability shown as granted in the table is still an OPEN QUESTION until the inventory records an approved grant. (ENGINEERING DECISION — tech lead, hein, 2026-09-20, resolving contradictions C1 and C2 in `docs/features/F-001-walking-skeleton/spec.md` §0.3. The underlying role question was OQ28.)
+**The table above is a proposal only, and the permission inventory below governs**, except for `stations.manage`/`stations.read`, `routes.manage`/`routes.read`, `services.manage`/`services.read` and the identity permissions per the rulings below. Where the two disagree, the inventory wins: a capability shown as granted in the table is still an OPEN QUESTION until the inventory records an approved grant. (ENGINEERING DECISION — tech lead, hein, 2026-09-20, resolving contradictions C1 and C2 in `docs/features/F-001-walking-skeleton/spec.md` §0.3. The underlying role question was OQ28.)
 
 This is a starting proposal and must be approved against actual railway roles.
 
@@ -35,6 +35,15 @@ Until F-002 ships, no grant is seeded: F-001 has no identity/role provisioning s
 
 Holding `stations.manage` or `stations.read` gives no route right. The permission name `routes.read` was added on 2026-09-24 (hein, T-032, E2). These grants are data seeded by a reviewed migration, like every other grant; no API edits them (see §Identity permission grants). See `docs/features/F-003-route-management/spec.md` §0.8, R2, R3.
 
+## Service permission grants — resolved (OQ49)
+
+**Provisional tech-lead ruling (hein, 2026-09-25; T-044) — not a Myanma Railways answer.** Myanma Railways has not confirmed role grants for services; this project chose not to wait. **Still open with Myanma Railways.** If Myanma Railways later gives an official, different answer, that supersedes this ruling and needs its own follow-up task.
+
+- `services.manage` → **`SystemAdministrator` and `RailwayAdministrator` only** (`StationManager`, `TicketOperator`, `TicketInspector`, `FinanceOfficer`, `Auditor` and `ReportingUser` do **not** hold it).
+- `services.read` → **all eight roles:** `SystemAdministrator`, `RailwayAdministrator`, `StationManager`, `TicketOperator`, `TicketInspector`, `FinanceOfficer`, `Auditor` and `ReportingUser`.
+
+Holding a station or route permission gives no service right. The permission name `services.read` was added on 2026-09-25 (hein, T-044, E6). `trains.manage` is not used in Phase 1 and has no grant (OQ42 ruling); `schedules.manage` stays an OPEN QUESTION for FR-004. These grants are data seeded by a reviewed migration, like every other grant; no API edits them (see §Identity permission grants). See `docs/features/F-004-service-management/spec.md` §0.9, R3, R4.
+
 ## Identity permission grants — F-002
 
 **Provisional tech-lead ruling (hein, 2026-09-23; T-023, D8/OQ34) — not a Myanma Railways answer.** Myanma Railways has not said who administers staff accounts; this project chose not to wait. If Myanma Railways later gives an official, different answer, that supersedes this ruling and needs its own follow-up task.
@@ -50,7 +59,7 @@ No other role holds these. Grants, including these, are data seeded by a reviewe
 
 ## Permission inventory requiring explicit approval
 
-The following permission identifiers are referenced by ADR-0013 and the API proposal. Their role grants are **OPEN QUESTION** until the authorization matrix is approved; agents must not infer grants from the names. (`stations.manage`, `stations.read`, `routes.manage`, `routes.read` and the four identity permissions are the exceptions — see §Station permission grants, §Route permission grants and §Identity permission grants above.)
+The following permission identifiers are referenced by ADR-0013 and the API proposal. Their role grants are **OPEN QUESTION** until the authorization matrix is approved; agents must not infer grants from the names. (`stations.manage`, `stations.read`, `routes.manage`, `routes.read`, `services.manage`, `services.read` and the four identity permissions are the exceptions — see §Station permission grants, §Route permission grants, §Service permission grants and §Identity permission grants above.)
 
 - `sales.void`
 - `sales.sell`
@@ -71,8 +80,9 @@ The following permission identifiers are referenced by ADR-0013 and the API prop
 - `stations.read` (added 2026-09-20 by hein; the matrix table gives Auditor a "view" right over station management but the inventory had no read permission. Role grants resolved — see §Station permission grants above.)
 - `routes.manage` (role grants resolved — see §Route permission grants above)
 - `routes.read` (added 2026-09-24 by hein, T-032; role grants resolved — see §Route permission grants above)
-- `trains.manage`
-- `services.manage`
+- `trains.manage` — **not used in Phase 1 (OQ42 ruling, hein, 2026-09-25; T-044):** there is no `Train` concept, no `/trains` endpoint and no grant; `docs/03` use case 3 "Manage trains" is met by services
+- `services.manage` (role grants resolved — see §Service permission grants above)
+- `services.read` (added 2026-09-25 by hein, T-044, E6; role grants resolved — see §Service permission grants above)
 - `fares.manage`
 - `schedules.manage`
 - `reports.read`

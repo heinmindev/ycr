@@ -2,6 +2,8 @@ using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using YCR.Application.Identity.Abstractions;
+using YCR.Application.Timetable.Abstractions;
+using YCR.Domain.Timetable;
 using YCR.Infrastructure.Persistence;
 using YCR.TestSupport;
 
@@ -38,6 +40,10 @@ public sealed class DatabasePrivilegeTests(SqlServerFixture fixture) : IAsyncLif
     // F-003 S25: no DDL on the route tables either.
     [InlineData("ALTER TABLE [network].[Routes] ADD [Smuggled] int NULL;")]
     [InlineData("DROP TABLE [network].[RouteStations];")]
+    // F-004 S47: no DDL on the timetable schema either.
+    [InlineData("CREATE TABLE [timetable].[Smuggled] ([Id] int NOT NULL);")]
+    [InlineData("ALTER TABLE [timetable].[Services] ADD [Smuggled] int NULL;")]
+    [InlineData("DROP TABLE [timetable].[ServiceStops];")]
     public async Task ApplicationCredential_AttemptingDdl_IsDenied(string ddl)
     {
         var failure = await Assert.ThrowsAsync<SqlException>(() => ExecuteAsApplicationAsync(ddl));
@@ -236,6 +242,141 @@ public sealed class DatabasePrivilegeTests(SqlServerFixture fixture) : IAsyncLif
             """));
     }
 
+    /// <summary>
+    /// F-004 S47, R33 (<c>Security_TimetableGrants</c>): the presences and, which is the point, the
+    /// absences. The grant set is the database-level statement that a service is immutable except
+    /// for withdrawal and is never deleted (R20).
+    /// </summary>
+    [Fact]
+    public async Task ApplicationCredential_HasExactlyTheTimetableGrants()
+    {
+        Assert.Equal(1, await PermissionAsApplicationAsync("timetable.Services", "SELECT"));
+        Assert.Equal(1, await PermissionAsApplicationAsync("timetable.Services", "INSERT"));
+        Assert.Equal(1, await ColumnPermissionAsApplicationAsync("timetable.Services", "UPDATE", "EffectiveTo"));
+        Assert.Equal(1, await ColumnPermissionAsApplicationAsync("timetable.Services", "UPDATE", "WithdrawnAtUtc"));
+        Assert.Equal(1, await PermissionAsApplicationAsync("timetable.ServiceStops", "SELECT"));
+        Assert.Equal(1, await PermissionAsApplicationAsync("timetable.ServiceStops", "INSERT"));
+
+        foreach (var table in new[] { "timetable.Services", "timetable.ServiceStops" })
+        {
+            Assert.Equal(0, await PermissionAsApplicationAsync(table, "DELETE"));
+            Assert.Equal(0, await PermissionAsApplicationAsync(table, "ALTER"));
+            Assert.Equal(0, await PermissionAsApplicationAsync(table, "CONTROL"));
+            // Table-level UPDATE would mean every column; Services is column-scoped, ServiceStops has none.
+            Assert.Equal(0, await PermissionAsApplicationAsync(table, "UPDATE"));
+        }
+
+        string[] fixedColumns =
+        [
+            "Id", "Code", "NameEn", "NameMy", "RouteId", "Direction",
+            "RunsOnMonday", "RunsOnTuesday", "RunsOnWednesday", "RunsOnThursday", "RunsOnFriday", "RunsOnSaturday", "RunsOnSunday",
+            "EffectiveFrom", "CreatedAtUtc",
+        ];
+        foreach (var column in fixedColumns)
+        {
+            Assert.Equal(0, await ColumnPermissionAsApplicationAsync("timetable.Services", "UPDATE", column));
+        }
+
+        foreach (var column in new[] { "ServiceId", "Position", "StationId" })
+        {
+            Assert.Equal(0, await ColumnPermissionAsApplicationAsync("timetable.ServiceStops", "UPDATE", column));
+        }
+
+        // No EXECUTE anywhere in the schema: the code lock is sp_getapplock, which public may run.
+        Assert.Equal(0, await ScalarAsMigratorAsync(
+            """
+            SELECT COUNT(*) FROM sys.database_permissions
+            WHERE grantee_principal_id = DATABASE_PRINCIPAL_ID(N'ycr_app') AND state IN ('G', 'W')
+              AND ((class = 3 AND major_id = SCHEMA_ID(N'timetable'))
+                OR (class = 1 AND OBJECT_SCHEMA_NAME(major_id) = N'timetable' AND permission_name NOT IN (N'SELECT', N'INSERT', N'UPDATE')));
+            """));
+    }
+
+    /// <summary>
+    /// F-004 S47 / R20, executed rather than inferred: the application can withdraw a service (the
+    /// two-column update) and can do nothing else to it or its stops; the rows are unchanged.
+    /// </summary>
+    [Fact]
+    public async Task ApplicationCredential_CanWithdrawAServiceButNotRewriteIt()
+    {
+        var (routeId, stationId) = await InsertRouteAsApplicationAsync("WG");
+        var serviceId = Guid.NewGuid();
+        await ExecuteAsApplicationAsync(
+            TimetableMigrationTests.InsertServiceSql(serviceId, routeId, code: "N'WG1'") +
+            TimetableMigrationTests.InsertStopSql(serviceId, 1, stationId));
+
+        // WithdrawService, which is the only update F-004 performs: both columns in one UPDATE.
+        await ExecuteAsApplicationAsync(
+            $"UPDATE [timetable].[Services] SET [EffectiveTo] = '2026-10-31', [WithdrawnAtUtc] = SYSUTCDATETIME() AT TIME ZONE 'UTC' WHERE [Id] = '{serviceId}';");
+
+        string[] denied =
+        [
+            "UPDATE [timetable].[Services] SET [Code] = N'XX1';",
+            "UPDATE [timetable].[Services] SET [NameEn] = N'Renamed';",
+            "UPDATE [timetable].[Services] SET [Direction] = N'Reverse';",
+            "UPDATE [timetable].[Services] SET [RunsOnSunday] = 1;",
+            "UPDATE [timetable].[Services] SET [EffectiveFrom] = '2026-01-01';",
+            "UPDATE [timetable].[ServiceStops] SET [Position] = [Position] + 10;",
+            $"UPDATE [timetable].[ServiceStops] SET [StationId] = '{stationId}';",
+            "DELETE FROM [timetable].[ServiceStops];",
+            "DELETE FROM [timetable].[Services];",
+        ];
+        foreach (var sql in denied)
+        {
+            var failure = await Assert.ThrowsAsync<SqlException>(() => ExecuteAsApplicationAsync(sql));
+            Assert.Contains("permission", failure.Message, StringComparison.OrdinalIgnoreCase);
+        }
+
+        Assert.Equal(1, await ScalarAsMigratorAsync(
+            $"""
+            SELECT COUNT(*) FROM [timetable].[Services]
+            WHERE [Id] = '{serviceId}' AND [Code] = N'WG1' AND [NameEn] = N'Service' AND [Direction] = N'Forward'
+              AND [RunsOnMonday] = 1 AND [RunsOnSunday] = 0 AND [EffectiveFrom] = '2026-10-05'
+              AND [EffectiveTo] = '2026-10-31' AND [WithdrawnAtUtc] IS NOT NULL;
+            """));
+        Assert.Equal(1, await ScalarAsMigratorAsync(
+            $"SELECT COUNT(*) FROM [timetable].[ServiceStops] WHERE [ServiceId] = '{serviceId}' AND [Position] = 1 AND [StationId] = '{stationId}';"));
+    }
+
+    /// <summary>F-004 S48: under <c>ycr_app</c>, the cross-schema keys refuse rows naming no network row.</summary>
+    [Fact]
+    public async Task ApplicationCredential_CannotInsertAServiceOrStopNamingNoNetworkRow()
+    {
+        var (routeId, _) = await InsertRouteAsApplicationAsync("FA");
+        var serviceId = Guid.NewGuid();
+
+        var noRoute = await Assert.ThrowsAsync<SqlException>(() => ExecuteAsApplicationAsync(
+            TimetableMigrationTests.InsertServiceSql(Guid.NewGuid(), Guid.NewGuid(), code: "N'FA1'")));
+        Assert.Equal(547, noRoute.Number);
+        Assert.Contains("FK_Services_Routes_RouteId", noRoute.Message, StringComparison.Ordinal);
+
+        await ExecuteAsApplicationAsync(TimetableMigrationTests.InsertServiceSql(serviceId, routeId, code: "N'FA2'"));
+        var noStation = await Assert.ThrowsAsync<SqlException>(() => ExecuteAsApplicationAsync(
+            TimetableMigrationTests.InsertStopSql(serviceId, 1, Guid.NewGuid())));
+        Assert.Equal(547, noStation.Number);
+        Assert.Contains("FK_ServiceStops_Stations_StationId", noStation.Message, StringComparison.Ordinal);
+
+        Assert.Equal(0, await ScalarAsMigratorAsync(
+            $"SELECT COUNT(*) FROM [timetable].[ServiceStops] WHERE [ServiceId] = '{serviceId}';"));
+        Assert.Equal(1, await ScalarAsMigratorAsync(
+            "SELECT COUNT(*) FROM [timetable].[Services] WHERE [Code] IN (N'FA1', N'FA2');"));
+    }
+
+    /// <summary>A station and an open route on it, written as <c>ycr_app</c> (its F-001/F-003 grants).</summary>
+    private async Task<(Guid RouteId, Guid StationId)> InsertRouteAsApplicationAsync(string prefix)
+    {
+        var stationId = Guid.NewGuid();
+        var routeId = Guid.NewGuid();
+        await ExecuteAsApplicationAsync(
+            $"""
+            INSERT INTO [network].[Stations] ([Id], [Code], [NameEn], [NameMy], [IsActive], [CreatedAtUtc])
+            VALUES ('{stationId}', N'{prefix}S', N'Station {prefix}', N'ဘူတာ', 1, SYSUTCDATETIME() AT TIME ZONE 'UTC');
+            INSERT INTO [network].[Routes] ([Id], [Code], [NameEn], [NameMy], [IsClosed], [IsActive], [CreatedAtUtc], [DeactivatedAtUtc])
+            VALUES ('{routeId}', N'{prefix}R', N'Route {prefix}', N'လမ်းကြောင်း', 0, 1, SYSUTCDATETIME() AT TIME ZONE 'UTC', NULL);
+            INSERT INTO [network].[RouteStations] ([RouteId], [Position], [StationId]) VALUES ('{routeId}', 1, '{stationId}');
+            """);
+        return (routeId, stationId);
+    }
     /// <summary>D18 / plan P7: F-002 deletes no session or token row.</summary>
     [Fact]
     public async Task ApplicationCredential_HasNoDeleteOnSessionsOrTokens()
@@ -261,8 +402,9 @@ public sealed class DatabasePrivilegeTests(SqlServerFixture fixture) : IAsyncLif
             SELECT [Id], N'users.manage' FROM [identity].[Roles] WHERE [Name] = N'TicketOperator';
             """));
         Assert.Contains("permission", failure.Message, StringComparison.OrdinalIgnoreCase);
-        // 14 F-002 grants plus the ten F-003 route grants (OQ40); unchanged by the denied INSERT.
-        Assert.Equal(24, await ScalarAsMigratorAsync("SELECT COUNT(*) FROM [identity].[RolePermissions];"));
+        // 14 F-002 grants, the ten F-003 route grants (OQ40) and the ten F-004 service grants (OQ49);
+        // unchanged by the denied INSERT.
+        Assert.Equal(34, await ScalarAsMigratorAsync("SELECT COUNT(*) FROM [identity].[RolePermissions];"));
     }
 
     /// <summary>
@@ -335,6 +477,53 @@ public sealed class DatabasePrivilegeTests(SqlServerFixture fixture) : IAsyncLif
         await firstTransaction.CommitAsync(cancellationToken);
         await waiting.WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
         await secondTransaction.CommitAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// F-004 V5 / plan P9: <c>ycr_app</c> can take the R35 service-code lock with no grant; the lock
+    /// refuses to run without a transaction; a second transaction on the same code waits; a
+    /// transaction on another code does not.
+    /// </summary>
+    [Fact]
+    public async Task ApplicationCredential_CanTakeTheServiceCodeApplock()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var provider = new ServiceCollection()
+            .AddLogging()
+            .AddInfrastructure(database.ApplicationConnectionString)
+            .BuildServiceProvider();
+        await using var firstScope = provider.CreateAsyncScope();
+        await using var sameCodeScope = provider.CreateAsyncScope();
+        await using var otherCodeScope = provider.CreateAsyncScope();
+        var firstContext = firstScope.ServiceProvider.GetRequiredService<YcrDbContext>();
+        var sameCodeContext = sameCodeScope.ServiceProvider.GetRequiredService<YcrDbContext>();
+        var otherCodeContext = otherCodeScope.ServiceProvider.GetRequiredService<YcrDbContext>();
+        var firstLock = firstScope.ServiceProvider.GetRequiredService<IServiceCodeLock>();
+        var sameCodeLock = sameCodeScope.ServiceProvider.GetRequiredService<IServiceCodeLock>();
+        var otherCodeLock = otherCodeScope.ServiceProvider.GetRequiredService<IServiceCodeLock>();
+        var code = ServiceCode.Create("S101").Value;
+
+        // Without a transaction the lock refuses to run unowned.
+        await Assert.ThrowsAsync<InvalidOperationException>(() => firstLock.AcquireAsync(code, cancellationToken));
+
+        await using var firstTransaction = await firstContext.Database.BeginTransactionAsync(cancellationToken);
+        await firstLock.AcquireAsync(code, cancellationToken);
+
+        // Another code is another resource: no waiting.
+        await using var otherCodeTransaction = await otherCodeContext.Database.BeginTransactionAsync(cancellationToken);
+        await otherCodeLock.AcquireAsync(ServiceCode.Create("S202").Value, cancellationToken)
+            .WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
+        await otherCodeTransaction.CommitAsync(cancellationToken);
+
+        // The same code waits until the first transaction ends.
+        await using var sameCodeTransaction = await sameCodeContext.Database.BeginTransactionAsync(cancellationToken);
+        var waiting = sameCodeLock.AcquireAsync(code, cancellationToken);
+        await Task.Delay(TimeSpan.FromMilliseconds(750), cancellationToken);
+        Assert.False(waiting.IsCompleted, "The second transaction acquired the code lock while the first still held it.");
+
+        await firstTransaction.CommitAsync(cancellationToken);
+        await waiting.WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
+        await sameCodeTransaction.CommitAsync(cancellationToken);
     }
 
     [Fact]

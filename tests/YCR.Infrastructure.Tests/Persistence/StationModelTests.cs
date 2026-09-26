@@ -68,6 +68,14 @@ public sealed class StationModelTests
         "YCR.Domain.Network.Route",
         "CK_Routes_DeactivatedAtUtc_Utc",
         "[DeactivatedAtUtc] IS NULL OR DATEPART(TZOFFSET, [DeactivatedAtUtc]) = 0")]
+    [InlineData(
+        "YCR.Domain.Timetable.Service",
+        "CK_Services_CreatedAtUtc_Utc",
+        "DATEPART(TZOFFSET, [CreatedAtUtc]) = 0")]
+    [InlineData(
+        "YCR.Domain.Timetable.Service",
+        "CK_Services_WithdrawnAtUtc_Utc",
+        "[WithdrawnAtUtc] IS NULL OR DATEPART(TZOFFSET, [WithdrawnAtUtc]) = 0")]
     // Named rather than typed: AuditEvent is internal to YCR.Infrastructure on purpose, so that
     // nothing above Infrastructure can construct an audit row outside IAuditWriter. Reaching it
     // through the model keeps that closed.

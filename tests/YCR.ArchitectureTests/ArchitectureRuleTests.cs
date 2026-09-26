@@ -19,6 +19,12 @@ using RecordSignInOutsideLoginHandler = YCR.Application.Identity.Violations.Reco
 using IdentityUsingNetworkContext = YCR.Application.Identity.Violations.IdentityUsingNetworkContext;
 using NetworkUsingIdentityContext = YCR.Application.Network.Violations.NetworkUsingIdentityContext;
 using ApplicationUsingAspNetIdentity = YCR.Application.Violations.ApplicationUsingAspNetIdentity;
+using ContractExposingEntityFramework = YCR.Application.Network.Contracts.Violations.ContractExposingEntityFramework;
+using ContractExposingNetworkContext = YCR.Application.Network.Contracts.Violations.ContractExposingNetworkContext;
+using ContractExposingNetworkDomain = YCR.Application.Network.Contracts.Violations.ContractExposingNetworkDomain;
+using TimetableUsingNetworkContext = YCR.Application.Timetable.Violations.TimetableUsingNetworkContext;
+using TimetableUsingNetworkContracts = YCR.Application.Timetable.Violations.TimetableUsingNetworkContracts;
+using TimetableUsingNetworkDomain = YCR.Application.Timetable.Violations.TimetableUsingNetworkDomain;
 
 namespace YCR.ArchitectureTests;
 
@@ -173,6 +179,54 @@ public sealed class ArchitectureRuleTests
         AssertRuleProtectsFixture(
             ArchitectureRules.ApiMayUseOnlyAllowlistedCommonTypes,
             nameof(ApiUsingAggregateRoot));
+    }
+
+    /// <summary>
+    /// ADR-0025 item 4 (REQUIRED CONTROL), F-004 S50: a Contracts type exposes no module domain
+    /// type, no module context and nothing from EF Core. The rule passes on the source and catches
+    /// each fixture.
+    /// </summary>
+    [Fact]
+    public void ContractsRule_WithDomainContextOrEfFixtures_DetectsViolations()
+    {
+        AssertRuleProtectsFixture(
+            ArchitectureRules.ContractsMustNotDependOnModuleDomainOrContext,
+            nameof(ContractExposingNetworkDomain));
+        AssertRuleProtectsFixture(
+            ArchitectureRules.ContractsMustNotDependOnModuleDomainOrContext,
+            nameof(ContractExposingNetworkContext));
+        AssertRuleProtectsFixture(
+            ArchitectureRules.ContractsMustNotDependOnModuleDomainOrContext,
+            nameof(ContractExposingEntityFramework));
+    }
+
+    /// <summary>F-004 S50, R28: Timetable may not reach into Network's domain or context.</summary>
+    [Fact]
+    public void TimetableApplication_DependingOnNetworkDomainOrContext_IsDetected()
+    {
+        AssertRuleProtectsFixture(
+            ArchitectureRules.ApplicationModuleMayDependOnlyOnAllowedTypes("Timetable"),
+            nameof(TimetableUsingNetworkDomain));
+        AssertRuleProtectsFixture(
+            ArchitectureRules.ApplicationModuleMayDependOnlyOnAllowedTypes("Timetable"),
+            nameof(TimetableUsingNetworkContext));
+    }
+
+    /// <summary>
+    /// F-004 R28, ADR-0012 item 4: the same rule admits the Network contract. It fails on the
+    /// violations architecture because of the two fixtures above, but not because of this one.
+    /// </summary>
+    [Fact]
+    public void TimetableApplication_DependingOnNetworkContracts_IsAllowed()
+    {
+        var rule = ArchitectureRules.ApplicationModuleMayDependOnlyOnAllowedTypes("Timetable");
+        var failures = string.Join(
+            Environment.NewLine,
+            rule.Evaluate(ViolationsArchitecture).Where(result => !result.Passed));
+
+        Assert.True(rule.HasNoViolations(SourceArchitecture));
+        Assert.Contains(nameof(TimetableUsingNetworkDomain), failures, StringComparison.Ordinal);
+        Assert.DoesNotContain(nameof(TimetableUsingNetworkContracts), failures, StringComparison.Ordinal);
     }
 
     [Fact]

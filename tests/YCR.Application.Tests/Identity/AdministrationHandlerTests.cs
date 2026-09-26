@@ -472,11 +472,12 @@ public sealed class AdministrationHandlerTests(SqlServerFixture fixture) : Ident
         var roles = await RunAsync<ListRolesHandler, IReadOnlyList<RoleDto>>(provider, handler => handler.Handle(new ListRolesQuery(), CancellationToken));
 
         Assert.Equal(RoleNames.All, roles.Select(role => role.Name));
-        // F-003 adds the route grants to these roles (docs/10 §Route permission grants, OQ40).
+        // F-003 adds the route grants to these roles (docs/10 §Route permission grants, OQ40), and
+        // F-004 the service grants (docs/10 §Service permission grants, OQ49).
         Assert.Equal(
-            ["auth-sessions.revoke", "routes.manage", "routes.read", "stations.manage", "stations.read", "users.manage", "users.read", "users.roles.manage"],
+            ["auth-sessions.revoke", "routes.manage", "routes.read", "services.manage", "services.read", "stations.manage", "stations.read", "users.manage", "users.read", "users.roles.manage"],
             roles[0].Permissions);
-        Assert.Equal(["routes.read", "stations.read"], roles.Single(role => role.Name == RoleNames.ReportingUser).Permissions);
+        Assert.Equal(["routes.read", "services.read", "stations.read"], roles.Single(role => role.Name == RoleNames.ReportingUser).Permissions);
     }
 
     [Fact]

@@ -1,5 +1,5 @@
-### YCR API — the F-001 station endpoints, the F-002 sign-in and administration endpoints, and the
-### F-003 route endpoints.
+### YCR API — the F-001 station endpoints, the F-002 sign-in and administration endpoints, the
+### F-003 route endpoints and the F-004 service endpoints.
 ###
 ### Setup (README "Developer setup"): a dev signing key and Auth:AllowedOrigins:0 in user-secrets,
 ### and a first administrator from `YCR.Worker bootstrap-administrator`.
@@ -23,6 +23,7 @@
 @stationId2 = 00000000-0000-0000-0000-000000000000
 @stationId3 = 00000000-0000-0000-0000-000000000000
 @routeId = 00000000-0000-0000-0000-000000000000
+@serviceId = 00000000-0000-0000-0000-000000000000
 @userId = 00000000-0000-0000-0000-000000000000
 @sessionId = 00000000-0000-0000-0000-000000000000
 
@@ -254,3 +255,167 @@ Authorization: Bearer {{token}}
 ### Deactivate it again — 422 Network.RouteAlreadyInactive; deactivatedAtUtc keeps its first value.
 POST {{host}}/api/v1/routes/{{routeId}}/deactivate
 Authorization: Bearer {{token}}
+
+# ---- Services (F-004) -------------------------------------------------------------------------
+#
+# A service is a named, directed run along one route: its stops in order, the days it operates and
+# its effective period (OQ43-OQ50 provisional rulings). It is created whole, read, and withdrawn;
+# nothing else. There is no PATCH (OQ48): to change a timetable, withdraw the service from a date D
+# and create the same code from D.
+#
+# Set @routeId to an active, CLOSED route whose stations are @stationId, @stationId2, @stationId3
+# in that order (create it above with "isClosed": true), and @serviceId from the first create below.
+# Dates are YYYY-MM-DD in Asia/Yangon (Time:LocalTimeZone); "today" is the Yangon date. The dates
+# below are examples: effectiveTo and withdrawFrom must not be earlier than today.
+
+### Create a Forward service on the closed route — services.manage. 201 + Location and { id }.
+### Errors: 400 Common.ValidationFailed (missing field, a GUID or date in another format, a day
+### name that is not exactly Monday..Sunday, a repeated day, more than 200 stopStationIds);
+### 400 Timetable.InvalidServiceCode / InvalidServiceName / InvalidEffectivePeriod;
+### 422 Timetable.ServiceEffectiveToInPast / ServiceRouteNotFound / ServiceRouteInactive /
+### ServiceStopNotOnRoute / ServiceStopRepeated / ServiceTooFewStops / ServiceStopsOutOfOrder /
+### ServiceStopStationInactive; 409 Timetable.ServiceCodePeriodOverlap; 413 over 32 KiB.
+POST {{host}}/api/v1/services
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "code": "SV10",
+  "nameEn": "Circular morning",
+  "nameMy": "မနက်ပိုင်း",
+  "routeId": "{{routeId}}",
+  "direction": "Forward",
+  "stopStationIds": ["{{stationId}}", "{{stationId2}}", "{{stationId3}}"],
+  "operatingDays": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+  "effectiveFrom": "2027-01-01"
+}
+
+### A wrap — services.manage. 201. On a closed route, Forward from the last station to the first
+### is one step; on an open route the same stops are 422 Timetable.ServiceStopsOutOfOrder.
+POST {{host}}/api/v1/services
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "code": "SV11",
+  "nameEn": "Circular wrap",
+  "nameMy": "ပတ်ပြန်",
+  "routeId": "{{routeId}}",
+  "direction": "Forward",
+  "stopStationIds": ["{{stationId3}}", "{{stationId}}"],
+  "operatingDays": ["Saturday", "Sunday"],
+  "effectiveFrom": "2027-01-01"
+}
+
+### A full circuit — services.manage. 201. Only on a closed route, the last stop may repeat the
+### first: exactly one circuit, at least 3 distinct stations.
+POST {{host}}/api/v1/services
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "code": "SV12",
+  "nameEn": "Full circuit",
+  "nameMy": "တစ်ပတ်လည်",
+  "routeId": "{{routeId}}",
+  "direction": "Forward",
+  "stopStationIds": ["{{stationId}}", "{{stationId2}}", "{{stationId3}}", "{{stationId}}"],
+  "operatingDays": ["Monday"],
+  "effectiveFrom": "2027-01-01",
+  "effectiveTo": "2027-12-31"
+}
+
+### A stop out of order — 422 Timetable.ServiceStopsOutOfOrder: Forward 1 → 3 → 2 would pass the
+### first stop again (more than one circuit).
+POST {{host}}/api/v1/services
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "code": "SV13",
+  "nameEn": "Out of order",
+  "nameMy": "အစီအစဉ်မမှန်",
+  "routeId": "{{routeId}}",
+  "direction": "Forward",
+  "stopStationIds": ["{{stationId}}", "{{stationId3}}", "{{stationId2}}"],
+  "operatingDays": ["Monday"],
+  "effectiveFrom": "2027-01-01"
+}
+
+### The same code with an overlapping period — 409 Timetable.ServiceCodePeriodOverlap. SV10 runs
+### from 2027-01-01, open-ended. Withdrawn services still count; one whose period never runs does not.
+POST {{host}}/api/v1/services
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "code": "SV10",
+  "nameEn": "Circular morning",
+  "nameMy": "မနက်ပိုင်း",
+  "routeId": "{{routeId}}",
+  "direction": "Reverse",
+  "stopStationIds": ["{{stationId3}}", "{{stationId2}}", "{{stationId}}"],
+  "operatingDays": ["Monday"],
+  "effectiveFrom": "2027-02-01"
+}
+
+### List services — services.read. 200 with { items, page, pageSize, totalCount }, withdrawn ones
+### included, ordered by code, then effectiveFrom, then id. 400 Timetable.InvalidPageRequest over 200.
+GET {{host}}/api/v1/services?page=1&pageSize=50
+Authorization: Bearer {{token}}
+
+### List one route's services — services.read. 200.
+GET {{host}}/api/v1/services?routeId={{routeId}}
+Authorization: Bearer {{token}}
+
+### Read one service — services.read. 200 with its stops in position order, showing the route's and
+### each station's current values; or 404 Timetable.ServiceNotFound.
+GET {{host}}/api/v1/services/{{serviceId}}
+Authorization: Bearer {{token}}
+
+### Withdraw — services.manage. 204: effectiveTo becomes the day before withdrawFrom (2027-05-31).
+### Errors: 400 Common.ValidationFailed; 404 Timetable.ServiceNotFound; 409
+### Timetable.ServiceChangedConcurrently; 422 Timetable.WithdrawalDateInPast (before today) /
+### WithdrawalDoesNotShorten; 413 over 1 KiB.
+POST {{host}}/api/v1/services/{{serviceId}}/withdraw
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "withdrawFrom": "2027-06-01"
+}
+
+### Withdraw to a later date — 422 Timetable.WithdrawalDoesNotShorten: a withdrawal only shortens.
+POST {{host}}/api/v1/services/{{serviceId}}/withdraw
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "withdrawFrom": "2027-07-01"
+}
+
+### Timetable change, 1 of 2: withdraw SV10 from D = 2027-03-01 — 204 (effectiveTo 2027-02-28).
+POST {{host}}/api/v1/services/{{serviceId}}/withdraw
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "withdrawFrom": "2027-03-01"
+}
+
+### Timetable change, 2 of 2: create SV10 again from D — 201, a new service id; the periods no
+### longer overlap.
+POST {{host}}/api/v1/services
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "code": "SV10",
+  "nameEn": "Circular morning",
+  "nameMy": "မနက်ပိုင်း",
+  "routeId": "{{routeId}}",
+  "direction": "Forward",
+  "stopStationIds": ["{{stationId}}", "{{stationId3}}"],
+  "operatingDays": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+  "effectiveFrom": "2027-03-01"
+}

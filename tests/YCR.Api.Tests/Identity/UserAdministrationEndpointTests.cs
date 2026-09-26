@@ -372,8 +372,9 @@ public sealed class UserAdministrationEndpointTests(SqlServerFixture fixture) : 
         var roles = await admin.GetFromJsonAsync<JsonElement>("/api/v1/roles", CancellationToken);
 
         Assert.Equal(RoleNames.All, roles.EnumerateArray().Select(role => role.GetProperty("name").GetString()!));
-        // 14 F-002 grants plus the ten F-003 route grants (docs/10 §Route permission grants).
-        Assert.Equal(24, roles.EnumerateArray().Sum(role => role.GetProperty("permissions").GetArrayLength()));
+        // 14 F-002 grants, the ten F-003 route grants (docs/10 §Route permission grants) and the ten
+        // F-004 service grants (docs/10 §Service permission grants).
+        Assert.Equal(34, roles.EnumerateArray().Sum(role => role.GetProperty("permissions").GetArrayLength()));
     }
 
     // ---- authentication and authorization on every administration endpoint --------------------
