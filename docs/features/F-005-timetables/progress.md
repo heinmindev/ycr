@@ -35,3 +35,32 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** `approval` (stage-2 ⛔); business: OQ51–OQ57 and OQ59 (OQ58 under SC1).
 
 **State of the branch:** docs only; committed and pushed.
+
+---
+
+## 2026-09-26 08:22 Asia/Yangon — claude — T-053
+
+**Stage:** 2 (SPECIFY) — rulings applied; stopped at the stage-2 ⛔ again.
+**Commit:** rulings commit on `feature/F-005` (SHA recorded in the `TASKS.md` T-053 row); this entry is in the same commit.
+
+**Done this session:**
+- Applied hein's rulings of 2026-09-26 (T-053 row at `417c400`): SC → SC2 + cancel before effect; OQ51–OQ59; H; ADR-0027 Accepted (max 1439); E1–E14 accepted except E8 (one Timetable-wide ADR-0026 lock for publish, cancel and service withdrawal); E10 numbers at PLAN (≈200 services × 40 stops); C4/C5 to stage 8.
+- `spec.md`: Status "Draft — all rulings applied, awaiting approval"; §0.10 rulings table (asked table kept); consequences; §0.11 raised items (OQ60, Q2); new §0.12 spelling out the F-004 withdrawal change; closure notes in §0.3/§0.4/§0.5/§0.8/§0.9; §1–§9 and Blocked behaviour rewritten for the ruled design (R1–R48, SV1–SV52).
+- `docs/19`: resolution blocks under OQ51–OQ59 (F-004 wording); new **OQ60** (may a version list no services?).
+- `docs/10`: `schedules.read` in the inventory; `## Schedule permission grants — resolved (OQ59)` in the service-section bullet format; intro and service-section cross-references updated.
+- ADR-0027 Status Accepted (Decision items 1–3 now state minutes and 0–1439); README row Accepted.
+- Not touched: glossary, MR questions pack, code, ADR-0024.
+
+**For hein:**
+- **OQ60** (blocking, R9/SV22): may a version list no services?
+- **Q2** (confirmation, SV41): withdraw S from D, then cancel the version starting on D → both succeed under the rulings' letter, and the earlier version applies again listing S (which doesn't run). Confirm (a), or choose (b) refuse the cancel (and the analogous publish).
+- Engineering choices made while applying (hein may amend): numbers contiguous via max+1 under the lock (R7); start ≥ today also checked at creation (R31); services re-checked at publish (R17); `runsOnDate` in the in-force read (R48); create and discard also take the lock (R46).
+- Add OQ51–OQ60 to `docs/business/mr-questions-pack.md` (OQ51–OQ59 as provisionally ruled).
+
+**Evidence:** docs only; no build or test run. `IdentitySeedTests` parses only the station/route/service headings, so the new `docs/10` section does not change today's test; stage 4 adds the heading (spec §7).
+
+**Next step (exact):** hein rules on OQ60 and Q2 and approves the spec; then a revision (if needed) and T-053 → done; stage 3 (PLAN) is a separate task.
+
+**Blockers / open questions:** `approval` (stage-2 ⛔); business: OQ60.
+
+**State of the branch:** docs only; committed and pushed.

@@ -28,7 +28,7 @@
 | [0024](ADR-0024-client-held-version-for-edits.md) | Client-held version for edits composed from an earlier read | Proposed |
 | [0025](ADR-0025-cross-module-references.md) | Cross-module references: contract shape and foreign keys | Accepted |
 | [0026](ADR-0026-application-locks-for-set-invariants.md) | Application locks for set invariants | Accepted |
-| [0027](ADR-0027-timetable-times-of-day.md) | Timetable times of day | Proposed |
+| [0027](ADR-0027-timetable-times-of-day.md) | Timetable times of day | Accepted |
 
 Rules for agents:
 - **Accepted** ADRs are binding. Do not work against one; propose a new ADR that supersedes it.

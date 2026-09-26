@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed — 2026-09-26 (claude, T-053). Needs hein's approval to become Accepted. Parts of it are conditional on business answers (OQ52 precision, OQ53 past-midnight running) and say so.
+Accepted — 2026-09-26 (hein, T-053), with a maximum of **1439 minutes** under the OQ53 ruling (no running past midnight in Phase 1). Drafted by claude (T-053) and proposed the same day. The conditional parts below are settled by the OQ52 ruling (whole minutes) and the OQ53 ruling (no past-midnight running); each is marked where it applies.
 
 ## Context
 
@@ -12,7 +12,7 @@ Proposed — 2026-09-26 (claude, T-053). Needs hein's approval to become Accepte
 
 **FACT — Asia/Yangon is UTC+06:30 with no daylight saving time** over 2026–2040, asserted by `LocalCalendarTests.AsiaYangon_ResolvesInThisEnvironment` (F-004 plan Amendment 1). A local wall-clock time on a given local date therefore maps to exactly one instant: no local time is skipped or repeated. The zone is read from `Time:LocalTimeZone` and never hard-coded (ADR-0018; `docs/20` §8).
 
-**OPEN QUESTION — OQ53:** whether a service may run past midnight, how a time after midnight is written, and the maximum journey length. **OPEN QUESTION — OQ52:** whether times are whole minutes or seconds.
+**Asked at discovery as OQ53** (whether a service may run past midnight, how a later time is written, the maximum journey length) **and OQ52** (whole minutes or seconds). **Resolved by tech-lead rulings (hein, 2026-09-26; T-053) — not Myanma Railways answers:** whole minutes; no running past midnight in Phase 1 (every time 00:00–23:59 on the operating date). Still open with Myanma Railways; an official, different answer supersedes the rulings and needs its own follow-up task.
 
 **Why a decision is needed now.** Times will be stored by the Timetable module and, if OQ4 binds tickets to a service departure, read by Ticketing and perhaps printed or encoded (OQ19). A representation chosen per feature would diverge; this one is cross-module, so it is recorded here rather than inside the F-005 spec.
 
@@ -25,11 +25,11 @@ Proposed — 2026-09-26 (claude, T-053). Needs hein's approval to become Accepte
 
 ## Decision
 
-**Proposed: option 3.**
+**Option 3** (accepted by hein, 2026-09-26).
 
-1. A timetable time is a value object `TimetableTime` (name open at PLAN) in `YCR.Domain.Timetable`: a non-negative integer offset from **local midnight at the start of the service's operating date** (the OQ47 ruling), in the unit OQ52 decides — **whole minutes** unless OQ52 requires seconds. It is not an instant and has no zone of its own; the zone is the configured local zone.
-2. SQL: `smallint` for minutes (or `int` for seconds), with a check constraint bounding it to `0 .. max`, where `max` follows OQ53: `1439` if no service may run past midnight; otherwise the maximum OQ53 sets (for example `2879`, under 48 hours, if a journey must end on the next day).
-3. API: a string `HH:mm` (or `HH:mm:ss` if OQ52 requires seconds), two or more hour digits, hours `00`–`23` on the operating date and `24` and above after midnight **only if OQ53 allows past-midnight running**. Never a bare integer on the wire, and never a local date-time.
+1. A timetable time is a value object `TimetableTime` (name open at PLAN) in `YCR.Domain.Timetable`: a non-negative integer offset from **local midnight at the start of the service's operating date** (the OQ47 ruling), in **whole minutes** (OQ52 ruling, hein, 2026-09-26). It is not an instant and has no zone of its own; the zone is the configured local zone.
+2. SQL: `smallint`, with a check constraint bounding it to `0 .. 1439` (00:00–23:59): the OQ53 ruling (hein, 2026-09-26) allows no running past midnight in Phase 1, so every time falls on the operating date. If a later ruling allows past-midnight running, the bound is widened by a new migration and this item is superseded (the representation itself already allows it).
+3. API: a string `HH:mm`, exactly two hour digits `00`–`23` and two minute digits `00`–`59`. Hours `24` and above are refused while the OQ53 ruling stands. Never a bare integer on the wire, and never a local date-time.
 4. To turn a time into an instant (for example for a later validity check), the consumer computes local midnight of the operating date in the configured zone plus the offset, through one Timetable function over `ILocalCalendar`'s zone; no module adds `+06:30` itself.
 5. Operating-date arithmetic stays `DateOnly` (ADR-0018). A time never changes which date a service operates on.
 
