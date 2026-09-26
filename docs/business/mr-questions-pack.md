@@ -2,7 +2,7 @@
 
 **Purpose:** provide a decision-ready list of the unresolved business questions in [`docs/19-open-questions.md`](../19-open-questions.md). This pack explains why each answer matters, what work it blocks or constrains, and presents neutral options for discussion with Myanma Railways.
 
-**Status:** all questions below are **OPEN QUESTION** items. OQ20 is resolved, OQ22 is an **ENGINEERING DECISION**, and OQ32 is an **ENGINEERING DECISION** for its schedule and ownership clauses with a remaining OPEN QUESTION that is not a Myanma Railways question either; all three are listed in §Items not requiring a Myanma Railways answer so that no gap in the numbering is unexplained. The options are discussion prompts only; none is a recommendation or a recorded business decision. Existing **ENGINEERING DECISION** references describe implementation constraints already accepted by the project and do not answer the business questions.
+**Status:** all questions below remain **OPEN QUESTION** items for Myanma Railways. OQ20 is resolved, OQ22 is an **ENGINEERING DECISION**, and OQ32 is an **ENGINEERING DECISION** for its schedule and ownership clauses with a remaining OPEN QUESTION that is not a Myanma Railways question either; all three are listed in §Items not requiring a Myanma Railways answer so that no gap in the numbering is unexplained. OQ28 and OQ34–OQ50 have provisional tech-lead rulings that unblock engineering; each ruling is explicitly **not a Myanma Railways answer** and remains open with Myanma Railways. The options are discussion prompts only; none is a recommendation or a recorded business decision. Existing **ENGINEERING DECISION** references describe implementation constraints already accepted by the project and do not answer the business questions.
 
 **Suggested response owner:** Myanma Railways should nominate the accountable role for each answer (for example, Network Operations, Commercial/Fares, Finance, Customer Service, Security, or IT). The role labels below are proposed routing labels, not assumed authorities.
 
@@ -43,12 +43,29 @@ The sections below are ordered thematically, for a workshop agenda. This table i
 | OQ25 | Records, governance, and key operations | Asked |
 | OQ26 | Network and operating model | Asked — F-001 runs on a provisional value; see its Status line |
 | OQ27 | Network and operating model | Asked — F-001 runs on a provisional value; see its Status line |
-| OQ28 | Network and operating model | Asked — F-001 runs on a provisional value; see its Status line |
+| OQ28 | Network and operating model | Asked — provisional ruling recorded; still open with Myanma Railways |
 | OQ29 | Network and operating model | Asked — F-001 implements no control; see its Status line |
 | OQ30 | Payments, refunds, and sales | Asked — a provisional tech-lead **ASSUMPTION** unblocks engineering; see its Status line |
 | OQ31 | Payments, refunds, and sales | Asked |
 | OQ32 | Items not requiring a Myanma Railways answer | **Excluded** — schedule and alert/DR ownership are **ENGINEERING DECISION**s (ADR-0017); the remaining storage-provider clause is blocked on an undecided hosting choice, not a Myanma Railways question |
 | OQ33 | Network and operating model | Asked |
+| OQ34 | Staff authentication and governance | Asked — provisional ruling recorded; still open with Myanma Railways |
+| OQ35 | Staff authentication and governance | Asked — provisional ruling recorded; still open with Myanma Railways |
+| OQ36 | Network and operating model | Asked — provisional ruling recorded; still open with Myanma Railways |
+| OQ37 | Network and operating model | Asked — provisional ruling recorded; still open with Myanma Railways |
+| OQ38 | Network and operating model | Asked — provisional ruling recorded; still open with Myanma Railways |
+| OQ39 | Network and operating model | Asked — provisional ruling recorded; still open with Myanma Railways |
+| OQ40 | Network and operating model | Asked — provisional ruling recorded; still open with Myanma Railways |
+| OQ41 | Network and operating model | Asked — provisional ruling recorded; still open with Myanma Railways |
+| OQ42 | Timetable and services | Asked — provisional ruling recorded; still open with Myanma Railways |
+| OQ43 | Timetable and services | Asked — provisional ruling recorded; still open with Myanma Railways |
+| OQ44 | Timetable and services | Asked — provisional ruling recorded; still open with Myanma Railways |
+| OQ45 | Timetable and services | Asked — provisional ruling recorded; still open with Myanma Railways |
+| OQ46 | Timetable and services | Asked — provisional ruling recorded; still open with Myanma Railways |
+| OQ47 | Timetable and services | Asked — partly resolved; holiday and date exceptions remain open with Myanma Railways |
+| OQ48 | Timetable and services | Asked — provisional ruling recorded; still open with Myanma Railways |
+| OQ49 | Timetable and services | Asked — provisional ruling recorded; still open with Myanma Railways |
+| OQ50 | Timetable and services | Asked — provisional ruling recorded; still open with Myanma Railways |
 
 
 ## Network and operating model
@@ -56,7 +73,7 @@ The sections below are ordered thematically, for a workshop agenda. This table i
 ### OQ1 — What is the authoritative current YCR station list?
 
 - **Why it matters:** Station identity, spelling, language forms, short codes, and stable QR indices must be consistent across routes, fares, timetables, tickets, reports, and printed material.
-- **Blocks or constrains:** Network seed data; station and route APIs; fare inputs; timetable references; the authenticated station-index mapping required by ADR-0014.
+- **Blocks or constrains:** Authoritative station and route data; fare inputs; timetable data that references stations and routes; the authenticated station-index mapping required by ADR-0014.
 - **Suggested options (non-binding):** (a) nominate one controlled MR master list and version it; (b) source the list from an existing operations registry with a named reconciliation owner; (c) publish a jointly approved list for an initial release and a change process for later additions.
 - **Suggested decision owner:** Network Operations / Planning (role to be nominated).
 - **Sources:** `docs/19-open-questions.md` OQ1; ADR-0014 station-index decision; `docs/20-coding-conventions.md` station-code note.
@@ -106,7 +123,7 @@ The sections below are ordered thematically, for a workshop agenda. This table i
 
 ### OQ28 — Which operator roles may manage stations, and is there a separate read permission?
 
-- **Status:** **OPEN QUESTION** for Myanma Railways. F-001 currently uses the provisional permission names `stations.manage` and `stations.read`, seeds no role-to-permission grants, and mints permissions directly in tests. This is a placeholder and an authorization containment measure, **not a Myanma Railways answer** about role grants.
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-22; T-014) — not a Myanma Railways answer:** `stations.manage` → `SystemAdministrator` and `RailwayAdministrator` only; `stations.read` → all eight roles: `SystemAdministrator`, `RailwayAdministrator`, `StationManager`, `TicketOperator`, `TicketInspector`, `FinanceOfficer`, `Auditor` and `ReportingUser` (the eighth role added under OQ12). The ruling remains open with Myanma Railways. F-001 seeds no role-to-permission grants and mints permissions directly in tests; the approved grants are recorded in `docs/10-authorization-matrix.md` for the F-002 provisioning work.
 - **Why it matters:** Station management and read access need explicit segregation-of-duties, least-privilege, provisioning, and audit rules. The existing matrix table is only a proposal; the permission inventory governs until grants are approved.
 - **Blocks or constrains:** Authorization matrix approval; role provisioning; station endpoint access; audit attribution; release of production role seed data; F-001 replacement work tracked by T-014.
 - **Suggested options (non-binding):** (a) approve role grants in the existing matrix; (b) use a separate station-manager role for `stations.manage` and one or more read-only roles for `stations.read`; (c) grant permissions by station/region assignment rather than global role; (d) require dual control for changes while allowing broader read access.
@@ -145,6 +162,114 @@ The sections below are ordered thematically, for a workshop agenda. This table i
 - **Suggested options (non-binding):** (a) no migration; start with a clean system; (b) migrate selected master and financial history; (c) full migration with a defined cutover and reconciliation window; (d) operate both systems temporarily with an agreed source of truth.
 - **Suggested decision owner:** MR IT and business system owners (roles to be nominated).
 - **Sources:** `docs/19-open-questions.md` OQ16; `docs/07-database-design.md` if migration is confirmed.
+
+## Staff authentication and governance
+
+### OQ34 — How are staff accounts governed?
+
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-23; T-023) — not a Myanma Railways answer:** `SystemAdministrator` creates and disables accounts, assigns roles and resets passwords; no user may change their own roles; no second approver in Phase 1; usernames are 3–50 characters from lowercase `a-z`, `0-9` and `.`; hein holds the first administrator account until Myanma Railways names a holder. The ruling remains open with Myanma Railways.
+- **Blocks or constrains:** F-002 account administration and first-administrator bootstrap.
+- **Sources:** `docs/19-open-questions.md` OQ34; F-002 spec D9, D10, R20.
+
+### OQ35 — Does Myanma Railways or a government policy mandate an authentication policy?
+
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-23; T-023) — not a Myanma Railways answer:** no mandated policy is known, so password, lockout, MFA and session-length rules are engineering decisions recorded in ADR-0023. The ruling remains open with Myanma Railways.
+- **Blocks or constrains:** F-002 password, lockout, MFA and session-length rules where an external policy would apply.
+- **Sources:** `docs/19-open-questions.md` OQ35; F-002 spec D2, D3, D4, D12; ADR-0023.
+
+## Routes and network operations
+
+### OQ36 — Which routes does the Yangon Circular Railway have for this system's purposes?
+
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-24; T-032) — not a Myanma Railways answer:** the system may hold several routes, routes may share stations, routes have no direction attribute, there is no separate `Line` concept, and the YCR loop is entered as one route with no seed data. The ruling remains open with Myanma Railways.
+- **Blocks or constrains:** F-003 route shape, route direction, route master data and seed data.
+- **Sources:** `docs/19-open-questions.md` OQ36; F-003 spec R5, §0.8; OQ1.
+
+### OQ37 — What does a route's ordered station sequence look like?
+
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-24; T-032) — not a Myanma Railways answer:** each route has a closed/open setting; closed routes connect last to first without repeating the first station; stations do not repeat; minimum length is two for open routes and three for closed routes. The ruling remains open with Myanma Railways.
+- **Blocks or constrains:** F-003 sequence validation and database constraints.
+- **Sources:** `docs/19-open-questions.md` OQ37; F-003 spec R6–R8, §0.8.
+
+### OQ38 — Can a route's station sequence change after it is first defined?
+
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-24; T-032) — not a Myanma Railways answer:** routes are immutable; a network change creates a new route and deactivates the old one, with `RouteStations` insert-only. The ruling remains open with Myanma Railways.
+- **Blocks or constrains:** F-003 sequence-change operation and historical reconstruction.
+- **Sources:** `docs/19-open-questions.md` OQ38; F-003 spec R9, R10, §0.8; `docs/07-database-design.md`.
+
+### OQ39 — How do routes and inactive stations interact?
+
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-24; T-032) — not a Myanma Railways answer:** an inactive station cannot be placed in a route; deactivation of a station already in a route is allowed and leaves it in the sequence. The ruling remains open with Myanma Railways.
+- **Blocks or constrains:** F-003 sequence validation and the interaction with F-001 station deactivation.
+- **Sources:** `docs/19-open-questions.md` OQ39; F-003 spec R11, R12, S16–S18.
+
+### OQ40 — Which operator roles may manage routes, and which may view them?
+
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-24; T-032) — not a Myanma Railways answer:** `routes.manage` → `SystemAdministrator` and `RailwayAdministrator`; `routes.read` → all eight roles. The ruling remains open with Myanma Railways.
+- **Blocks or constrains:** F-003 endpoint permissions and the grant seed migration.
+- **Sources:** `docs/19-open-questions.md` OQ40; `docs/10-authorization-matrix.md` §Route permission grants; F-003 spec R2, R3.
+
+### OQ41 — What identifies a route, and what is its lifecycle?
+
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-24; T-032) — not a Myanma Railways answer:** routes use a code and `BilingualName` under the station rules; codes are unique across active and inactive routes and never reused; routes may be deactivated but not reactivated, deleted or edited. The ruling remains open with Myanma Railways.
+- **Blocks or constrains:** F-003 route fields, validation, uniqueness and deactivation.
+- **Sources:** `docs/19-open-questions.md` OQ41; F-003 spec R13–R15, §0.8; OQ26 and OQ27.
+
+## Timetable and services
+
+### OQ42 — What is a "train" for this system, and does Phase 1 need to record trains separately from services?
+
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-25; T-044) — not a Myanma Railways answer:** Phase 1 has no `Train` concept; core use case 3 is met by services, with no `/trains` endpoint, `Trains` table or `trains.manage` grant. The ruling remains open with Myanma Railways.
+- **Blocks or constrains:** F-004's train/service aggregate, endpoints, permission and tables.
+- **Sources:** `docs/19-open-questions.md` OQ42; F-004 spec R5, §6, §7; `docs/03-use-cases.md` core use case 3.
+
+### OQ43 — What identifies a service?
+
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-25; T-044) — not a Myanma Railways answer:** a service has a code and `BilingualName` under the station and route rules; a code is unique only among overlapping effective periods and may be reused after a non-overlapping period; there is no service type. The ruling remains open with Myanma Railways.
+- **Blocks or constrains:** F-004 service fields, validation and unique constraints.
+- **Sources:** `docs/19-open-questions.md` OQ43; F-004 spec R6, R7, R35; OQ26, OQ27 and OQ41.
+
+### OQ44 — How does a service express its direction and its extent on a route?
+
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-25; T-044) — not a Myanma Railways answer:** services store `Forward` or `Reverse` relative to route order; closed routes may wrap; a full circuit repeats the first stop as the last, only on a closed route and at most once; partial and reverse service on open routes are allowed. The ruling remains open with Myanma Railways.
+- **Blocks or constrains:** F-004 direction, extent and stopping-pattern order checks.
+- **Sources:** `docs/19-open-questions.md` OQ44; F-004 spec R9, R10, R12; OQ36 and OQ37.
+
+### OQ45 — What are the rules for a service's stopping pattern?
+
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-25; T-044) — not a Myanma Railways answer:** every stop is on the one route; stops follow direction order, passed stations are allowed, first and last stops are the extent, at least two stops are required, only a full-circuit closing stop may repeat, and no stop attributes exist in Phase 1. The ruling remains open with Myanma Railways.
+- **Blocks or constrains:** F-004 stopping-pattern validation and `ServiceStops` shape.
+- **Sources:** `docs/19-open-questions.md` OQ45; F-004 spec R10–R14, §7; OQ44.
+
+### OQ46 — How do services interact with inactive routes and inactive stations?
+
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-25; T-044) — not a Myanma Railways answer:** creation on an inactive route or with an inactive stop station is refused; later route or station deactivation remains allowed and existing services are unchanged. The ruling remains open with Myanma Railways.
+- **Blocks or constrains:** F-004 service-creation validation and changes to F-003/F-001 deactivation behavior.
+- **Sources:** `docs/19-open-questions.md` OQ46; F-004 spec R15, R16; OQ39; ADR-0025.
+
+### OQ47 — On which days does a service run?
+
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Partly resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-25; T-044) — not a Myanma Railways answer:** operating days are days of the week only and the operating date is the Asia/Yangon date on which the service starts; public-holiday calendars and per-date exceptions remain open with Myanma Railways and are a known limitation. The ruling remains open with Myanma Railways.
+- **Blocks or constrains:** F-004 operating-day model and storage.
+- **Sources:** `docs/19-open-questions.md` OQ47; F-004 spec R17, R18, §9.
+
+### OQ48 — What is a service's effective period, and can a service change after it is defined?
+
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-25; T-044) — not a Myanma Railways answer:** services are immutable except for withdrawal; `EffectiveFrom` is required, `EffectiveTo` is inclusive and nullable; withdrawal only shortens the period, cannot reopen or delete, and a timetable change withdraws the old service and creates a new one with the same code. The ruling remains open with Myanma Railways.
+- **Blocks or constrains:** F-004 service mutability, `PATCH /services`, grants and ADR-0024 applicability.
+- **Sources:** `docs/19-open-questions.md` OQ48; F-004 spec R19–R21, R35, R36; OQ38 and OQ4.
+
+### OQ49 — Which roles may manage and read services, trains and timetable versions?
+
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-25; T-044) — not a Myanma Railways answer:** `services.manage` → `SystemAdministrator` and `RailwayAdministrator`; `services.read` → all eight roles; no `trains.*` grants; `schedules.*` is deferred to FR-004. The ruling remains open with Myanma Railways.
+- **Blocks or constrains:** F-004 endpoint permissions and grant seed migration.
+- **Sources:** `docs/19-open-questions.md` OQ49; `docs/10-authorization-matrix.md` §Service permission grants; F-004 spec R3, R4; OQ42.
+
+### OQ50 — May a service be created with an effective period that starts, or ends, before today's Asia/Yangon date?
+
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-25; T-044) — not a Myanma Railways answer:** `EffectiveFrom` may be earlier than today's Asia/Yangon date; `EffectiveTo`, if given, may not be earlier than today; the overlap rule is unchanged and creation records `CreatedAtUtc` and the audit event. The ruling remains open with Myanma Railways.
+- **Blocks or constrains:** F-004 effective-period validation at creation.
+- **Sources:** `docs/19-open-questions.md` OQ50; F-004 spec §0.10, R39, S40, S40a; OQ48 and OQ1.
 
 ## Ticket product and validation
 

@@ -5,7 +5,7 @@ Status: **Approved (hein, 2026-09-20)**. The station field rules (R3, R4) and st
 **Amendment 1 — 2026-09-20 (hein), raised by the T-003 plan review.** Scenario **S27** added to §4 (concurrent deactivation), and §7 records that `IsActive` is an EF concurrency token. No business rule changed; both are concurrency mechanics the plan review surfaced.
 
 Module(s): `Network` (reference slice); cross-cutting `Audit`, `Identity` (authentication host only), plus solution-wide infrastructure
-Related: FR-001, UC "Manage stations" (`docs/03-use-cases.md` §16), ADR-0004, ADR-0005, ADR-0006, ADR-0012, ADR-0016, ADR-0017, ADR-0018, ADR-0019, ADR-0020, ADR-0021, `docs/20-coding-conventions.md` §3
+Related: FR-001, core use case 1 "Manage stations" (`docs/03-use-cases.md`), ADR-0004, ADR-0005, ADR-0006, ADR-0012, ADR-0016, ADR-0017, ADR-0018, ADR-0019, ADR-0020, ADR-0021, `docs/20-coding-conventions.md` §3
 
 Decision owner:
 - Business rules (station codes, names, role grants): **Myanma Railways** remains the authoritative decision owner, routed through `hein` (`docs/19-open-questions.md`). Myanma Railways has not answered OQ26–OQ28, so `hein` made a **final tech-lead ruling** (T-014, 2026-09-22) so F-001 is not blocked indefinitely; it is **not** a Myanma Railways decision and a later Myanma Railways answer, if different, supersedes it.
