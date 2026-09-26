@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed — 2026-09-25 (claude, T-050; ruling Q2 of the F-004 plan, hein, 2026-09-25). Needs hein's approval to become Accepted.
+Accepted — 2026-09-26 (hein, at the F-004 merge, T-052). Drafted by claude (T-050; ruling Q2 of the F-004 plan, hein, 2026-09-25); proposed 2026-09-25.
 
 ## Context
 
