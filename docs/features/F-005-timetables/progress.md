@@ -362,3 +362,22 @@ Correction (claude, T-054, 2026-09-27 12:32 Asia/Yangon): the entry stamped "202
 **Blockers / open questions:** none.
 
 **State of the branch:** step 9 committed and pushed.
+
+---
+
+## 2026-09-28 01:09 Asia/Yangon — claude — T-055
+
+**Stage:** 4 (IMPLEMENT) — plan step 10 committed; CI pending at the time of this entry.
+**Commit:** the step 10 commit carrying this entry (the final code SHA of stage 4).
+
+**Done:**
+- **`YCR.Api.http`:** header lists F-005; `@scheduleVersionId`; a "Schedule versions (F-005)" section — create (every error named), read, one service's times, list with `status`, publish, in force, a second draft on the same start date (then 409 on publish), cancel, discard, an empty version starting today (422), and withdrawing a listed service (422).
+- **`api-smoke`** (`.github/workflows/ci.yml`), after the F-004 checks, same administrator token: anonymous list 401 `Auth.Unauthenticated`; create from today listing SV1 → 201; read, times (`06:00`), list → 200; publish → 204; in force today → 200 naming it; cancel it → 422 `ScheduleVersionAlreadyEffective`; an empty version from today → 422 `EmptyScheduleVersionNotInFuture`; an empty version from tomorrow → 201, publish 204, cancel 204; a draft → discard 204; withdraw SV1 from tomorrow → 422 `ServiceInPublishedScheduleVersion`. **`CiWorkflowTests` confirmed unaffected:** it reads the jobs' `env:` and provisioning steps only; no job-level `env:` or provisioning line changed.
+
+**Evidence:** `dotnet test YCR.sln --max-parallel-test-modules 1` → **1624 total, 1624 passed, 0 failed, 0 skipped** (no new test; step 10 changes no compiled code).
+
+**Next step (exact):** green GitHub Actions runs on this SHA — the `push` workflow and the `pull_request` workflow (draft PR) including Trunk-only; then `TASKS.md` T-055 → review with the code SHA, both run URLs and the totals.
+
+**Blockers / open questions:** none.
+
+**State of the branch:** committed and pushed.
