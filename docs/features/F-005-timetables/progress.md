@@ -182,3 +182,23 @@ Correction (claude, T-054, 2026-09-27 12:32 Asia/Yangon): the entry stamped "202
 **Blockers / open questions:** none.
 
 **State of the branch:** step 2 pushed; steps 3–6 work stashed, unverified.
+
+---
+
+## 2026-09-27 17:36 Asia/Yangon — claude — T-055
+
+**Stage:** 4 (IMPLEMENT) — plan step 3 done.
+**Commit:** the step 3 commit carrying this entry.
+
+**Done:**
+- **Step 3 — seed:** migration **`20260927071025_Identity_SeedSchedulePermissionGrants`** (EF-generated shell, empty model diff, snapshot unchanged; body hand-written as raw SQL like `Identity_SeedServicePermissionGrants`): exactly the ten `docs/10` §Schedule permission grants — `schedules.manage` → `SystemAdministrator`, `RailwayAdministrator`; `schedules.read` → all eight roles; no `schedules.publish`; role ids re-declared; `Down()` deletes exactly the ten pairs. OQ59 provisional-ruling comment. Total grants 34 → 44.
+- Changed tests (plan items, each still a strict equality): **1** `IdentitySeedTests.Seed_ProducesExactlyEightRolesAndThirtyFourGrants` → renamed `…FortyFourGrants`, 34 → 44, the ten schedule rows in the expected set, class summary; **2** `Seed_MatchesDocs10GrantTables` reads `## Schedule permission grants` too; **3** `DatabasePrivilegeTests.ApplicationCredential_CannotWriteRolesOrGrants` 34 → 44 (and its comment); **4, 5** `RouteMigrationTests` 34 → 44 (both); **6, 7** `TimetableMigrationTests` 34 → 44 (both; their grant arrays move at step 4); **8** `UserAdministrationEndpointTests.ListRoles_…` 34 → 44; **9** `AdministrationHandlerTests.ListRoles_…` + `schedules.manage`, `schedules.read` / + `schedules.read`; **10, 11** `SessionHandlerTests` + the two schedule permissions; **12** `PasswordEndpointTests.Me_…` + `SchedulesManage`, `SchedulesRead`.
+- **RED confirmed:** with the seed migration moved aside, the twelve changed tests run by name → **12 failed, 0 passed** (7 Infrastructure, 3 Application, 2 Api). With it back → 12/12 passed.
+
+**Evidence:** `has-pending-model-changes` clean; `dotnet test YCR.sln --max-parallel-test-modules 1` → **1311 total, 1311 passed, 0 failed, 0 skipped** (no new test in this step).
+
+**Next step (exact):** plan step 4 — migration `20260927072142_Security_TimetableScheduleGrants`, the new `DatabasePrivilegeTests` cases (except the applock one), item 14's DDL rows, `ScheduleMigrationTests`, items 6–7's sixteen grant rows (from the stash).
+
+**Blockers / open questions:** none.
+
+**State of the branch:** step 3 committed and pushed; steps 4–6 work stashed, unverified.

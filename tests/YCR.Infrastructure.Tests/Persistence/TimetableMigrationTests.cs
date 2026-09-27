@@ -239,7 +239,7 @@ public sealed class TimetableMigrationTests(SqlServerFixture fixture) : IAsyncLi
                 SELECT CONCAT(r.[Name], N':', p.[Permission]) FROM [identity].[RolePermissions] AS p
                 JOIN [identity].[Roles] AS r ON r.[Id] = p.[RoleId] WHERE p.[Permission] LIKE N'services.%'
                 """)).Order(StringComparer.Ordinal));
-        Assert.Equal(34, await ScalarOnAsync(upgraded, "SELECT COUNT(*) FROM [identity].[RolePermissions];"));
+        Assert.Equal(44, await ScalarOnAsync(upgraded, "SELECT COUNT(*) FROM [identity].[RolePermissions];"));
     }
 
     /// <summary>
@@ -286,7 +286,7 @@ public sealed class TimetableMigrationTests(SqlServerFixture fixture) : IAsyncLi
         }
 
         Assert.Equal(ExpectedTimetableGrants, (await TimetableGrantsAsync(database)).Order(StringComparer.Ordinal));
-        Assert.Equal(34, await ScalarAsync("SELECT COUNT(*) FROM [identity].[RolePermissions];"));
+        Assert.Equal(44, await ScalarAsync("SELECT COUNT(*) FROM [identity].[RolePermissions];"));
         Assert.Equal(0, await ScalarAsync("SELECT COUNT(*) FROM [timetable].[Services];"));
     }
 

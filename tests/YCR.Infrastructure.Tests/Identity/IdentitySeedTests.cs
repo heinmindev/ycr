@@ -7,8 +7,9 @@ using YCR.TestSupport;
 namespace YCR.Infrastructure.Tests.Identity;
 
 /// <summary>
-/// S30: exactly eight roles and thirty-four grants (fourteen from F-002, ten route grants from
-/// F-003, OQ40, ten service grants from F-004, OQ49), identical to <c>docs/10</c>, every permission a
+/// S30: exactly eight roles and forty-four grants (fourteen from F-002, ten route grants from
+/// F-003, OQ40, ten service grants from F-004, OQ49, ten schedule grants from F-005, OQ59), identical
+/// to <c>docs/10</c>, every permission a
 /// <see cref="Permissions"/> constant, and no user.
 /// </summary>
 /// <remarks>
@@ -27,13 +28,13 @@ public sealed class IdentitySeedTests(SqlServerFixture fixture) : IAsyncLifetime
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
     [Fact]
-    public async Task Seed_ProducesExactlyEightRolesAndThirtyFourGrants()
+    public async Task Seed_ProducesExactlyEightRolesAndFortyFourGrants()
     {
         var roles = await IdentitySql.StringsAsync(database.MigratorConnectionString, "SELECT [Name] FROM [identity].[Roles]");
         Assert.Equal(RoleNames.All.Order(StringComparer.Ordinal), roles.Order(StringComparer.Ordinal));
 
         var grants = await SeededGrantsAsync();
-        Assert.Equal(34, grants.Count);
+        Assert.Equal(44, grants.Count);
         string[] expected =
         [
             "RailwayAdministrator:stations.manage",
@@ -49,6 +50,9 @@ public sealed class IdentitySeedTests(SqlServerFixture fixture) : IAsyncLifetime
             "RailwayAdministrator:services.manage",
             "SystemAdministrator:services.manage",
             .. RoleNames.All.Select(role => $"{role}:services.read"),
+            "RailwayAdministrator:schedules.manage",
+            "SystemAdministrator:schedules.manage",
+            .. RoleNames.All.Select(role => $"{role}:schedules.read"),
         ];
         Assert.Equal(
             expected.Order(StringComparer.Ordinal),
@@ -98,7 +102,7 @@ public sealed class IdentitySeedTests(SqlServerFixture fixture) : IAsyncLifetime
             """);
 
     /// <summary>
-    /// Reads the four grant sections of <c>docs/10</c>: the station, route and service bullets
+    /// Reads the five grant sections of <c>docs/10</c>: the station, route, service and schedule bullets
     /// (<c>- `perm` → … roles …</c>, up to the first parenthesis, which lists who does
     /// <em>not</em> hold it) and the identity table's "Held by" column.
     /// </summary>
@@ -108,9 +112,9 @@ public sealed class IdentitySeedTests(SqlServerFixture fixture) : IAsyncLifetime
         var roles = RoleNames.All.ToHashSet(StringComparer.Ordinal);
         var grants = new List<string>();
 
-        // The station, route and service sections share one bullet format (F-003 plan R-4), so one parser
-        // reads all three. Each section must yield grants, so a reformatted section fails by name.
-        foreach (var heading in new[] { "## Station permission grants", "## Route permission grants", "## Service permission grants" })
+        // The station, route, service and schedule sections share one bullet format (F-003 plan R-4), so one parser
+        // reads all four. Each section must yield grants, so a reformatted section fails by name.
+        foreach (var heading in new[] { "## Station permission grants", "## Route permission grants", "## Service permission grants", "## Schedule permission grants" })
         {
             var section = Section(text, heading);
             var before = grants.Count;
