@@ -295,7 +295,7 @@ public sealed class TimetableMigrationTests(SqlServerFixture fixture) : IAsyncLi
     private static readonly Guid UpgradeStationId = Guid.Parse("0199b3a0-0000-7000-8000-00000000f401");
     private static readonly Guid UpgradeRouteId = Guid.Parse("0199b3a0-0000-7000-8000-00000000f402");
 
-    private static readonly string[] ExpectedTimetableGrants =
+    private static readonly string[] ExpectedServiceGrants =
     [
         "INSERT:ServiceStops:",
         "INSERT:Services:",
@@ -304,6 +304,13 @@ public sealed class TimetableMigrationTests(SqlServerFixture fixture) : IAsyncLi
         "UPDATE:Services:EffectiveTo",
         "UPDATE:Services:WithdrawnAtUtc",
     ];
+
+    /// <summary>
+    /// The grant query is schema-wide and these tests migrate to the latest migration, so F-005's
+    /// ten schedule grants (<c>Security_TimetableScheduleGrants</c>) are part of the exact set.
+    /// </summary>
+    private static readonly string[] ExpectedTimetableGrants =
+        [.. ExpectedServiceGrants.Concat(ScheduleMigrationTests.ExpectedScheduleGrants).Order(StringComparer.Ordinal)];
 
     /// <summary>The <c>ycr_app</c> role's grants on the timetable schema and its objects, as <c>PERMISSION:Object:Column</c>.</summary>
     private static Task<List<string>> TimetableGrantsAsync(TestDatabase target) =>

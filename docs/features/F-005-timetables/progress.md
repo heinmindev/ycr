@@ -202,3 +202,25 @@ Correction (claude, T-054, 2026-09-27 12:32 Asia/Yangon): the entry stamped "202
 **Blockers / open questions:** none.
 
 **State of the branch:** step 3 committed and pushed; steps 4–6 work stashed, unverified.
+
+---
+
+## 2026-09-27 18:17 Asia/Yangon — claude — T-055
+
+**Stage:** 4 (IMPLEMENT) — plan step 4 done.
+**Commit:** the step 4 commit carrying this entry.
+
+**Done:**
+- **Step 4 — grants:** migration **`20260927072142_Security_TimetableScheduleGrants`** (EF shell, empty model diff; raw SQL like `Security_TimetableGrants`): exactly spec §7 — `ScheduleVersions` `SELECT`, `INSERT`, `UPDATE(Status, PublishedAtUtc, DiscardedAtUtc, CancelledAtUtc)`; `ScheduleVersionServices` and `ScheduleStopTimes` `SELECT`, `INSERT`. No `DELETE`, no other `UPDATE`, no DDL, no `EXECUTE`. `Down()` revokes exactly these in reverse order.
+- New tests: `DatabasePrivilegeTests.ApplicationCredential_HasExactlyTheScheduleGrants` (presences and absences), `…CanMoveAVersionsStatusButNotRewriteIt` (executes the allowed status update and nine denied statements; rows unchanged), `…ScheduleBackstops_RejectInvalidRows` (theory, 18 rows: minutes −1/1440, dwell, no time, number 0, status `Live`, five wrong-instant combinations, four non-UTC instants, duplicate number, second published start date), `…ScheduleBackstops_AllowSharedStartDatesOutsidePublished`, `…CannotInsertAnEntryOrStopTimeNamingNoServiceOrStop` (the four FKs); `ScheduleMigrationTests.Migrate_FromF004Schema_CreatesScheduleObjectsGrantsAndSeed` (from `20260925072603_Security_TimetableGrants` with a service and stops: rows intact, no version rows, the five tables, ten checks, seven indexes with the filter `([Status]=N'Published')`, four FKs `NO_ACTION`, the ten grants, ten `schedules.%` rows, 44 in all) and `…Migrate_DownToF004_…` (and forward again). Shared SQL helpers live in `ScheduleMigrationTests`.
+- Changed tests: **item 14** (`ApplicationCredential_AttemptingDdl_IsDenied` + three rows) and **items 6–7's grant rows** (`TimetableMigrationTests`: `ExpectedTimetableGrants` = F-004's six `ExpectedServiceGrants` + F-005's ten `ExpectedScheduleGrants`, sixteen, exact).
+- **RED confirmed:** with the grants migration moved aside, the step 4 tests run by name → 26 failed, 13 passed; the 13 are item 14's DDL rows, which assert an absence the migration keeps absent and so cannot show a RED (the same as F-004). With it back → 39/39.
+- One test-data fix on the way to green: three backstop rows inserted a second *published* version on the setup version's start date, so R22's filtered unique index refused them before their check could; they now start on 2026-12-01. No assertion changed.
+
+**Evidence:** `has-pending-model-changes` clean; `dotnet test YCR.sln --max-parallel-test-modules 1` → **1338 total, 1338 passed, 0 failed, 0 skipped** (+27).
+
+**Next step (exact):** plan step 5 — `IScheduleVersionsLock`, `SqlServerScheduleVersionsLock`, DI, `GatedScheduleVersionsLock`, `RecordingLocks`, `ApplicationCredential_CanTakeTheScheduleVersionsApplock` (V6), from the stash.
+
+**Blockers / open questions:** none.
+
+**State of the branch:** step 4 committed and pushed; steps 5–6 work stashed, unverified.
