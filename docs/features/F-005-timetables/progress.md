@@ -108,3 +108,24 @@ Correction (claude, T-054, 2026-09-27 12:32 Asia/Yangon): the entry stamped "202
 **Blockers / open questions:** `approval` (stage-3 ⛔). Plan questions Q1 (total stop-time cap 10,000), Q2 (unknown `status` filter), Q3 (Amendment 1 at creation), Q4 (remove the F-004 `AbsentEndpoints` row), Q5 (lock name). No new business OQ.
 
 **State of the branch:** docs only; committed and pushed.
+
+---
+
+## 2026-09-27 12:52 Asia/Yangon — claude — T-054
+
+**Stage:** 3 (PLAN) — **plan Approved (hein, 2026-09-27)**; stage 3 complete.
+**Commits:** spec Amendment 2 at `e2cd3c5`; approved plan (revision 2) at `5901d53`; this entry is the next commit on `feature/F-005`.
+
+**Done this session:**
+- **hein's rulings on plan Q1–Q5** (2026-09-27, recorded in the `TASKS.md` T-054 row) applied. Plan §Questions for hein replaced by a dated §Rulings on Q1–Q5 table; Status "Approved (hein, 2026-09-27)", revision 2; stop point and review history updated.
+- **Q1:** total cap 10,000 stop times per version, 2 MiB body limit, 250 services, 200 stop times per service — REQUIRED CONTROLs; the size calculation stays in the plan. **Q2:** unknown `status` → `400 Common.ValidationFailed`. **Q4:** the F-004 `AbsentEndpoints_AreNotRouted` row for `POST /api/v1/schedules/versions` is removed (item 17); the other rows stay. **Q5:** lock resource `timetable.ScheduleVersions`. These were already the plan's proposals; only wording changed.
+- **Q3 → spec Amendment 2** (provisional tech-lead ruling, not a Myanma Railways answer): an empty draft whose `EffectiveFrom` is not later than today is refused at creation with `422 Timetable.EmptyScheduleVersionNotInFuture`; nothing written. Spec: Status "amended by Amendments 1–2"; §0.10 Amendment 2 table; R9 pointer; R45 (the empty check after the start-date check); R50 (creation and publication); SV55 rewritten (creation refusal; publication case for a draft created for tomorrow and published once that date is today); §5 create guard; §6 create errors; §9; Blocked behaviour. `docs/19` OQ60: Amendment 2 paragraph (LF kept).
+- Plan follow-ups for Amendment 2: P3, P4 (new check 5; per-service checks renumbered 6–13), P6, §Domain changes, create row of §Endpoint inventory, `.http`, `api-smoke` step 4 (now a creation refusal), new test rows (`Parse_WithNoServicesStartingToday_…`, `CreateScheduleVersion_WithNoServicesStartingToday_…`, `Post_WithNoServicesStartingToday_…`), the publication-time SV55 rows renamed to "start has become today", and the SV19 "start today" rows noted as non-empty.
+
+**Evidence:** docs only; no build or test run. Files: `spec.md`, `plan.md`, `progress.md`, `docs/19-open-questions.md`.
+
+**Next step (exact):** T-055 (stage 4, implement) from plan revision 2 at `5901d53`, step 1. Not started in this session.
+
+**Blockers / open questions:** none blocking. Reported to hein: spec §6 still lists only `400 Timetable.InvalidPageRequest` for the list endpoint (Q2 adds `400 Common.ValidationFailed`), and spec R41/SV47 name only the two array caps (Q1 adds the per-version total cap); the plan carries both, the spec text was not changed without a ruling.
+
+**State of the branch:** docs only; committed and pushed.
