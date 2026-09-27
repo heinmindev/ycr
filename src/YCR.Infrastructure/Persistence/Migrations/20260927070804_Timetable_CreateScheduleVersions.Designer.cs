@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using YCR.Infrastructure.Persistence;
 
@@ -11,9 +12,11 @@ using YCR.Infrastructure.Persistence;
 namespace YCR.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(YcrDbContext))]
-    partial class YcrDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260927070804_Timetable_CreateScheduleVersions")]
+    partial class Timetable_CreateScheduleVersions
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

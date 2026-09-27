@@ -158,8 +158,9 @@ public sealed class TimetableMigrationTests(SqlServerFixture fixture) : IAsyncLi
         Assert.Equal(0, await ScalarOnAsync(upgraded, "SELECT COUNT(*) FROM [timetable].[Services];"));
         Assert.Equal(0, await ScalarOnAsync(upgraded, "SELECT COUNT(*) FROM [timetable].[ServiceStops];"));
 
+        // F-005 adds its three tables to the schema (this test migrates to the latest migration).
         Assert.Equal(
-            ["ServiceStops", "Services"],
+            ["ScheduleStopTimes", "ScheduleVersionServices", "ScheduleVersions", "ServiceStops", "Services"],
             (await StringsOnAsync(upgraded, "SELECT name FROM sys.tables WHERE schema_id = SCHEMA_ID(N'timetable')"))
                 .Order(StringComparer.Ordinal));
 

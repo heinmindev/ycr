@@ -14,10 +14,19 @@ namespace YCR.Application.Timetable;
 /// withdrawal that holds the service-code lock (plan P9, P10; ruling Q2, the second use of the
 /// F-002 plan P14 exception to ADR-0004's single-save default), as <c>IIdentityDbContext</c> does
 /// for the administrator lock.
+/// <para>
+/// F-005 (plan P24; ADR-0026 item 4): the schedule handlers (create, publish, discard, cancel) and
+/// the withdrawal use the same explicit transaction to hold the Timetable-wide lock
+/// <c>timetable.ScheduleVersions</c> across their deciding reads and their one save. There is no
+/// <c>DbSet</c> for a version's entries or stop times: they are reached only through the version.
+/// </para>
 /// </remarks>
 public interface ITimetableDbContext
 {
     DbSet<Service> Services { get; }
+
+    /// <summary>Timetable versions (F-005 plan P1).</summary>
+    DbSet<ScheduleVersion> ScheduleVersions { get; }
 
     DatabaseFacade Database { get; }
 
