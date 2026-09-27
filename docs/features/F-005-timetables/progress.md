@@ -247,3 +247,30 @@ Correction (claude, T-054, 2026-09-27 12:32 Asia/Yangon): the entry stamped "202
 **Blockers / open questions:** none.
 
 **State of the branch:** step 5 committed and pushed; step 6 work stashed, unverified.
+
+---
+
+## 2026-09-27 19:59 Asia/Yangon — claude — T-055
+
+**Stage:** 4 (IMPLEMENT) — plan step 6 done.
+**Commit:** the step 6 commit carrying this entry.
+
+**Done:**
+- **Step 6 — application writes:** `TimetableAuditActions` (+4), `TimetableAuditSubjects.ScheduleVersion`; `ScheduleVersionAuditSnapshot` (header), `ScheduleVersionCreatedAuditSnapshot` (+ services by lower-case id and `stopTimesSha256`), `ScheduleStopTimesDigest` (the canonical form in its XML comment); `CreateScheduleVersionHandler` (P6: parse → transaction → lock → facts → highest number → `CreateDraft` → add, audit, one save → commit), `PublishScheduleVersionHandler` (P7; the filtered index mapped by name to `409 EffectiveFromTaken`, `DbUpdateConcurrencyException` to `409 ChangedConcurrently`), `DiscardScheduleVersionHandler`, `CancelScheduleVersionHandler`; commands in their own files.
+- Tests: `CreateScheduleVersionHandlerTests` (SV1, SV4, SV5, SV6–SV16, SV18, SV19, R33 Yangon midnight, SV22, SV55 creation, R45 precedence, SV49 actor, SV50 number backstop, the whole network at the caps), `ScheduleStopTimesDigestTests` (the empty vector and a vector computed outside .NET with `sha256sum`, order independence), `PublishScheduleVersionHandlerTests` (SV23, SV24, SV25 ×4, SV26 parallel, SV20, SV21, SV17, SV55 publication, SV56, V8 index backstop, R47), `CancelScheduleVersionHandlerTests` (SV31, SV33 ×2, SV34 ×4, R47), `DiscardScheduleVersionHandlerTests` (SV35, ×4, R47), `ScheduleVersionTransitionSqlTests` (V1, V9), `ScheduleLockTests` (SV42 forced publish/discard both orders; five parallel creates → numbers 1–5). Support: `ScheduleTestData` (+ `ScheduleHandlerTestBase`).
+- Changed test **item 13:** `DependencyInjectionTests.HandlerTypes_IncludesEveryHandlerDefined` 30 → **34**, the four write handlers named (34 → 38 at step 8).
+- **V1, V9 confirmed:** publish, discard and cancel each emit one `UPDATE [timetable].[ScheduleVersions] SET [Status], [<one instant>] … WHERE [Id] = @p AND [Status] = @p`; nothing against the child tables. **V8 confirmed:** a second published row with the same start date is error 2601 naming `UX_ScheduleVersions_EffectiveFrom_Published`, translated and mapped to `409`. **V2 measured:** a create at the caps (250 services × 40 stops = 10,000 stop times, one audit row) took **767 ms and 779 ms** on two runs on this machine (the handler's whole duration, so an upper bound on the lock hold) — well under the 5 s stop threshold; no timing assertion.
+- **RED confirmed:** (1) without the step 6 production files the tests did not compile (22 × CS0246, 10 × CS0234); (2) **mutation check** — the lock call removed from create, publish and discard, the highest-number read ignored, the index name mapping broken, the digest altered → **12 failed**: both forced SV42 orders (the gate never saw the lock requested), the five parallel creates, the numbering test, SV22's digest, the transition SQL test (applock count), V8, SV24, SV26, the digest vectors, and SV55's publication test (the created draft numbers). Mutations restored from a copy; the tree matched the staged originals exactly (`git diff` empty), no `MUTATION` marker left. With the real code: 97/97 in the targeted classes.
+- Test-side fix on the way to green: `ActorRole` is stored as a JSON array (`["SystemAdministrator"]`), so SV49's expectation was corrected.
+
+**Deviations:**
+- **V8 (mechanical, ordering):** the two publish-side assertions that need the in-force read — SV53 (`PublishScheduleVersion_Empty_IsInForceWithNoServices`) and SV55's "in force unchanged" — come at step 8 with `GetScheduleVersionInForce`; the SV55 publication test is extended there, and the SV53 test is added there.
+- **V9 (mechanical):** `ScheduleReadMapping` (status names, `HH:mm`) is created in step 6 rather than step 8, because the audit snapshots write the status name; `ScheduleServiceFactsReader` (internal) is the one facts query shared by create and publish; `ScheduleHandlerTestBase` lives in `ScheduleTestData.cs`.
+
+**Evidence:** `dotnet test YCR.sln --max-parallel-test-modules 1` → **1428 total, 1428 passed, 0 failed, 0 skipped** (+89).
+
+**Next step (exact):** plan step 7 — `Service.Withdraw(…, coverage)` (items 19–25), `WithdrawServiceHandler` (code lock, then `timetable.ScheduleVersions`, then coverage), new `ServiceTests` and `WithdrawServiceHandlerTests` rows, `ScheduleLockTests` SV40/SV41 forced both orders, the 25-round no-deadlock test, the order and non-interference tests.
+
+**Blockers / open questions:** none.
+
+**State of the branch:** step 6 committed and pushed; the working-ahead stash is dropped (every file in it had been committed identically).

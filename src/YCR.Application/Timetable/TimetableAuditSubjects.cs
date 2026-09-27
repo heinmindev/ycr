@@ -11,4 +11,7 @@ namespace YCR.Application.Timetable;
 public static class TimetableAuditSubjects
 {
     public const string Service = "Timetable.Service";
+
+    /// <summary>A timetable version (F-005 spec §8).</summary>
+    public const string ScheduleVersion = "Timetable.ScheduleVersion";
 }
