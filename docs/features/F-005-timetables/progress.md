@@ -313,3 +313,26 @@ Correction (claude, T-054, 2026-09-27 12:32 Asia/Yangon): the entry stamped "202
 **Blockers / open questions:** none.
 
 **State of the branch:** step 7 committed and pushed.
+
+---
+
+## 2026-09-27 22:58 Asia/Yangon — claude — T-055
+
+**Stage:** 4 (IMPLEMENT) — plan step 8 done.
+**Commit:** the step 8 commit carrying this entry.
+
+**Correction to the step 7 entry:** its evidence line garbled the breakdown of the +23 tests; it is 7 domain cases (`ServiceTests` guard rows), 7 `WithdrawServiceScheduleGuardTests` and 9 `ScheduleLockTests` tests.
+
+**Done:**
+- **Step 8 — application reads (P13):** `GetScheduleVersion` (header by key, then entries joined to `Services`: current code, names, direction, stop count, period, `neverRuns`; listed services ordered by code, then id), `GetScheduleServiceTimes` (`404 ScheduleVersionNotFound`, then `404 ScheduleServiceNotInVersion`; station code and names through `INetworkReader` only, R43; times as `HH:mm` or null), `ListScheduleVersions` (`Paging`, `ORDER BY Number`, `serviceCount`, exact `status` filter, P17), `GetScheduleVersionInForce` (`PublishedTimelineReader.LoadTimelineAsync` → `PublishedTimeline.InForceOn`, `404 ScheduleVersionNotInForce` before the first version; `runsOnDate` by `ServiceRunningDay.RunsOn`); queries and DTOs; reads take no lock and never materialise the aggregate.
+- Tests: `ScheduleVersionQueryHandlerTests` (SV2 ×3 + unknown id, SV3, SV48 ×3, R25, SV27, SV28 ×3, SV29, SV30 ×5, SV32, SV53); the deferred assertions (**V8**): `PublishScheduleVersion_Empty_IsInForceWithNoServices` (SV53) added, SV55's publication test now asserts the version in force on 2026-10-02 is unchanged, SV54's test asserts `runsOnDate` true on 2026-12-28 and false on 2027-01-04 with V1 still listing S1; **V11**: `ScheduleLockTests.ScheduleReads_WhileTheScheduleLockIsHeld_DoNotWait` (all four reads complete while the lock is held).
+- Changed test **item 13:** `DependencyInjectionTests.HandlerTypes_IncludesEveryHandlerDefined` 34 → **38**, the four read handlers named.
+- **RED confirmed:** (1) without the read handlers the tests did not compile (12 × CS0246, 10 × CS0234); (2) **mutation check** — `runsOnDate` forced true, the list's status filter dropped, the timeline widened beyond published versions → **9 failed** (SV30 ×2, SV3, SV27, SV32, SV53 ×2, SV54, SV55's in-force check). Restored from the index; no `MUTATION` marker. With the real code: 64/64 in the targeted classes.
+
+**Evidence:** `dotnet test YCR.sln --max-parallel-test-modules 1` → **1474 total, 1474 passed, 0 failed, 0 skipped** (+23).
+
+**Next step (exact):** plan step 9 — `ScheduleVersionContracts` (+ validators and the three caps), `ScheduleVersionEndpoints` (+ 2 MiB limit), `Program.cs`, the `ServiceEndpoints` comment; changed tests items 16–18; every `YCR.Api.Tests` row incl. `ScheduleVersionRequestLimitTests` (Kestrel), `SchedulePermissionGrantTests` (real tokens), `DeployedShapeTests` (unmodified); V4, V5, V10.
+
+**Blockers / open questions:** none.
+
+**State of the branch:** step 8 committed and pushed.

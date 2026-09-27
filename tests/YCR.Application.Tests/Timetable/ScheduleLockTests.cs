@@ -250,6 +250,27 @@ public sealed class ScheduleLockTests(SqlServerFixture fixture) : ScheduleHandle
         await transaction.CommitAsync(CancellationToken);
     }
 
+    /// <summary>R46, spec §5: reads take no lock, so none of the four waits for a holder of the Timetable-wide lock.</summary>
+    [Fact]
+    public async Task ScheduleReads_WhileTheScheduleLockIsHeld_DoNotWait()
+    {
+        await using var provider = BuildScheduleProvider();
+        var net = await CreateScheduleNetworkAsync(provider);
+        var v1 = await PublishedVersionAsync(provider, "2026-10-05", [ValidS1(net.S1)]);
+        await using var holderScope = provider.CreateAsyncScope();
+        var db = holderScope.ServiceProvider.GetRequiredService<ITimetableDbContext>();
+        await using var transaction = await db.Database.BeginTransactionAsync(CancellationToken);
+        await holderScope.ServiceProvider.GetRequiredService<IScheduleVersionsLock>().AcquireAsync(CancellationToken);
+        var limit = TimeSpan.FromSeconds(10);
+
+        Assert.True((await GetVersionAsync(provider, v1).WaitAsync(limit, CancellationToken)).IsSuccess);
+        Assert.True((await GetTimesAsync(provider, v1, net.S1).WaitAsync(limit, CancellationToken)).IsSuccess);
+        Assert.True((await ListVersionsAsync(provider, new YCR.Application.Timetable.ListScheduleVersions.ListScheduleVersionsQuery()).WaitAsync(limit, CancellationToken)).IsSuccess);
+        Assert.Equal(v1, (await InForceOrFailAsync(provider, "2026-10-12").WaitAsync(limit, CancellationToken)).Id);
+
+        await transaction.CommitAsync(CancellationToken);
+    }
+
     /// <summary>SV40's setting: V1 (2026-10-05) lists S2 only; draft D2 (2027-01-01) lists S1.</summary>
     private async Task<(ScheduleNetwork Net, Guid Draft)> Sv40SetupAsync()
     {

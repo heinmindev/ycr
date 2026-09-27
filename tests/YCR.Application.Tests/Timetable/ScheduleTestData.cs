@@ -2,7 +2,12 @@ using Microsoft.Extensions.DependencyInjection;
 using YCR.Application.Common.Authorization;
 using YCR.Application.Timetable.CancelScheduleVersion;
 using YCR.Application.Timetable.CreateScheduleVersion;
+using YCR.Application.Common.Pagination;
 using YCR.Application.Timetable.DiscardScheduleVersion;
+using YCR.Application.Timetable.GetScheduleServiceTimes;
+using YCR.Application.Timetable.GetScheduleVersion;
+using YCR.Application.Timetable.GetScheduleVersionInForce;
+using YCR.Application.Timetable.ListScheduleVersions;
 using YCR.Application.Timetable.PublishScheduleVersion;
 using YCR.Application.Tests.Network;
 using YCR.Domain.Common;
@@ -106,6 +111,41 @@ public abstract class ScheduleHandlerTestBase(SqlServerFixture fixture) : Timeta
         await using var scope = provider.CreateAsyncScope();
         return await scope.ServiceProvider.GetRequiredService<CancelScheduleVersionHandler>()
             .Handle(new CancelScheduleVersionCommand(versionId), CancellationToken);
+    }
+
+    protected static async Task<Result<ScheduleVersionDto>> GetVersionAsync(IServiceProvider provider, Guid versionId)
+    {
+        await using var scope = provider.CreateAsyncScope();
+        return await scope.ServiceProvider.GetRequiredService<GetScheduleVersionHandler>()
+            .Handle(new GetScheduleVersionQuery(versionId), CancellationToken);
+    }
+
+    protected static async Task<Result<ScheduleServiceTimesDto>> GetTimesAsync(IServiceProvider provider, Guid versionId, Guid serviceId)
+    {
+        await using var scope = provider.CreateAsyncScope();
+        return await scope.ServiceProvider.GetRequiredService<GetScheduleServiceTimesHandler>()
+            .Handle(new GetScheduleServiceTimesQuery(versionId, serviceId), CancellationToken);
+    }
+
+    protected static async Task<Result<PagedResult<ScheduleVersionSummaryDto>>> ListVersionsAsync(IServiceProvider provider, ListScheduleVersionsQuery query)
+    {
+        await using var scope = provider.CreateAsyncScope();
+        return await scope.ServiceProvider.GetRequiredService<ListScheduleVersionsHandler>().Handle(query, CancellationToken);
+    }
+
+    protected static async Task<Result<ScheduleVersionInForceDto>> InForceAsync(IServiceProvider provider, string date)
+    {
+        await using var scope = provider.CreateAsyncScope();
+        return await scope.ServiceProvider.GetRequiredService<GetScheduleVersionInForceHandler>()
+            .Handle(new GetScheduleVersionInForceQuery(Date(date)), CancellationToken);
+    }
+
+    /// <summary>The version in force on <paramref name="date"/>, which must exist.</summary>
+    protected static async Task<ScheduleVersionInForceDto> InForceOrFailAsync(IServiceProvider provider, string date)
+    {
+        var result = await InForceAsync(provider, date);
+        Assert.True(result.IsSuccess, result.IsFailure ? result.Error.Code : null);
+        return result.Value;
     }
 
     /// <summary>Creates and publishes a version; returns its id.</summary>

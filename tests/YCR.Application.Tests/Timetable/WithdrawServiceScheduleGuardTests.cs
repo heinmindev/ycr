@@ -120,15 +120,16 @@ public sealed class WithdrawServiceScheduleGuardTests(SqlServerFixture fixture) 
     /// <summary>
     /// SV54, R49 (Q2 ruled (a)): V1 from 2026-10-05 lists S1, V2 from 2027-01-01 does not. S1 is
     /// withdrawn from 2027-01-01, then V2 is cancelled: the cancel succeeds and S1 stays withdrawn; a
-    /// later withdrawal from any D ≥ 2027-01-01 is F-004's WithdrawalDoesNotShorten. (The in-force
-    /// read's <c>runsOnDate</c> assertions are added at step 8, progress.md V8.)
+    /// later withdrawal from any D ≥ 2027-01-01 is F-004's WithdrawalDoesNotShorten. In force on
+    /// 2026-12-28 (a Monday): V1 with S1 running; on 2027-01-04 (a Monday): V1, still listing S1,
+    /// which does not run.
     /// </summary>
     [Fact]
     public async Task WithdrawThenCancel_TheWithdrawalStaysAndInForceReportsNotRunning()
     {
         await using var provider = BuildScheduleProvider();
         var net = await CreateScheduleNetworkAsync(provider);
-        await PublishedVersionAsync(provider, "2026-10-05", [ValidS1(net.S1)]);
+        var v1 = await PublishedVersionAsync(provider, "2026-10-05", [ValidS1(net.S1)]);
         var v2 = await PublishedVersionAsync(provider, "2027-01-01", [ValidThreeStop(net.S2)]);
 
         Assert.True((await WithdrawServiceAsync(provider, net.S1, Date("2027-01-01"))).IsSuccess);
@@ -136,6 +137,10 @@ public sealed class WithdrawServiceScheduleGuardTests(SqlServerFixture fixture) 
 
         Assert.Equal("Cancelled", await StatusOfAsync(v2));
         Assert.Equal(new DateTime(2026, 12, 31), await ScalarAsync<DateTime>($"SELECT [EffectiveTo] FROM [timetable].[Services] WHERE [Id] = '{net.S1}';"));
+        var december = await InForceOrFailAsync(provider, "2026-12-28");
+        Assert.Equal((v1, net.S1, true), (december.Id, december.Services.Single().ServiceId, december.Services.Single().RunsOnDate));
+        var january = await InForceOrFailAsync(provider, "2027-01-04");
+        Assert.Equal((v1, net.S1, false), (january.Id, january.Services.Single().ServiceId, january.Services.Single().RunsOnDate));
         AssertFailure(await WithdrawServiceAsync(provider, net.S1, Date("2027-01-04")), TimetableErrors.WithdrawalDoesNotShorten);
         AssertFailure(await WithdrawServiceAsync(provider, net.S1, Date("2027-01-01")), TimetableErrors.WithdrawalDoesNotShorten);
     }

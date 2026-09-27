@@ -11,6 +11,18 @@ namespace YCR.Application.Timetable;
 /// </summary>
 internal static class PublishedTimelineReader
 {
+    /// <summary>The published timeline, for the in-force read (R21). Reads take no lock (spec §5).</summary>
+    public static async Task<PublishedTimeline> LoadTimelineAsync(ITimetableDbContext db, CancellationToken cancellationToken)
+    {
+        var published = await db.ScheduleVersions
+            .AsNoTracking()
+            .Where(version => version.Status == ScheduleVersionStatus.Published)
+            .Select(version => new { version.Id, version.EffectiveFrom })
+            .ToListAsync(cancellationToken);
+
+        return PublishedTimeline.From(published.Select(version => (version.Id, version.EffectiveFrom)));
+    }
+
     /// <summary>
     /// The coverage of one service for the withdrawal guard (R19): the published timeline and the
     /// published versions that list the service. Called under the Timetable-wide lock.

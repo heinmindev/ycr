@@ -185,8 +185,8 @@ public sealed class PublishScheduleVersionHandlerTests(SqlServerFixture fixture)
 
     /// <summary>
     /// SV55 at publication (Amendment 1): an empty version created on 2026-10-01 for 2026-10-02 is
-    /// refused on 2026-10-02 and stays a draft; a non-empty draft published on its start date still
-    /// publishes. (The in-force read is added at step 8; plan V-numbered deviation in progress.md.)
+    /// refused on 2026-10-02 and stays a draft, and the version in force on 2026-10-02 is unchanged;
+    /// a non-empty draft published on its start date still publishes.
     /// </summary>
     [Fact]
     public async Task PublishScheduleVersion_EmptyWhoseStartHasBecomeToday_ReturnsEmptyNotInFutureAndWritesNothing()
@@ -194,6 +194,7 @@ public sealed class PublishScheduleVersionHandlerTests(SqlServerFixture fixture)
         await using var provider = BuildScheduleProvider();
         var net = await CreateScheduleNetworkAsync(provider);
         var early = await CreateServiceOrFailAsync(provider, Command(net.Network, code: "S401", effectiveFrom: "2026-09-01"));
+        var current = await PublishedVersionAsync(provider, "2026-10-01", [ValidThreeStop(early)]);
         var empty = await CreateVersionOrFailAsync(provider, Version("2026-10-02", []));
         var full = await CreateVersionOrFailAsync(provider, Version("2026-10-03", [ValidThreeStop(early)]));
         ServiceClock.Advance(TimeSpan.FromDays(1));
@@ -202,8 +203,9 @@ public sealed class PublishScheduleVersionHandlerTests(SqlServerFixture fixture)
 
         AssertFailure(result, TimetableErrors.EmptyScheduleVersionNotInFuture);
         Assert.Equal("Draft", await StatusOfAsync(empty.Id));
+        Assert.Equal(current, (await InForceOrFailAsync(provider, "2026-10-02")).Id);
         Assert.Equal(1, await CountAsync($"[timetable].[ScheduleVersions] WHERE [Id] = '{empty.Id}' AND [PublishedAtUtc] IS NULL"));
-        Assert.Equal(0, await EventCountAsync(TimetableAuditActions.ScheduleVersionPublished));
+        Assert.Equal(1, await EventCountAsync(TimetableAuditActions.ScheduleVersionPublished));
 
         ServiceClock.Advance(TimeSpan.FromDays(1));
         Assert.True((await PublishAsync(provider, full.Id)).IsSuccess);
@@ -222,6 +224,36 @@ public sealed class PublishScheduleVersionHandlerTests(SqlServerFixture fixture)
 
         Assert.Equal("Cancelled", await StatusOfAsync(empty.Id));
         Assert.Equal(1, await EventCountAsync(TimetableAuditActions.ScheduleVersionCancelled));
+    }
+
+    /// <summary>
+    /// SV53, R9: V1 from 2026-10-05 lists S1; an empty version E from 2026-11-02 is created and
+    /// published (one event). In force: 2026-11-01 → V1 with S1; 2026-11-02 → E with no services (not
+    /// 404); 2027-06-01 → E (open-ended). Cancelled on 2026-10-01, V1 is back on 2026-11-02 with S1
+    /// running.
+    /// </summary>
+    [Fact]
+    public async Task PublishScheduleVersion_Empty_IsInForceWithNoServices()
+    {
+        await using var provider = BuildScheduleProvider();
+        var net = await CreateScheduleNetworkAsync(provider);
+        var v1 = await PublishedVersionAsync(provider, "2026-10-05", [ValidS1(net.S1)]);
+        var e = await CreateVersionOrFailAsync(provider, Version("2026-11-02", []));
+
+        Assert.True((await PublishAsync(provider, e.Id)).IsSuccess);
+
+        Assert.Equal(2, await EventCountAsync(TimetableAuditActions.ScheduleVersionPublished));
+        var before = await InForceOrFailAsync(provider, "2026-11-01");
+        Assert.Equal((v1, net.S1), (before.Id, before.Services.Single().ServiceId));
+        var during = await InForceOrFailAsync(provider, "2026-11-02");
+        Assert.Equal(e.Id, during.Id);
+        Assert.Empty(during.Services);
+        Assert.Equal(e.Id, (await InForceOrFailAsync(provider, "2027-06-01")).Id);
+
+        Assert.True((await CancelAsync(provider, e.Id)).IsSuccess);
+        var back = await InForceOrFailAsync(provider, "2026-11-02");
+        Assert.Equal(v1, back.Id);
+        Assert.True(back.Services.Single().RunsOnDate);
     }
 
     /// <summary>
