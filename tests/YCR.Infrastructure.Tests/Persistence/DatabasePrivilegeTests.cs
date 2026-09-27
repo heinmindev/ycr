@@ -768,6 +768,80 @@ public sealed class DatabasePrivilegeTests(SqlServerFixture fixture) : IAsyncLif
         await sameCodeTransaction.CommitAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// F-005 SV51, R46, plan V6: <c>ycr_app</c> can take <c>timetable.ScheduleVersions</c> with no
+    /// grant; it refuses to run without a transaction; a second transaction on it waits; and a
+    /// service-code lock neither blocks it nor is blocked by it.
+    /// </summary>
+    [Fact]
+    public async Task ApplicationCredential_CanTakeTheScheduleVersionsApplock()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var provider = new ServiceCollection()
+            .AddLogging()
+            .AddInfrastructure(database.ApplicationConnectionString)
+            .BuildServiceProvider();
+        await using var firstScope = provider.CreateAsyncScope();
+        await using var secondScope = provider.CreateAsyncScope();
+        await using var codeScope = provider.CreateAsyncScope();
+        var firstContext = firstScope.ServiceProvider.GetRequiredService<YcrDbContext>();
+        var secondContext = secondScope.ServiceProvider.GetRequiredService<YcrDbContext>();
+        var codeContext = codeScope.ServiceProvider.GetRequiredService<YcrDbContext>();
+        var firstLock = firstScope.ServiceProvider.GetRequiredService<IScheduleVersionsLock>();
+        var secondLock = secondScope.ServiceProvider.GetRequiredService<IScheduleVersionsLock>();
+        var codeLock = codeScope.ServiceProvider.GetRequiredService<IServiceCodeLock>();
+        var codeScheduleLock = codeScope.ServiceProvider.GetRequiredService<IScheduleVersionsLock>();
+
+        // Without a transaction the lock refuses to run unowned.
+        await Assert.ThrowsAsync<InvalidOperationException>(() => firstLock.AcquireAsync(cancellationToken));
+
+        // A transaction holding a service-code lock does not block the schedule lock...
+        await using var codeTransaction = await codeContext.Database.BeginTransactionAsync(cancellationToken);
+        await codeLock.AcquireAsync(ServiceCode.Create("SV1").Value, cancellationToken);
+
+        await using var firstTransaction = await firstContext.Database.BeginTransactionAsync(cancellationToken);
+        await firstLock.AcquireAsync(cancellationToken).WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
+
+        // ...and, holding its code lock, it can still ask for the schedule lock: it waits for the
+        // first holder only (the P9 order: code lock, then schedule lock).
+        var codeHolderWaiting = codeScheduleLock.AcquireAsync(cancellationToken);
+
+        // The same resource in another transaction waits until the first transaction ends.
+        await using var secondTransaction = await secondContext.Database.BeginTransactionAsync(cancellationToken);
+        var waiting = secondLock.AcquireAsync(cancellationToken);
+        await Task.Delay(TimeSpan.FromMilliseconds(750), cancellationToken);
+        Assert.False(waiting.IsCompleted, "The second transaction acquired the schedule lock while the first still held it.");
+        Assert.False(codeHolderWaiting.IsCompleted, "The code-lock holder acquired the schedule lock while the first still held it.");
+
+        // A service-code lock is another resource: the schedule-lock holder does not block it.
+        await using (var otherCodeScope = provider.CreateAsyncScope())
+        {
+            var otherCodeContext = otherCodeScope.ServiceProvider.GetRequiredService<YcrDbContext>();
+            await using var otherCodeTransaction = await otherCodeContext.Database.BeginTransactionAsync(cancellationToken);
+            await otherCodeScope.ServiceProvider.GetRequiredService<IServiceCodeLock>()
+                .AcquireAsync(ServiceCode.Create("SV2").Value, cancellationToken)
+                .WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
+            await otherCodeTransaction.CommitAsync(cancellationToken);
+        }
+
+        await firstTransaction.CommitAsync(cancellationToken);
+        await Task.WhenAny(waiting, codeHolderWaiting).WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
+
+        // Exactly one of the two waiters holds it now; the other gets it when that one commits.
+        if (waiting.IsCompleted)
+        {
+            await secondTransaction.CommitAsync(cancellationToken);
+            await codeHolderWaiting.WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
+            await codeTransaction.CommitAsync(cancellationToken);
+        }
+        else
+        {
+            await codeTransaction.CommitAsync(cancellationToken);
+            await waiting.WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
+            await secondTransaction.CommitAsync(cancellationToken);
+        }
+    }
+
     [Fact]
     public async Task ApplicationCredential_IsAMemberOfOnlyTheYcrAppRole()
     {

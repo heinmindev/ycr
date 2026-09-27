@@ -224,3 +224,26 @@ Correction (claude, T-054, 2026-09-27 12:32 Asia/Yangon): the entry stamped "202
 **Blockers / open questions:** none.
 
 **State of the branch:** step 4 committed and pushed; steps 5–6 work stashed, unverified.
+
+---
+
+## 2026-09-27 19:14 Asia/Yangon — claude — T-055
+
+**Stage:** 4 (IMPLEMENT) — plan step 5 done.
+**Commit:** the step 5 commit carrying this entry.
+
+**Done:**
+- **Step 5 — the Timetable-wide lock (P8, Q5):** `IScheduleVersionsLock` (`YCR.Application/Timetable/Abstractions`); `SqlServerScheduleVersionsLock` (`sp_getapplock` on `timetable.ScheduleVersions`, exclusive, transaction-owned, 30 s, the resource passed as a parameter, `THROW 50036` on a negative result, refuses to run without a transaction); scoped DI registration beside the service-code lock. Test support `GatedScheduleVersionsLock` (the F-004 gate technique) and `RecordingLocks` (records the order of lock requests across both abstractions; used from step 7).
+- New test: `DatabasePrivilegeTests.ApplicationCredential_CanTakeTheScheduleVersionsApplock` (**V6 confirmed** under `ycr_app`): no grant needed; refuses without a transaction; a transaction holding `timetable.ServiceCode:SV1` does not block it; a second transaction on it still waits after 750 ms; the code-lock holder then asking for it (the P9 order) waits for the first holder only; a new service-code lock is not blocked by the schedule-lock holder; both waiters proceed once the first commits.
+- **RED confirmed:** (1) without the lock types the test does not compile (6 × CS0246); (2) **mutation check:** `AcquireAsync` returning before `sp_getapplock` → the test fails on "The second transaction acquired the schedule lock while the first still held it."; restored byte-for-byte (`cmp`), no `MUTATION` marker left. With the real code: the new test and the F-004 applock test 2/2.
+
+**Deviations:**
+- **V7 — intermittent test-host start failure, test unchanged.** The first full run for step 5 had one failure in an unchanged F-004 test, `ServiceRequestLimitTests.Post_WithMalformedJson_Returns400WithoutInternals(withdraw, "not json")`: `InvalidOperationException: IServerAddressesFeature.Addresses cannot be modified after the server has started`, thrown from `WebApplicationFactory.StartServer()` inside the test's `StartKestrel()`, before any request or assertion. Step 5 changes no Api code (one extra scoped DI registration). The class passed 3 of 3 runs in isolation (12/12 each), and the full suite then passed. Logged, not changed; it is the Kestrel-mode `WebApplicationFactory` start path, a test-harness race rather than an F-005 behaviour.
+
+**Evidence:** `dotnet test YCR.sln --max-parallel-test-modules 1` → first run 1339 total, 1 failed (V7); second run **1339 total, 1339 passed, 0 failed, 0 skipped** (+1).
+
+**Next step (exact):** plan step 6 — audit actions and subject, snapshots, `ScheduleStopTimesDigest`, the four write handlers, their tests, the digest tests, the transition SQL test, SV26, SV42, item 13 (30 → 34), from the stash.
+
+**Blockers / open questions:** none.
+
+**State of the branch:** step 5 committed and pushed; step 6 work stashed, unverified.
