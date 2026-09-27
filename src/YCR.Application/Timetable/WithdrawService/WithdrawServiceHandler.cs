@@ -25,11 +25,22 @@ namespace YCR.Application.Timetable.WithdrawService;
 /// <see cref="DbUpdateConcurrencyException"/> → <c>409 Timetable.ServiceChangedConcurrently</c>, and
 /// the audit row rolls back with it (R36). There is no route or station guard (R21, S39).
 /// </para>
+/// <para>
+/// <strong>F-005 (spec R19, §0.12; plan P9, P10):</strong> after the reload and the Network reads,
+/// the handler also takes the Timetable-wide lock <c>timetable.ScheduleVersions</c> — always
+/// <em>after</em> the service-code lock; no holder of the Timetable-wide lock ever requests a
+/// code lock, so the two cannot deadlock — then reads the published versions that list the service
+/// and passes that coverage to <see cref="Service.Withdraw"/>, which refuses with
+/// <c>422 Timetable.ServiceInPublishedScheduleVersion</c> after F-004's own checks. The Network
+/// reads stay where F-004 put them (outside this feature's scope), so the Timetable-wide lock is
+/// held only for the coverage read and the save.
+/// </para>
 /// </remarks>
 public sealed class WithdrawServiceHandler(
     ITimetableDbContext db,
     INetworkReader network,
     IServiceCodeLock codeLock,
+    IScheduleVersionsLock scheduleLock,
     IAuditWriter audit,
     TimeProvider clock,
     ILocalCalendar calendar)
@@ -64,7 +75,11 @@ public sealed class WithdrawServiceHandler(
 
         var before = ServiceAuditSnapshot.From(service, routeCode, stationCodes);
 
-        var withdrawal = service.Withdraw(command.WithdrawFrom, calendar.Today(), clock.GetUtcNow());
+        // F-005 plan P9: the Timetable-wide lock, after the code lock, before the coverage read.
+        await scheduleLock.AcquireAsync(cancellationToken);
+        var coverage = await PublishedTimelineReader.LoadCoverageAsync(db, service.Id, cancellationToken);
+
+        var withdrawal = service.Withdraw(command.WithdrawFrom, calendar.Today(), clock.GetUtcNow(), coverage);
         if (withdrawal.IsFailure)
         {
             return withdrawal.Error;

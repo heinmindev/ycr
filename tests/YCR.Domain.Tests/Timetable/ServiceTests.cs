@@ -369,7 +369,7 @@ public sealed class ServiceTests
     {
         var service = Created();
 
-        var result = service.Withdraw(new DateOnly(2026, 11, 1), Today, LaterUtc);
+        var result = service.Withdraw(new DateOnly(2026, 11, 1), Today, LaterUtc, ServiceScheduleCoverage.None);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(new DateOnly(2026, 10, 31), service.EffectiveTo);
@@ -384,7 +384,7 @@ public sealed class ServiceTests
     {
         var service = Created(from: new DateOnly(2026, 9, 1));
 
-        var result = service.Withdraw(Today, Today, LaterUtc);
+        var result = service.Withdraw(Today, Today, LaterUtc, ServiceScheduleCoverage.None);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(new DateOnly(2026, 9, 30), service.EffectiveTo);
@@ -395,7 +395,7 @@ public sealed class ServiceTests
     {
         var service = Created();
 
-        var result = service.Withdraw(new DateOnly(2026, 9, 30), Today, LaterUtc);
+        var result = service.Withdraw(new DateOnly(2026, 9, 30), Today, LaterUtc, ServiceScheduleCoverage.None);
 
         AssertFailure(result, TimetableErrors.WithdrawalDateInPast);
         Assert.Null(service.EffectiveTo);
@@ -414,7 +414,7 @@ public sealed class ServiceTests
     {
         var service = Created(Date(from), Date(to), today: Date(createdOn));
 
-        var result = service.Withdraw(Date(withdrawFrom), Today, LaterUtc);
+        var result = service.Withdraw(Date(withdrawFrom), Today, LaterUtc, ServiceScheduleCoverage.None);
 
         AssertFailure(result, TimetableErrors.WithdrawalDoesNotShorten);
         Assert.Equal(Date(to), service.EffectiveTo);
@@ -425,15 +425,15 @@ public sealed class ServiceTests
     public void Withdraw_SecondTime_ShortensFurtherButNeverLengthens()
     {
         var service = Created();
-        Assert.True(service.Withdraw(new DateOnly(2026, 11, 1), Today, NowUtc).IsSuccess);
+        Assert.True(service.Withdraw(new DateOnly(2026, 11, 1), Today, NowUtc, ServiceScheduleCoverage.None).IsSuccess);
 
-        var shorter = service.Withdraw(new DateOnly(2026, 10, 20), Today, LaterUtc);
+        var shorter = service.Withdraw(new DateOnly(2026, 10, 20), Today, LaterUtc, ServiceScheduleCoverage.None);
 
         Assert.True(shorter.IsSuccess);
         Assert.Equal(new DateOnly(2026, 10, 19), service.EffectiveTo);
         Assert.Equal(LaterUtc, service.WithdrawnAtUtc);
 
-        var longer = service.Withdraw(new DateOnly(2026, 11, 15), Today, LaterUtc.AddHours(1));
+        var longer = service.Withdraw(new DateOnly(2026, 11, 15), Today, LaterUtc.AddHours(1), ServiceScheduleCoverage.None);
 
         AssertFailure(longer, TimetableErrors.WithdrawalDoesNotShorten);
         Assert.Equal(new DateOnly(2026, 10, 19), service.EffectiveTo);
@@ -447,7 +447,7 @@ public sealed class ServiceTests
     {
         var service = Created(from: new DateOnly(2026, 11, 1));
 
-        var result = service.Withdraw(Date(withdrawFrom), Today, LaterUtc);
+        var result = service.Withdraw(Date(withdrawFrom), Today, LaterUtc, ServiceScheduleCoverage.None);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(new DateOnly(2026, 11, 1), service.EffectiveFrom);
@@ -461,9 +461,95 @@ public sealed class ServiceTests
         var service = Created();
         var nonUtc = new DateTimeOffset(2026, 10, 2, 9, 30, 0, TimeSpan.FromHours(6.5));
 
-        Assert.Throws<ArgumentException>(() => service.Withdraw(new DateOnly(2026, 11, 1), Today, nonUtc));
+        Assert.Throws<ArgumentException>(() => service.Withdraw(new DateOnly(2026, 11, 1), Today, nonUtc, ServiceScheduleCoverage.None));
         Assert.Null(service.EffectiveTo);
     }
+
+    // ----- F-005 withdrawal guard (F-005 R19, R20; spec §0.12) -----
+
+    private static readonly Guid V1 = Guid.Parse("5c000000-0000-0000-0000-000000000001");
+    private static readonly Guid V2 = Guid.Parse("5c000000-0000-0000-0000-000000000002");
+    private static readonly Guid V0 = Guid.Parse("5c000000-0000-0000-0000-000000000000");
+
+    /// <summary>
+    /// SV36, SV37: V1 from 2026-10-05 lists the service. Open-ended, it applies on every date ≥ D;
+    /// superseded by V2 from 2027-01-01, it still applies on 2026-12-31. Refused; nothing changes.
+    /// </summary>
+    [Theory]
+    [InlineData(false, "2026-11-01")] // SV36: V1 open-ended
+    [InlineData(true, "2026-12-31")] // SV37: V1 superseded after D
+    public void Withdraw_WhileAListingVersionAppliesOnOrAfterTheDate_ReturnsInPublishedVersionAndChangesNothing(
+        bool superseded, string withdrawFrom)
+    {
+        var service = Created();
+        var coverage = Coverage(superseded ? [(V1, "2026-10-05"), (V2, "2027-01-01")] : [(V1, "2026-10-05")], V1);
+
+        var result = service.Withdraw(Date(withdrawFrom), Today, LaterUtc, coverage);
+
+        AssertFailure(result, TimetableErrors.ServiceInPublishedScheduleVersion(ServiceId));
+        Assert.Equal(ErrorType.BusinessRule, result.Error.Type);
+        Assert.Null(service.EffectiveTo);
+        Assert.Null(service.WithdrawnAtUtc);
+    }
+
+    /// <summary>SV37, R20: publish a version without the service, then withdraw it from that version's start.</summary>
+    [Fact]
+    public void Withdraw_FromTheStartOfTheVersionThatDropsTheService_Succeeds()
+    {
+        var service = Created();
+        var coverage = Coverage([(V1, "2026-10-05"), (V2, "2027-01-01")], V1);
+
+        var result = service.Withdraw(new DateOnly(2027, 1, 1), Today, LaterUtc, coverage);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(new DateOnly(2026, 12, 31), service.EffectiveTo);
+    }
+
+    /// <summary>SV39: V0 (2026-09-01) lists the service, V1 (2026-10-05) does not: V0 applies only to 2026-10-04.</summary>
+    [Fact]
+    public void Withdraw_WhenOnlyASupersededPastVersionListsIt_Succeeds()
+    {
+        var service = Created(from: new DateOnly(2026, 9, 1));
+        var coverage = Coverage([(V0, "2026-09-01"), (V1, "2026-10-05")], V0);
+
+        var result = service.Withdraw(new DateOnly(2026, 10, 5), Today, LaterUtc, coverage);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(new DateOnly(2026, 10, 4), service.EffectiveTo);
+    }
+
+    /// <summary>
+    /// SV36, SV54, spec §0.12: F-004's checks run first. With a listing version that applies, a past
+    /// date is still <c>WithdrawalDateInPast</c> and a non-shortening date <c>WithdrawalDoesNotShorten</c>.
+    /// </summary>
+    [Theory]
+    [InlineData("2026-09-30", null, "Timetable.WithdrawalDateInPast")]
+    [InlineData("2027-01-04", "2026-12-31", "Timetable.WithdrawalDoesNotShorten")]
+    public void Withdraw_ChecksF004RulesBeforeTheScheduleGuard(string withdrawFrom, string? to, string code)
+    {
+        var service = Created(to: to is null ? null : Date(to));
+        var coverage = Coverage([(V1, "2026-10-05")], V1);
+
+        var result = service.Withdraw(Date(withdrawFrom), Today, LaterUtc, coverage);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(code, result.Error.Code);
+        Assert.Null(service.WithdrawnAtUtc);
+    }
+
+    [Fact]
+    public void Withdraw_WithNullCoverage_Throws()
+    {
+        var service = Created();
+
+        Assert.Throws<ArgumentNullException>(() => service.Withdraw(new DateOnly(2026, 11, 1), Today, LaterUtc, null!));
+        Assert.Null(service.EffectiveTo);
+    }
+
+    private static ServiceScheduleCoverage Coverage((Guid Id, string From)[] published, params Guid[] listing) =>
+        new(
+            PublishedTimeline.From(published.Select(version => (version.Id, Date(version.From)))),
+            listing.ToHashSet());
 
     // ----- Structure (R8, R14, R20, R22, R29) -----
 

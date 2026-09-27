@@ -274,3 +274,42 @@ Correction (claude, T-054, 2026-09-27 12:32 Asia/Yangon): the entry stamped "202
 **Blockers / open questions:** none.
 
 **State of the branch:** step 6 committed and pushed; the working-ahead stash is dropped (every file in it had been committed identically).
+
+---
+
+## 2026-09-27 20:51 Asia/Yangon — claude — T-055
+
+**Stage:** 4 (IMPLEMENT) — plan step 7 written and tested by class; **full-suite run killed (memory)**. Uncommitted checkpoint.
+**Commit:** none for step 7 yet; branch head `a19f6bf` (step 6, pushed).
+
+**Done (uncommitted, staged in `D:\MR\ycr-F-005`):**
+- `Service.Withdraw(…, ServiceScheduleCoverage coverage)` (P10; the three-argument signature replaced; R19 checked after F-004's checks); `PublishedTimelineReader.LoadCoverageAsync` (O4); `WithdrawServiceHandler` takes `timetable.ScheduleVersions` after the code lock (P9), loads the coverage, passes it.
+- Changed tests **items 19–25**: the nine `ServiceTests` `Withdraw(...)` calls gain `ServiceScheduleCoverage.None`; no assertion changed.
+- New tests: `ServiceTests` guard rows (5); `WithdrawServiceScheduleGuardTests` (SV36 ×2, SV37 ×2, SV38, SV39, SV54 without the in-force part); `ScheduleLockTests` SV40 and SV41 forced in both orders, the 25-round no-deadlock test (this machine: 25/25 rounds publish-first — the withdrawal does its F-004 reload and Network reads before asking for the schedule lock), `Publish_WhileAWithdrawalHoldsTheServiceCodeLock_DoesNotWait`, `WithdrawService_TakesTheServiceCodeLockBeforeTheScheduleLock`, `ScheduleHandlers_DoNotDependOnTheServiceCodeLock`, `CreateService_WhileTheScheduleLockIsHeld_DoesNotWait`.
+- Targeted runs: Application (the new classes + every existing `WithdrawServiceHandlerTests` and `CreateServiceHandlerTests` case) **97/97**; `ServiceTests` **62/62**.
+- **Mutation checks:** (a) the schedule lock removed from the withdrawal, and (b) the R19 check disabled → 9 Application + 2 Domain failures (all four forced SV40/SV41 orders, the order-recording test, the code-lock ordering test, the no-deadlock test, SV36, SV37 day-before, both domain guard rows); (c) the coverage read's `Published` filter widened, alone → SV38 fails. All restored from the index; no `MUTATION` marker.
+
+**Deviations (to carry into the step 7 entry):**
+- **V10:** the new withdrawal tests live in `WithdrawServiceScheduleGuardTests`, not in `WithdrawServiceHandlerTests`, so the F-004 class stays unchanged (adding them there needed a base-class change). Method names are the plan's.
+- **V11:** `ScheduleReads_WhileTheScheduleLockIsHeld_DoNotWait` moves to step 8 with the read handlers; SV54's in-force assertions likewise (V8).
+
+**Blocker:** the step 7 full run (`dotnet test YCR.sln --max-parallel-test-modules 1`) was **stopped by Claude Code because the machine was critically low on memory** during the Api module. Infrastructure, Integration, Application (16 m 26 s), Domain and Architecture had passed. Not restarted, per hein's rule.
+
+**Next step (exact):** with hein's go-ahead, re-run the step 7 full suite; if green, commit and push step 7 (this checkpoint folds into its entry), then step 8.
+
+**State of the branch:** step 6 pushed; step 7 staged, uncommitted.
+
+---
+
+## 2026-09-27 21:45 Asia/Yangon — claude — T-055
+
+**Stage:** 4 (IMPLEMENT) — plan step 7 done.
+**Commit:** the step 7 commit carrying this entry (the checkpoint above is its detail: code, tests, mutation checks, V10, V11).
+
+**Evidence:** with hein's go-ahead after the memory kill, `dotnet test YCR.sln --max-parallel-test-modules 1` re-run → **1451 total, 1451 passed, 0 failed, 0 skipped** (+23: 5 `ServiceTests` cases… 7 domain cases, 7 guard tests, 9 lock tests). Every existing F-004 test passes unchanged except the nine call sites of items 19–25.
+
+**Next step (exact):** plan step 8 — the four read handlers, DTOs, `GetScheduleVersionInForce` (reusing `PublishedTimelineReader`), DI 34 → 38 (item 13), `ScheduleVersionQueryHandlerTests`; then the deferred assertions (V8: SV53, SV55 in force, SV54 runsOnDate) and `ScheduleReads_WhileTheScheduleLockIsHeld_DoNotWait` (V11).
+
+**Blockers / open questions:** none.
+
+**State of the branch:** step 7 committed and pushed.

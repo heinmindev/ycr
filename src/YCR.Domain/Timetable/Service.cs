@@ -129,8 +129,19 @@ public sealed class Service : AggregateRoot
     /// nothing.
     /// </summary>
     /// <param name="today">Today's date in the configured local zone (R38).</param>
-    public Result Withdraw(DateOnly withdrawFrom, DateOnly today, DateTimeOffset nowUtc)
+    /// <param name="coverage">The published timetable versions that list this service, read under
+    /// the Timetable-wide lock (F-005 plan P10).</param>
+    /// <remarks>
+    /// F-004's checks run first and unchanged (R21: date in the past, does not shorten). Then the
+    /// <strong>F-005 withdrawal guard (F-005 spec R19, §0.12)</strong> — BUSINESS DECISION,
+    /// provisional tech-lead ruling (hein, 2026-09-26; T-053, OQ54), not a Myanma Railways answer:
+    /// the withdrawal is refused while a published version that lists the service applies on some
+    /// date ≥ <paramref name="withdrawFrom"/>. There is no overload without the coverage, so no code
+    /// path can withdraw without it.
+    /// </remarks>
+    public Result Withdraw(DateOnly withdrawFrom, DateOnly today, DateTimeOffset nowUtc, ServiceScheduleCoverage coverage)
     {
+        ArgumentNullException.ThrowIfNull(coverage);
         if (nowUtc.Offset != TimeSpan.Zero)
         {
             throw new ArgumentException("WithdrawnAtUtc must use the UTC offset.", nameof(nowUtc));
@@ -148,6 +159,12 @@ public sealed class Service : AggregateRoot
         if (EffectiveTo is { } currentEnd && newEnd >= currentEnd)
         {
             return TimetableErrors.WithdrawalDoesNotShorten;
+        }
+
+        // F-005 R19: checked last, after F-004's own checks (spec §0.12).
+        if (coverage.AppliesOnOrAfter(withdrawFrom))
+        {
+            return TimetableErrors.ServiceInPublishedScheduleVersion(Id);
         }
 
         EffectiveTo = newEnd;
