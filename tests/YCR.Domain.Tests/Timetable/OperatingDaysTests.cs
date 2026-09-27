@@ -20,6 +20,17 @@ public sealed class OperatingDaysTests
     }
 
     [Fact]
+    public void Includes_ReturnsWhetherTheDayIsAnOperatingDay()
+    {
+        var days = OperatingDays.Create([DayOfWeek.Sunday, DayOfWeek.Wednesday]);
+
+        Assert.Equal(
+            [DayOfWeek.Sunday, DayOfWeek.Wednesday],
+            Enum.GetValues<DayOfWeek>().Where(days.Includes));
+        Assert.Throws<ArgumentOutOfRangeException>(() => days.Includes((DayOfWeek)7));
+    }
+
+    [Fact]
     public void Create_WithNoDays_Throws()
     {
         Assert.Throws<ArgumentException>(() => OperatingDays.Create([]));

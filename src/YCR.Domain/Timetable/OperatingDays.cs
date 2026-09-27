@@ -60,6 +60,19 @@ public sealed record OperatingDays
         }
     }
 
+    /// <summary>Whether <paramref name="day"/> is an operating day (F-005 R18; plan P12).</summary>
+    public bool Includes(DayOfWeek day) => day switch
+    {
+        DayOfWeek.Monday => RunsOnMonday,
+        DayOfWeek.Tuesday => RunsOnTuesday,
+        DayOfWeek.Wednesday => RunsOnWednesday,
+        DayOfWeek.Thursday => RunsOnThursday,
+        DayOfWeek.Friday => RunsOnFriday,
+        DayOfWeek.Saturday => RunsOnSaturday,
+        DayOfWeek.Sunday => RunsOnSunday,
+        _ => throw new ArgumentOutOfRangeException(nameof(day))
+    };
+
     /// <summary>Operating days from a non-empty set of distinct days (R17).</summary>
     /// <exception cref="ArgumentException">
     /// <paramref name="days"/> is empty or repeats a day. The request validator refuses both first

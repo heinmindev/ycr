@@ -129,3 +129,31 @@ Correction (claude, T-054, 2026-09-27 12:32 Asia/Yangon): the entry stamped "202
 **Blockers / open questions:** none blocking. Reported to hein: spec §6 still lists only `400 Timetable.InvalidPageRequest` for the list endpoint (Q2 adds `400 Common.ValidationFailed`), and spec R41/SV47 name only the two array caps (Q1 adds the per-version total cap); the plan carries both, the spec text was not changed without a ruling.
 
 **State of the branch:** docs only; committed and pushed.
+
+---
+
+## 2026-09-27 13:36 Asia/Yangon — claude — T-055
+
+**Stage:** 4 (IMPLEMENT) — plan step 1 done.
+**Commits:** spec Amendment 3 at `aa10448`; step 1 in the commit carrying this entry.
+
+**Done this session:**
+- Claimed T-055 (`claim/T-055`; ledger commit `1cc86c5` on `main`). Worktree at `b257fb2`; spec Approved with Amendments 1–2, plan revision 2 Approved (`5901d53`) — confirmed.
+- **Spec Amendment 3** (hein, 2026-09-27, T-055; ENGINEERING DECISIONS, no business rule change) at `aa10448`: §6 list endpoint `400 Common.ValidationFailed` for an unknown `status`; R41/SV47 the per-version total of 10,000 stop times; SV19/SV21 "a version listing a service effective on its start date". Recorded in §0.10; Status "amended by Amendments 1–3".
+- **Environment (not a plan deviation):** the machine's SDK had been updated to 10.0.401 at 12:23 today, so `global.json`'s 10.0.302 (`latestPatch`) no longer resolved. SDK 10.0.302 installed side by side into `C:\dn302` with Microsoft's `dotnet-install.ps1` (no machine-wide change, `global.json` untouched); every command runs with `DOTNET_ROOT=C:\dn302` and that `dotnet` first on `PATH`. Docker Desktop was stopped and was started. Baseline at `aa10448`: `dotnet test YCR.sln` **1161/1161, 0 skipped**.
+- **Step 1 — domain (new types only):** `TimetableTime` (P2; `\A…\z` and `[0-9]`), `ScheduleVersionStatus`, `ScheduleVersionInput` (P3 checks 2–5), `ScheduleServiceFacts` (`IsEffectiveOn`, R17), `ScheduleVersion` + `ScheduleVersionService` + `ScheduleStopTime` (P1, P4 checks 6–13, P7 transitions), `ScheduleVersionNumbering` (P5), `PublishedTimeline` (P11), `ServiceScheduleCoverage` (P10), `ServiceRunningDay` (P12), `OperatingDays.Includes`, the 21 `TimetableErrors` (2 Validation, 3 NotFound, 2 Conflict, 14 BusinessRule).
+- Tests: `TimetableTimeTests` (5), `ScheduleVersionInputTests` (8), `ScheduleVersionTests` (35), `ScheduleVersionNumberingTests` (1), `PublishedTimelineTests` (5), `ServiceScheduleCoverageTests` (2), `ServiceRunningDayTests` (1), `OperatingDaysTests.Includes_ReturnsWhetherTheDayIsAnOperatingDay` (1) — 139 cases. No existing test changed.
+- **RED confirmed:** (1) with the eleven new files moved aside and `OperatingDays`/`TimetableErrors` stashed, the tests did not compile (62 × CS0246, 18 × CS0103); (2) with the real types but stubbed logic (empty-version and past checks, R17 effective check, stop-time checks 9–13, publish checks, cancel `≤`, successor `>`, weekday check, numbering) → **77 of 353 failed**; (3) a targeted mutation of the time pattern to `^([01]\d|2[0-3]):[0-5]\d$` → 4 failed (Myanmar and Arabic-Indic digits in a `\d` position, and a trailing newline). The mixed-digit rows were added for that purpose (the all-Myanmar rows could not catch it: the first hour digit is `[01]`). All stubs restored byte-for-byte from a copy (`cmp`).
+
+**Deviations:**
+- **V1 (mechanical):** `ScheduleVersionInput.Parse` takes the services as two small raw records, `ScheduleServiceText(ServiceId, StopTimes)` and `ScheduleStopTimeText(Position, Arrival, Departure)` (times still text), in the same file as the plan's three input records. The plan names the method's parameters but not a type for unparsed services; the Domain cannot take Application's command type.
+- **V2 (mechanical):** the time pattern is anchored with `\A…\z`, not `^…$` as written in P2: in .NET `$` also matches before a final `\n`, so `"06:00\n"` would be accepted. Same accepted language otherwise; a test row pins it.
+- **V3 (mechanical):** `FromMinutes_OutsideTheDay_Throws` reaches the `internal` method by reflection (the Domain grants `InternalsVisibleTo` only to Infrastructure); no assembly attribute was added.
+
+**Evidence:** `dotnet test tests/YCR.Domain.Tests` 356/356; `dotnet test YCR.sln` **1300 total, 1300 passed, 0 failed, 0 skipped**; build 0 warnings.
+
+**Next step (exact):** plan step 2 — persistence (permissions, context, three configurations, `TimetableConstraints`, migration `Timetable_CreateScheduleVersions`, `ScheduleModelTests`, item 15, item 6's table list; V3, V7).
+
+**Blockers / open questions:** none.
+
+**State of the branch:** step 1 committed and pushed; step 2 files in the working tree, uncommitted.
