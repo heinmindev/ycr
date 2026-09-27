@@ -157,3 +157,28 @@ Correction (claude, T-054, 2026-09-27 12:32 Asia/Yangon): the entry stamped "202
 **Blockers / open questions:** none.
 
 **State of the branch:** step 1 committed and pushed; step 2 files in the working tree, uncommitted.
+
+---
+
+## 2026-09-27 17:02 Asia/Yangon — claude — T-055
+
+**Stage:** 4 (IMPLEMENT) — plan step 2 done.
+**Commit:** step 2 at `a564192` (pushed); this entry is the next commit.
+
+**Done:**
+- **Step 2 — persistence:** `Permissions.SchedulesManage`/`SchedulesRead` (OQ59 comment); `ITimetableDbContext` and `YcrDbContext` gain `DbSet<ScheduleVersion>`; `ScheduleVersionConfiguration`, `ScheduleVersionServiceConfiguration`, `ScheduleStopTimeConfiguration`; `TimetableConstraints`; migration **`20260927070804_Timetable_CreateScheduleVersions`**, EF-generated and reviewed by hand against plan §DB changes 1: three tables, seven checks, four `NO ACTION` keys (all inside `timetable`), exactly four indexes (`UX_ScheduleVersions_Number`, the filtered `UX_ScheduleVersions_EffectiveFrom_Published` `WHERE [Status] = N'Published'`, `IX_ScheduleVersionServices_ServiceId`, `IX_ScheduleStopTimes_ServiceId_Position`); no `EnsureSchema`, no raw SQL; `Down()` drops the three tables children first. The snapshot diff is additions only. `has-pending-model-changes`: clean (**V3**). **V7 confirmed:** `TimetableTime?` maps to `smallint NULL` through a converter; nulls stay `NULL`.
+- Tests: `ScheduleModelTests` (7: columns and types, the exact index set with filter and uniqueness in the model and in the migration's `CreateIndex` operations, the four FKs in model and migration, every check, the constraint name, up and down operations). Changed tests: **item 15** (`StationModelTests` + four UTC rows) and **item 6's table list** (two → five tables).
+- **RED confirmed:** (1) the tests did not compile without the migration (2 × CS0246 `Timetable_CreateScheduleVersions`); (2) with the three configurations moved aside, the targeted classes (`StationModelTests`, `TimetableMigrationTests`) → 22 of 24 failed. Two test-side fixes on the way to green, neither loosening an intent: a `rowversion` absence scoped to the three schedule tables (it had caught `StaffUser`'s legitimate `RowVersion`), and V7's provider type read from the converter.
+
+**Deviations:**
+- **V4 — killed and contaminated runs.** The first full run for step 2 was contaminated: the test fixture builds the migration bundle from the source tree when the tests start, and by then I had restored uncommitted step 3–4 files into the tree, so the bundle contained the seed and grants migrations (10 failures, all "44 grants where 34 expected" or the migration list). A clean re-run in a separate worktree (`D:\MR\ycr-F-005-verify`) was then **killed by Claude Code because the machine was critically low on memory** (two checkouts building and testing at once). With hein's go-ahead (2026-09-27): the verify worktree was removed, the steps 3–6 work stashed (`T-055 WIP steps 3-6 (not yet verified)`), and the suite run once on the clean `a564192` tree with `--max-parallel-test-modules 1` (the MTP switch; `-m:1` is not an MSBuild switch under `dotnet test` with Microsoft.Testing.Platform and ran zero tests).
+- **V5 — worked ahead of the per-step rule.** Steps 3–6 code and tests were written while step 2's full run was still pending. No code was committed out of order: step 2 was committed alone, and the later work is stashed and will be verified one step at a time (RED, then GREEN, then the full suite, then commit and push).
+- **V6 — side-by-side SDK.** The machine's default SDK is now 10.0.401 (updated at 12:23 today); `global.json` pins 10.0.302 with `latestPatch`, which 10.0.401 does not satisfy. SDK 10.0.302 is installed side by side in `C:\dn302` (Microsoft's `dotnet-install.ps1`, no machine-wide change); every command runs with `DOTNET_ROOT=C:\dn302` and that `dotnet` first on `PATH`. `global.json` is untouched. CI uses its own pinned SDK.
+
+**Evidence:** `dotnet test YCR.sln --max-parallel-test-modules 1` on `a564192` (clean tree) → **1311 total, 1311 passed, 0 failed, 0 skipped** (step 1 was 1300; +11); `dotnet ef migrations has-pending-model-changes` clean.
+
+**Next step (exact):** `git stash pop`; plan step 3 — seed migration `20260927071025_Identity_SeedSchedulePermissionGrants` and changed-tests items 1–5, 8–12 and the 44s of items 6–7; RED with the migration absent, then GREEN, then the full suite.
+
+**Blockers / open questions:** none.
+
+**State of the branch:** step 2 pushed; steps 3–6 work stashed, unverified.
