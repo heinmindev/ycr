@@ -85,3 +85,26 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** none for F-005. Still for hein: add OQ51–OQ60 to `docs/business/mr-questions-pack.md`.
 
 **State of the branch:** docs only; committed and pushed.
+
+Correction (claude, T-054, 2026-09-27 12:32 Asia/Yangon): the entry stamped "2026-09-27 05:00 Asia/Yangon" above was written at **11:26 Asia/Yangon** (05:00 was UTC from a Windows time-zone command; commit `f2dda58`, +0630).
+
+---
+
+## 2026-09-27 12:32 Asia/Yangon — claude — T-054
+
+**Stage:** 3 (PLAN) — plan written; stopped at the stage-3 ⛔ for hein's approval.
+**Commit:** the plan commit on `feature/F-005` (SHA recorded in the `TASKS.md` T-054 row); this entry is in the same commit.
+
+**Done this session:**
+- **Spec Amendment 1** (hein, 2026-09-27; T-054 ruling 1; provisional tech-lead ruling, not a Myanma Railways answer): a version that lists no services may only be published with a start date later than today (`422 Timetable.EmptyScheduleVersionNotInFuture`). Spec: Status "Approved (hein, 2026-09-26), amended by Amendment 1"; §0.10 "Amendment 1 after approval" table; R9 pointer; new **R50**; new **SV55** (empty version starting today refused at publication) and **SV56** (starting tomorrow published and cancelled); §5 publish guard; §6 publish error list; §9 known limitation; Blocked behaviour row. `docs/19` OQ60: the Amendment 1 paragraph under the resolution block (LF kept).
+- **`plan.md` revision 1**, from `docs/templates/plan.md` on the F-004 model: P1–P26; the `ScheduleVersion` aggregate, `TimetableTime` (ADR-0027), the R45 check order; `PublishedTimeline` for R19/R21; the F-004 withdrawal change (`Service.Withdraw` gains the coverage; F-004 checks first); the Timetable-wide lock `timetable.ScheduleVersions` with the order "service-code lock, then the Timetable-wide lock" and its deadlock-freedom proof; three migrations (tables and checks, the filtered unique index, grants, seed 34 → 44) with rollback; the in-force read's SQL; eight endpoints with a 2 MiB create limit and caps 250 / 200 / 10,000 from measured sizes; audit and the digest's canonical form; the test plan mapping all 56 live scenarios; the 25 existing tests that change; ten steps ending in a green GitHub Actions run; the stage-8 docs list.
+- Verified at PLAN in a scratch app (outside the repo) against the real F-004 model: EF convention indexes (exactly `IX_ScheduleVersionServices_ServiceId`, `IX_ScheduleStopTimes_ServiceId_Position`), the migration diff and its reverse, the filtered-index DDL, the query SQL (literal `N'Published'`), and body sizes (554,267 bytes compact at the caps; 443,667 for 200 × 40).
+- Found two existing tests the spec did not name: `MustChangePasswordTests.MustChangeSession_MayCallOnlyMeRefreshLogoutAndPassword` (substitutes only `{id}`) and `ServiceEndpointsTests.AbsentEndpoints_AreNotRouted` (asserts `POST /schedules/versions` is absent).
+
+**Evidence:** docs only; no build or test run of the repository. Scratch check: `dotnet run` of a console app referencing `YCR.Infrastructure` (net10.0, EF Core 10.0.12). Files: `spec.md`, `plan.md`, `progress.md`, `docs/19-open-questions.md`.
+
+**Next step (exact):** hein answers plan Q1–Q5 and approves the plan (or asks for a revision); then T-054 → done and stage 4 is a separate task.
+
+**Blockers / open questions:** `approval` (stage-3 ⛔). Plan questions Q1 (total stop-time cap 10,000), Q2 (unknown `status` filter), Q3 (Amendment 1 at creation), Q4 (remove the F-004 `AbsentEndpoints` row), Q5 (lock name). No new business OQ.
+
+**State of the branch:** docs only; committed and pushed.

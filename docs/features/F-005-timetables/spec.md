@@ -1,6 +1,6 @@
 # F-005: Timetables
 
-Status: **Approved (hein, 2026-09-26)**. Written by claude (T-053). Stages 1–2 of `docs/workflows/02-feature-development.md`. hein's rulings of 2026-09-26 on SC, OQ51–OQ59, H, ADR-0027, E1–E14 and C4/C5, and the final rulings at approval on **OQ60**, **Q2** and the five engineering choices made while applying them, are recorded in §0.10 and applied throughout; the business rulings are **provisional tech-lead rulings — not a Myanma Railways answer**. §0.11 keeps the two items raised while applying the first rulings, now ruled. §0.12 spells out the change to F-004's withdrawal.
+Status: **Approved (hein, 2026-09-26)**, amended by Amendment 1 (hein, 2026-09-27; T-054; §0.10, R50). Written by claude (T-053). Stages 1–2 of `docs/workflows/02-feature-development.md`. hein's rulings of 2026-09-26 on SC, OQ51–OQ59, H, ADR-0027, E1–E14 and C4/C5, and the final rulings at approval on **OQ60**, **Q2** and the five engineering choices made while applying them, are recorded in §0.10 and applied throughout; the business rulings are **provisional tech-lead rulings — not a Myanma Railways answer**. §0.11 keeps the two items raised while applying the first rulings, now ruled. §0.12 spells out the change to F-004's withdrawal.
 
 Module(s): `Timetable` (existing, F-004); no new cross-module dependency (E12); **changes F-004's `WithdrawService`** (§0.12); cross-cutting `Audit`, `Identity` (permission grants only)
 Related: FR-004 (and FR-003 through F-004), UC 4 "Publish schedules" (`docs/03-use-cases.md` §Core use cases, item 4), F-004 (services), ADR-0002, ADR-0004, ADR-0006, ADR-0012, ADR-0013, ADR-0017, ADR-0018, ADR-0019, ADR-0021, ADR-0025, ADR-0026, ADR-0027 (Accepted 2026-09-26); ADR-0024 (Proposed) is not used (OQ56 ruling)
@@ -226,6 +226,14 @@ At stage 2, each business item was an OPEN QUESTION until ruled; the options wer
 
 **Approval:** with these rulings recorded and applied, hein approved the spec on 2026-09-26. No blocking OPEN QUESTION remains. OQ47 (holidays, per-date exceptions) stays open with Myanma Railways as a known limitation (ruling H).
 
+**Amendment 1 after approval (hein, 2026-09-27; T-054 row, ruling 1):**
+
+| ID | Ruling | Label | Applied in |
+|---|---|---|---|
+| **Amendment 1** | **A version that lists no services may only be published with a start date later than today** (Asia/Yangon, R33). Publishing an empty version whose `EffectiveFrom` is today → `422 Timetable.EmptyScheduleVersionNotInFuture`, nothing written; the version stays `Draft`. So a network-wide suspension (R9) can always be cancelled before it takes effect (R34). It closes the risk that OQ57 (publish on the start date) and OQ60 (an empty version) together let one request stop every service today with no chance to cancel. Creating an empty draft is unchanged (R9, SV22). A non-empty version is unchanged. | BUSINESS DECISION — provisional tech-lead ruling (hein, 2026-09-27; T-054), not a Myanma Railways answer. The code: ENGINEERING DECISION (E1) | R50; SV55, SV56; §5; §6; §9; `docs/19` OQ60 |
+
+The approved text above is kept; R9 points to R50, and §5, §6, §9 and Blocked behaviour carry the change.
+
 **Consequences of the rulings, recorded so they are seen (not conflicts):**
 - **A service can run only inside a version.** Because a listed service must be effective on the version's start date (OQ54), a service whose `EffectiveFrom` is later than the start of the version in force cannot run until a version starting on or after its `EffectiveFrom` lists it. A new service is therefore introduced by creating it, then publishing a version from its first day.
 - **A listed service may end mid-version.** The start-date check (OQ54) is the only period check at publication, so a service created with an `EffectiveTo` inside the version's range may be listed; it stops running after its `EffectiveTo` (R18). Only a *withdrawal* is refused while a version that lists the service still applies (R19).
@@ -289,7 +297,7 @@ Provisional rulings are labelled "BUSINESS DECISION — provisional tech-lead ru
 | R6 | A version covers **the whole network**: it lists the services that run while it is in force, from any route. | **PROVISIONAL RULING (OQ51)** | `docs/19` OQ51 |
 | R7 | A version is identified by a system-assigned sequential **number** and a `BilingualName` (`NameEn` and `NameMy` required, each 1–100 characters after trimming, `400 Timetable.InvalidScheduleVersionName`; not unique). The number is assigned at creation — `1` for the first version, then one more than the highest number ever assigned, under the Timetable-wide lock (R46) — so numbers are contiguous in creation order, unique (`UX_ScheduleVersions_Number`), and never reused: a discarded or cancelled version keeps its number. | Number, name: **PROVISIONAL RULING (OQ51)**; name rules: F-001 R4 (OQ27 ruling). Assignment mechanism: ENGINEERING DECISION (tech lead, hein, 2026-09-26) | `docs/19` OQ51 |
 | R8 | A version has a start date only, `EffectiveFrom` (`DateOnly` / `date`), set at creation and never changed. It is in force until the next published version's start date. | **PROVISIONAL RULING (OQ51, OQ55)**; type: ENGINEERING DECISION (ADR-0018; E4) | `docs/19` OQ51 |
-| R9 | A version may list **no services** (an empty `services` array; the array itself is still required, SV18). Publishing an empty version means no service runs from its start date until the next published version's start date — a network-wide suspension (R18). It is corrected like any other version: cancelled while its start date is later than today (R34), or superseded by a later version (R23). An empty version is in force on its dates like any other (R21). | **PROVISIONAL RULING (OQ60)** | `docs/19` OQ60 |
+| R9 | A version may list **no services** (an empty `services` array; the array itself is still required, SV18). Publishing an empty version means no service runs from its start date until the next published version's start date — a network-wide suspension (R18). It is corrected like any other version: cancelled while its start date is later than today (R34), or superseded by a later version (R23). An empty version is in force on its dates like any other (R21). *Amendment 1 (hein, 2026-09-27): an empty version may be published only with a start date later than today — R50.* | **PROVISIONAL RULING (OQ60)** | `docs/19` OQ60 |
 | R10 | Stop 1 has a **departure** only; the last stop (including a full circuit's closing stop, F-004 R14) an **arrival** only; every other stop both. A time given where none is allowed → `422 Timetable.ScheduleStopTimeUnexpected`; a required time, or a stop position, missing or repeated → `422 Timetable.ScheduleStopTimesIncomplete`; a position greater than the service's stop count → `422 Timetable.ScheduleStopNotInService`. | **PROVISIONAL RULING (OQ52)**; codes: ENGINEERING DECISION (E1) | `docs/19` OQ52 |
 | R11 | Times are whole minutes. | **PROVISIONAL RULING (OQ52)** | `docs/19` OQ52; ADR-0027 |
 | R12 | At each stop, arrival ≤ departure (a dwell of 0 is allowed); otherwise `422 Timetable.ScheduleDwellNegative`. Each stop's arrival is **strictly later** than the previous stop's departure; otherwise `422 Timetable.ScheduleTimesNotIncreasing`. | **PROVISIONAL RULING (OQ52)**; codes: ENGINEERING DECISION (E1) | `docs/19` OQ52 |
@@ -330,6 +338,7 @@ Provisional rulings are labelled "BUSINESS DECISION — provisional tech-lead ru
 | R47 | `ScheduleVersions.Status` is the EF concurrency token, a backstop behind R46 for a writer that bypasses the lock: if it fires, `409 Timetable.ScheduleVersionChangedConcurrently` and nothing is written. No `rowversion`, no client-held version. | ENGINEERING DECISION (E7 accepted; ADR-0026 item 7; F-003/F-004 pattern) | ADR-0026 |
 | R48 | The version-in-force read reports, for each listed service, whether it **runs on the requested date** (R18: within its period and on an operating day). | ENGINEERING DECISION (tech lead, hein, 2026-09-26; makes R18 observable and tested) | R18 |
 | R49 | **A withdrawal stays in force when a later cancellation revives an earlier version.** If service S was withdrawn from D (allowed by R19 because the version starting on D does not list S) and that version is then cancelled (R34), the cancel succeeds and S stays withdrawn: the earlier version applies again from D, still lists S, and reports S as not running from D (R18, R48). Nothing refuses the cancel. Likewise a version may be published whose range includes dates after a listed service's end (§0.10 consequences). | **PROVISIONAL RULING (Q2; OQ54, OQ58)** | §0.10 Q2; `docs/19` OQ54, OQ58 |
+| R50 | **Amendment 1 — an empty version starts after today.** A version that lists no services (R9) may be published only while its `EffectiveFrom` is **later than today**; publishing it on its start date → `422 Timetable.EmptyScheduleVersionNotInFuture`, nothing written, the version stays `Draft`. Checked at publication, after R30 and R31 (a start date before today is still `422 Timetable.ScheduleVersionEffectiveFromInPast`). Creation is unchanged: an empty draft may be created with any start date ≥ today (R9, R31). Once published, an empty version can therefore always be cancelled before it takes effect (R34). | **PROVISIONAL RULING (Amendment 1, hein, 2026-09-27; T-054; OQ60, OQ57)**; the code: ENGINEERING DECISION (E1) | §0.10 Amendment 1; `docs/19` OQ60 |
 
 **Blocking open questions:** none. OQ51–OQ60 are resolved for F-005 by provisional tech-lead rulings and remain open with Myanma Railways. OQ47's open part (R35) does not block (ruling H) and stays a known limitation. OQ1, OQ4, OQ17 and OQ19 stay open and do not block.
 
@@ -379,6 +388,11 @@ Status codes follow ADR-0004; every error is ProblemDetails with `errorCode` and
 - **SV24.** Duplicate start date: V1 from 2026-10-05 is published; publishing another draft from 2026-10-05 → `409 Timetable.ScheduleVersionEffectiveFromTaken`; nothing written. Once V1 is cancelled, publishing that draft → `204` (R22).
 - **SV25.** Publish a `Published`, `Cancelled` or `Discarded` version → `422 Timetable.ScheduleVersionNotDraft`; an unknown id → `404 Timetable.ScheduleVersionNotFound`.
 - **SV26.** Two drafts from the same start date published in parallel → they serialise (R46): one `204`, one `409 Timetable.ScheduleVersionEffectiveFromTaken`; one event.
+
+### Publishing an empty version (Amendment 1; R50)
+
+- **SV55.** *(Added by Amendment 1.)* **An empty version starting today is refused at publication.** A version E listing no services, `effectiveFrom = 2026-10-01` (today), is created → `201` (R9). Publishing E on 2026-10-01 → `422 Timetable.EmptyScheduleVersionNotInFuture`; nothing written (E stays `Draft`, `PublishedAtUtc` null, no event); `in-force?date=2026-10-01` is unchanged. A non-empty draft from 2026-10-01 (SV21) is still published → `204`.
+- **SV56.** *(Added by Amendment 1.)* **An empty version starting tomorrow is accepted and can be cancelled.** A version E listing no services, `effectiveFrom = 2026-10-02` (tomorrow), is created and published on 2026-10-01 → `204`; one `Timetable.ScheduleVersionPublished` event. Cancelling E on 2026-10-01 → `204` (R34: its start date is later than today); `Status = Cancelled`; one `Timetable.ScheduleVersionCancelled` event.
 
 ### In force on date D (OQ55; R18, R21–R24, R48)
 
@@ -440,7 +454,7 @@ Each is a forced-order test on real SQL Server (ADR-0026 item 8): both orders ar
 | Entity | From | Event | Guard | To |
 |---|---|---|---|---|
 | ScheduleVersion | (none) | `CreateScheduleVersion` | `schedules.manage`; R7–R17, R31; under the lock (R46, number) | Draft |
-| ScheduleVersion | Draft | `PublishScheduleVersion` | `schedules.manage`; `EffectiveFrom` ≥ today (R31); every listed service effective on the start date (R17); no published version with that start date (R22); under the lock | Published |
+| ScheduleVersion | Draft | `PublishScheduleVersion` | `schedules.manage`; `EffectiveFrom` ≥ today (R31); if it lists no services, `EffectiveFrom` > today (R50, Amendment 1); every listed service effective on the start date (R17); no published version with that start date (R22); under the lock | Published |
 | ScheduleVersion | Draft | `DiscardScheduleVersion` | `schedules.manage`; under the lock | Discarded |
 | ScheduleVersion | Published | `CancelScheduleVersion` | `schedules.manage`; `EffectiveFrom` > today (R34); under the lock | Cancelled |
 | Service (F-004) | any | `WithdrawService(D)` | F-004 R21 checks; **no published version listing S applies on a date ≥ D (R19)**; under the service-code lock and the Timetable-wide lock | Same service, shorter period |
@@ -462,7 +476,7 @@ Base path `/api/v1`, JSON camelCase, GUID ids, dates `YYYY-MM-DD`, times `HH:mm`
 | GET | `/schedules/versions/{id}/services/{serviceId}` | — | `200` + `ScheduleServiceTimesResponse` | `401` · `403` · `404 Timetable.ScheduleVersionNotFound` · `404 Timetable.ScheduleServiceNotInVersion` | `schedules.read` |
 | GET | `/schedules/versions` | `?page=1&pageSize=50` (max 200) `&status=` (optional); ordered by `number` | `200` + `{ items: ScheduleVersionSummaryResponse[], page, pageSize, totalCount }` | `400 Timetable.InvalidPageRequest` · `401` · `403` | `schedules.read` |
 | GET | `/schedules/versions/in-force` | `?date=YYYY-MM-DD` (required) | `200` + `ScheduleVersionInForceResponse` | `400 Common.ValidationFailed` · `401` · `403` · `404 Timetable.ScheduleVersionNotInForce` | `schedules.read` |
-| POST | `/schedules/versions/{id}/publish` | no body | `204` | `401` · `403` · `404 Timetable.ScheduleVersionNotFound` · `409 Timetable.ScheduleVersionEffectiveFromTaken` · `409 Timetable.ScheduleVersionChangedConcurrently` · `422 Timetable.ScheduleVersionNotDraft` · `422 Timetable.ScheduleVersionEffectiveFromInPast` · `422 Timetable.ScheduleServiceNotEffective` | `schedules.manage` |
+| POST | `/schedules/versions/{id}/publish` | no body | `204` | `401` · `403` · `404 Timetable.ScheduleVersionNotFound` · `409 Timetable.ScheduleVersionEffectiveFromTaken` · `409 Timetable.ScheduleVersionChangedConcurrently` · `422 Timetable.ScheduleVersionNotDraft` · `422 Timetable.ScheduleVersionEffectiveFromInPast` · `422 Timetable.EmptyScheduleVersionNotInFuture` (Amendment 1, R50) · `422 Timetable.ScheduleServiceNotEffective` | `schedules.manage` |
 | POST | `/schedules/versions/{id}/cancel` | no body | `204` | `401` · `403` · `404 Timetable.ScheduleVersionNotFound` · `409 Timetable.ScheduleVersionChangedConcurrently` · `422 Timetable.ScheduleVersionNotPublished` · `422 Timetable.ScheduleVersionAlreadyEffective` | `schedules.manage` |
 | POST | `/schedules/versions/{id}/discard` | no body | `204` | `401` · `403` · `404 Timetable.ScheduleVersionNotFound` · `409 Timetable.ScheduleVersionChangedConcurrently` · `422 Timetable.ScheduleVersionNotDraft` | `schedules.manage` |
 | POST | `/services/{id}/withdraw` (F-004, **changed**) | unchanged | unchanged (`204`) | F-004's codes **plus `422 Timetable.ServiceInPublishedScheduleVersion`** (§0.12) | `services.manage` (unchanged) |
@@ -601,7 +615,7 @@ The rows are the history: a published version's rows never change, so "which tim
 - **OQ56:** a draft cannot be corrected; a wrong draft is discarded and created again, whole.
 - **OQ54:** a service cannot be withdrawn while a published version that lists it still applies; dropping it takes a new version first. A new service does not run until a version from its first day lists it.
 - **Q2 (ruled (a), R49):** cancelling a future version may leave the earlier version applying again over dates on which a service it lists was withdrawn; that service stays withdrawn and does not run (R18), and the in-force read reports it with `runsOnDate = false`.
-- **OQ60 (ruled (b), R9):** an empty version, once published and in force, stops every service on the network from its start date; nothing asks for confirmation beyond `schedules.manage` (R4).
+- **OQ60 (ruled (b), R9):** an empty version, once published and in force, stops every service on the network from its start date; nothing asks for confirmation beyond `schedules.manage` (R4). Amendment 1 (R50) requires it to start after today, so it can always be cancelled before it takes effect.
 
 ---
 
@@ -611,7 +625,7 @@ Required by `docs/21` §Specification.
 
 | Behaviour | Blocking item | Effect on F-005 |
 |---|---|---|
-| Whether a version may list no services | OQ60 ruling (yes, hein, 2026-09-26; provisional) | Not blocked; allowed (R9, SV22, SV53) |
+| Whether a version may list no services | OQ60 ruling (yes, hein, 2026-09-26; provisional) | Not blocked; allowed (R9, SV22, SV53); publication only with a start date after today (R50, Amendment 1; SV55, SV56) |
 | Public holidays and per-date exceptions | **OQ47** (open part, still open with Myanma Railways) | Not implemented, no placeholder (R35) |
 | Running past midnight | OQ53 ruling (no, in Phase 1) | Refused; a later ruling needs its own follow-up task |
 | Withdrawing a version in force; second approver; draft editing | SC, OQ56–OQ58 rulings | Not provided |
