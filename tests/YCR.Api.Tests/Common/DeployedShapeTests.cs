@@ -33,6 +33,15 @@ public sealed class DeployedShapeTests(SqlServerFixture fixture) : ApiTestBase(f
     [InlineData("GET", "/api/v1/services/11111111-1111-1111-1111-111111111111")]
     [InlineData("POST", "/api/v1/services")]
     [InlineData("POST", "/api/v1/services/11111111-1111-1111-1111-111111111111/withdraw")]
+    // F-005: every timetable-version endpoint.
+    [InlineData("POST", "/api/v1/schedules/versions")]
+    [InlineData("GET", "/api/v1/schedules/versions")]
+    [InlineData("GET", "/api/v1/schedules/versions/in-force?date=2026-10-05")]
+    [InlineData("GET", "/api/v1/schedules/versions/11111111-1111-1111-1111-111111111111")]
+    [InlineData("GET", "/api/v1/schedules/versions/11111111-1111-1111-1111-111111111111/services/22222222-2222-2222-2222-222222222222")]
+    [InlineData("POST", "/api/v1/schedules/versions/11111111-1111-1111-1111-111111111111/publish")]
+    [InlineData("POST", "/api/v1/schedules/versions/11111111-1111-1111-1111-111111111111/cancel")]
+    [InlineData("POST", "/api/v1/schedules/versions/11111111-1111-1111-1111-111111111111/discard")]
     public async Task ProtectedEndpoint_Anonymous_Returns401BearerChallengeWithProblemDetails(string method, string path)
     {
         await using var deployed = NewDeployedFactory();

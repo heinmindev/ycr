@@ -44,7 +44,11 @@ public sealed class MustChangePasswordTests(SqlServerFixture fixture) : RealAuth
         foreach (var route in protectedRoutes.Where(route => !Allowed.Contains(route)))
         {
             var (method, path) = (route.Split(' ')[0], route.Split(' ')[1]);
-            using var request = new HttpRequestMessage(new HttpMethod(method), path.Replace("{id}", Guid.CreateVersion7().ToString(), StringComparison.Ordinal));
+            // Every {name} placeholder, not only {id}: F-005's /schedules/versions/{id}/services/{serviceId}
+            // would otherwise keep a literal {serviceId}, miss its :guid constraint and answer 404.
+            using var request = new HttpRequestMessage(
+                new HttpMethod(method),
+                System.Text.RegularExpressions.Regex.Replace(path, @"\{\w+\}", _ => Guid.CreateVersion7().ToString()));
             if (method is "POST" or "PUT")
             {
                 request.Content = JsonContent.Create(new { });

@@ -336,3 +336,29 @@ Correction (claude, T-054, 2026-09-27 12:32 Asia/Yangon): the entry stamped "202
 **Blockers / open questions:** none.
 
 **State of the branch:** step 8 committed and pushed.
+
+---
+
+## 2026-09-28 00:28 Asia/Yangon — claude — T-055
+
+**Stage:** 4 (IMPLEMENT) — plan step 9 done.
+**Commit:** the step 9 commit carrying this entry.
+
+**Done:**
+- **Step 9 — API:** `Contracts/Timetable/ScheduleVersionContracts.cs` (requests as strings per P14; `CreateScheduleVersionRequestValidator` with the three REQUIRED CONTROL caps `MaxServicesPerVersion` 250, `MaxStopTimesPerService` 200, `MaxStopTimesPerVersion` 10,000; `ListScheduleVersionsRequestValidator` (Q2); `ScheduleVersionInForceRequestValidator`; responses mapped from DTOs), `Endpoints/Timetable/ScheduleVersionEndpoints.cs` (eight routes, `/in-force` before `/{id:guid}`, `CreateScheduleVersionMaxRequestBodyBytes` = 2 MiB as `RequestSizeLimitAttribute`; publish, cancel and discard take no body), `Program.cs` mapping, the `ServiceEndpoints` comment and withdraw summary (R19).
+- Tests: `ScheduleVersionEndpointsTests` (TH; SV1–SV45, SV48, SV49, SV53–SV56, Q2, V5), `ScheduleVersionRequestLimitTests` (Kestrel: the constants, 413 declared/chunked, malformed JSON ×3, one over each cap ×3, exactly at the caps, the abuse test), `SchedulePermissionGrantTests` (real tokens: all eight roles; create, publish, cancel audited as `schedules.manage`).
+- Changed tests: **item 16** `DeployedShapeTests` + eight rows (unmodified host: 401, Bearer challenge, `Auth.Unauthenticated`); **item 17** `ServiceEndpointsTests.AbsentEndpoints_AreNotRouted` — the `POST /api/v1/schedules/versions` row removed (Q4), summary updated, the other four rows unchanged; **item 18** `MustChangePasswordTests.MustChangeSession_MayCallOnlyMeRefreshLogoutAndPassword` — every `{name}` placeholder replaced (regex), assertion unchanged.
+- **V4 confirmed:** `ValidationFilter<T>` validates the `[AsParameters]` query records (`in-force` date, list `status`) → `400 Common.ValidationFailed`. **V5 confirmed:** `/in-force` is not shadowed (`InForceRoute_IsNotShadowedByTheIdRoute`). **V10 recorded** (throwaway probe, not committed): `"position":"1"` is read as 1 (web defaults read numbers from strings) and reaches the handler; `"position":1.5` is a framework `400` without `errorCode` — the malformed-JSON class T-042 owns.
+- **RED confirmed:** (1) with the schedule endpoints unmapped → **144 of 279** targeted tests failed (the rest assert absences, 403s from other permissions, or F-004 behaviour); (2) **mutation check** — the 2 MiB metadata removed → the three 413 cases fail; the status validator loosened → the three unknown-status rows fail; the per-version total cap removed → the over-total row and the abuse test fail. That last mutation first passed: the over-total body had 251 services, so the services cap refused it first — a test-data error the mutation exposed; the body is now 250 services (one with 41 stop times), and the test asserts that shape. All restored; no `MUTATION` marker.
+- Test-side fixes on the way to green: in TH mode an anonymous 401 has no `errorCode` body, so `AnyScheduleEndpoint_Anonymous_Returns401` asserts the status (the F-004 pattern; the body is covered by `DeployedShapeTests`); `ScheduleVersionEndpointsTests` names its factory `Schedules` (`ApiTestBase.Api` exists).
+
+**Deviations:**
+- **V12 (test transport, not behaviour):** `Post_LargeBodyAbuse_IsRefusedBeforeAnyDatabaseWork` sends the declared 3 MiB body with `Expect: 100-continue` (Kestrel refuses on the Content-Length, the client never writes the body), and its chunked leg is **2 MiB + 16 KiB**, not 3 MiB: a chunked body has no length to refuse up front, Kestrel reads to the limit, answers 413 and resets the connection, and a 3 MiB chunked write lost that answer to the reset once in four runs. The assertion (413, bounded body, nothing written) is unchanged; the class then passed 5 of 5 runs.
+
+**Evidence:** `dotnet test YCR.sln --max-parallel-test-modules 1` → **1624 total, 1624 passed, 0 failed, 0 skipped** (+150).
+
+**Next step (exact):** plan step 10 — `YCR.Api.http` schedule section; `api-smoke` schedule checks in `.github/workflows/ci.yml`; push; green runs of both workflows (push, and pull_request with Trunk-only) on the final code SHA.
+
+**Blockers / open questions:** none.
+
+**State of the branch:** step 9 committed and pushed.
