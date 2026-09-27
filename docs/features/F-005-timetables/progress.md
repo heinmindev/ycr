@@ -381,3 +381,22 @@ Correction (claude, T-054, 2026-09-27 12:32 Asia/Yangon): the entry stamped "202
 **Blockers / open questions:** none.
 
 **State of the branch:** committed and pushed.
+
+---
+
+## 2026-09-28 01:39 Asia/Yangon — claude — T-055
+
+**Stage:** 4 (IMPLEMENT) — **done; T-055 → review.** Stages 5–7 are codex's.
+**Code SHA:** `2bc591e` (step 10). This entry is a docs-only commit after it.
+
+**CI on `2bc591e` (both green):**
+- push — https://github.com/heinmindev/ycr/actions/runs/36341455764 — Build and test ✅, API smoke test ✅ (with the F-005 schedule checks), Secret scan ✅, Trunk-only tests skipped (push to a feature branch, by design).
+- pull_request (draft PR) — https://github.com/heinmindev/ycr/actions/runs/36341459330 — Build and test ✅, API smoke test ✅, Secret scan ✅, **Trunk-only tests ✅**.
+
+**Summary of stage 4:** steps 1–10 each ended with `dotnet test YCR.sln` green, 0 skipped: 1300 → 1311 → 1311 → 1338 → 1339 → 1428 → 1451 → 1474 → 1624 → 1624 (baseline 1161; +463). Migrations: `20260927070804_Timetable_CreateScheduleVersions`, `20260927071025_Identity_SeedSchedulePermissionGrants`, `20260927072142_Security_TimetableScheduleGrants`. **Exactly the plan's 25 existing tests changed** (checked with `git diff --name-status` and the removed lines against `main`): items 1–18 as listed, 19–25 the seven `ServiceTests` withdrawal tests' nine call sites; every assertion stays a strict equality; item 17 removed one row (Q4). No test disabled, skipped or deleted. Mutation checks: the TimetableTime pattern, the stop-time and creation rules, the Timetable-wide lock (applock test; SV42 publish/discard and parallel creates; the withdrawal's lock, SV40/SV41 both orders), the R19 guard and its published filter, the read rules, the 2 MiB limit, the total cap and the status filter — each caught, each restored. Deviations V1–V12 in the entries above.
+
+**Next step (exact):** codex — stage 5 (scenario tests), 6 (code review), 7 (security review) against `2bc591e`. Stage 8 documentation list is in the plan; not done here.
+
+**Blockers / open questions:** none. Environment note: `C:\dn302` (SDK 10.0.302 side by side) can be removed once the machine has a 10.0.3xx SDK again.
+
+**State of the branch:** committed and pushed.
