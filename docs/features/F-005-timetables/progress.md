@@ -64,3 +64,24 @@ Append-only. Newest entry at the bottom. Never edit or delete earlier entries.
 **Blockers / open questions:** `approval` (stage-2 ⛔); business: OQ60.
 
 **State of the branch:** docs only; committed and pushed.
+
+---
+
+## 2026-09-27 05:00 Asia/Yangon — claude — T-053
+
+**Stage:** 2 (SPECIFY) — complete; spec **Approved (hein, 2026-09-26)**.
+**Commit:** approval commit on `feature/F-005` (SHA recorded in the `TASKS.md` T-053 row); this entry is in the same commit.
+
+**Done this session:**
+- Applied hein's final rulings (T-053 row at `97b5d7d`): **OQ60 → (b)**, a version may list no services (network-wide suspension; corrected by cancel-before-effect or a later version); **Q2 → (a)**, a withdrawal survives the cancellation of the version that made it legal; the five engineering choices confirmed (numbers highest+1 under the lock; past start date refused at creation; services re-checked at publish; create and discard take the Timetable-wide lock; `runsOnDate` in the in-force read).
+- `spec.md`: Status "Approved (hein, 2026-09-26)"; §0.10 "Final rulings at approval" table and approval line; §0.10 consequence for an empty version; §0.11 outcome; R9 rewritten (PROVISIONAL RULING OQ60); new **R49** (Q2); the five choices relabelled ENGINEERING DECISION (tech lead, hein, 2026-09-26) in R7, R17, R31, R46, R48; SV22 now `201`; new **SV53** (publish an empty version, then in-force reads) and **SV54** (withdraw, then cancel; S stays withdrawn, `runsOnDate = false`); SV41 second order made definite; §0.12, §9, Blocked behaviour and Notes for the next stage updated. No blocking OPEN QUESTION left; OQ47 stays a known limitation.
+- `docs/19`: resolution block under OQ60.
+- Not touched: code, glossary, MR questions pack, `docs/10`, ADRs.
+
+**Evidence:** docs only; no build or test run.
+
+**Next step (exact):** T-054 — stage 3 (PLAN) against the Approved spec, in a separate session.
+
+**Blockers / open questions:** none for F-005. Still for hein: add OQ51–OQ60 to `docs/business/mr-questions-pack.md`.
+
+**State of the branch:** docs only; committed and pushed.
