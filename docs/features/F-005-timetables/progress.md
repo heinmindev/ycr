@@ -384,6 +384,27 @@ Correction (claude, T-054, 2026-09-27 12:32 Asia/Yangon): the entry stamped "202
 
 ---
 
+## 2026-09-28 09:22 Asia/Yangon — codex — T-056
+
+**Stage:** 5 (SCENARIO TESTS) — partial; blocked by hardware/environment.
+**Commit:** the commit carrying this checkpoint.
+**Done this session:**
+- Added `review-codex.md` §Stage 5 with a test-by-test mapping for every live scenario SV1–SV56 and a separate map for the specified rules without standalone scenarios.
+- Static coverage inspection found no missing scenario test, so no test code was added.
+- Re-ran the domain suite: 363 passed, 0 failed, 0 skipped.
+- Re-ran a time-ordering mutation (`<=` → `<`); two equality cases failed. Restored the production predicate and reran the domain suite successfully.
+- Could not run the requested SQL Server-backed lock, withdrawal and total-cap mutations or `dotnet test YCR.sln`: Docker/Docker Desktop are unavailable on this machine. The fixtures require the pinned SQL Server container. No production diff remains.
+
+**Evidence:** `dotnet test tests/YCR.Domain.Tests/YCR.Domain.Tests.csproj --no-restore` (green, 363/363); same command during mutation (2 failed, 361 passed, 0 skipped), then green again. `docker info` failed because the executable is unavailable; searched the expected Docker installation paths and service. `git diff --check` is clean.
+
+**Next step (exact):** provide a running Docker Desktop/CLI for this checkout; rerun the forced lock races and no-deadlock test with the lock disabled, withdrawal guard removal, and the 10,000-total-cap mutation with exactly 250 services; then run `dotnet test YCR.sln` with the pinned SDK. Continue to T-057 and T-058 only after T-056's exit criteria are met.
+
+**Blockers / open questions:** hardware — Docker is not installed/available; SQL Server integration tests cannot start.
+
+**State of the branch:** review report and progress checkpoint ready to commit; production source restored, no uncommitted production changes. Domain suite green, full suite unverified.
+
+---
+
 ## 2026-09-28 01:39 Asia/Yangon — claude — T-055
 
 **Stage:** 4 (IMPLEMENT) — **done; T-055 → review.** Stages 5–7 are codex's.
