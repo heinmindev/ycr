@@ -1,5 +1,5 @@
 ### YCR API — the F-001 station endpoints, the F-002 sign-in and administration endpoints, the
-### F-003 route endpoints and the F-004 service endpoints.
+### F-003 route endpoints, the F-004 service endpoints and the F-005 timetable-version endpoints.
 ###
 ### Setup (README "Developer setup"): a dev signing key and Auth:AllowedOrigins:0 in user-secrets,
 ### and a first administrator from `YCR.Worker bootstrap-administrator`.
@@ -24,6 +24,7 @@
 @stationId3 = 00000000-0000-0000-0000-000000000000
 @routeId = 00000000-0000-0000-0000-000000000000
 @serviceId = 00000000-0000-0000-0000-000000000000
+@scheduleVersionId = 00000000-0000-0000-0000-000000000000
 @userId = 00000000-0000-0000-0000-000000000000
 @sessionId = 00000000-0000-0000-0000-000000000000
 
@@ -418,4 +419,123 @@ Content-Type: application/json
   "stopStationIds": ["{{stationId}}", "{{stationId3}}"],
   "operatingDays": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
   "effectiveFrom": "2027-03-01"
+}
+
+# ---- Schedule versions (F-005) ---------------------------------------------------------------
+#
+# A version is the whole network's timetable from a start date until the next published version's
+# start date: every listed service with its stop times, HH:mm (00:00-23:59). Stop 1 has only a
+# departure, the last stop only an arrival, every other stop both; arrival ≤ departure at a stop;
+# each arrival later than the previous departure. A draft is created whole and never edited; it is
+# published, or discarded; a published version can be cancelled only before its start date.
+# BUSINESS DECISIONS — provisional tech-lead rulings (OQ51-OQ60), not Myanma Railways answers.
+#
+# Set @serviceId to a service from the section above (effective on the start date below; the
+# example uses SV10 with its two stops) and @scheduleVersionId from the create below.
+
+### Create a draft — schedules.manage. 201 + Location and { id, number }.
+### Errors: 400 Common.ValidationFailed (effectiveFrom not YYYY-MM-DD, services missing, a null
+### entry, serviceId not a GUID, stopTimes missing, position missing or < 1, more than 250 services,
+### more than 200 stop times for one service, more than 10,000 in total); 400
+### Timetable.InvalidScheduleVersionName / InvalidTimetableTime; 422
+### Timetable.ScheduleVersionEffectiveFromInPast / EmptyScheduleVersionNotInFuture /
+### ScheduleServiceNotFound / ScheduleServiceRepeated / ScheduleServiceNotEffective /
+### ScheduleStopNotInService / ScheduleStopTimesIncomplete / ScheduleStopTimeUnexpected /
+### ScheduleDwellNegative / ScheduleTimesNotIncreasing; 413 over 2 MiB.
+POST {{host}}/api/v1/schedules/versions
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "nameEn": "Timetable from March 2027",
+  "nameMy": "အချိန်ဇယား",
+  "effectiveFrom": "2027-03-01",
+  "services": [
+    {
+      "serviceId": "{{serviceId}}",
+      "stopTimes": [
+        { "position": 1, "departure": "06:00" },
+        { "position": 2, "arrival": "06:40" }
+      ]
+    }
+  ]
+}
+
+### Read it — schedules.read. 200 with number, names, effectiveFrom, status and each listed
+### service's current values; or 404 Timetable.ScheduleVersionNotFound.
+GET {{host}}/api/v1/schedules/versions/{{scheduleVersionId}}
+Authorization: Bearer {{token}}
+
+### One service's times — schedules.read. 200 with stops in position order, each station's current
+### code and names, arrival/departure as HH:mm or null; 404 Timetable.ScheduleServiceNotInVersion.
+GET {{host}}/api/v1/schedules/versions/{{scheduleVersionId}}/services/{{serviceId}}
+Authorization: Bearer {{token}}
+
+### List — schedules.read. 200 with { items, page, pageSize, totalCount }, ordered by number;
+### status is exactly Draft, Published, Discarded or Cancelled (else 400 Common.ValidationFailed);
+### 400 Timetable.InvalidPageRequest over 200.
+GET {{host}}/api/v1/schedules/versions?page=1&pageSize=50&status=Draft
+Authorization: Bearer {{token}}
+
+### Publish — schedules.manage. 204. Errors: 404; 409 Timetable.ScheduleVersionEffectiveFromTaken
+### (another published version starts that day) / ScheduleVersionChangedConcurrently; 422
+### Timetable.ScheduleVersionNotDraft / ScheduleVersionEffectiveFromInPast /
+### EmptyScheduleVersionNotInFuture / ScheduleServiceNotEffective (listed services are re-checked).
+POST {{host}}/api/v1/schedules/versions/{{scheduleVersionId}}/publish
+Authorization: Bearer {{token}}
+
+### In force on a date — schedules.read. 200 with runsOnDate per listed service (its own period
+### and weekdays); 404 Timetable.ScheduleVersionNotInForce before the first published version;
+### 400 Common.ValidationFailed without a YYYY-MM-DD date.
+GET {{host}}/api/v1/schedules/versions/in-force?date=2027-03-01
+Authorization: Bearer {{token}}
+
+### A second draft on the same start date — 201. Set @scheduleVersionId to its id and run the
+### publish request above again: 409 Timetable.ScheduleVersionEffectiveFromTaken while the first
+### stays published (start dates are unique among published versions).
+POST {{host}}/api/v1/schedules/versions
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "nameEn": "Timetable from March 2027, second draft",
+  "nameMy": "အချိန်ဇယား",
+  "effectiveFrom": "2027-03-01",
+  "services": []
+}
+
+### Cancel a published version before its start date — schedules.manage. 204; it is kept and never
+### applies. On or after its start date: 422 Timetable.ScheduleVersionAlreadyEffective; not
+### published: 422 Timetable.ScheduleVersionNotPublished.
+POST {{host}}/api/v1/schedules/versions/{{scheduleVersionId}}/cancel
+Authorization: Bearer {{token}}
+
+### Discard a draft — schedules.manage. 204; kept and readable, never applies. Not a draft: 422
+### Timetable.ScheduleVersionNotDraft.
+POST {{host}}/api/v1/schedules/versions/{{scheduleVersionId}}/discard
+Authorization: Bearer {{token}}
+
+### An empty version starting today — 422 Timetable.EmptyScheduleVersionNotInFuture (an empty
+### version, a network-wide suspension, must start after today, so it can always be cancelled).
+### Replace the date with today's Asia/Yangon date.
+POST {{host}}/api/v1/schedules/versions
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "nameEn": "Suspension",
+  "nameMy": "ရပ်ဆိုင်း",
+  "effectiveFrom": "2026-10-01",
+  "services": []
+}
+
+### Withdraw a service a published version lists — services.manage. 422
+### Timetable.ServiceInPublishedScheduleVersion while that version applies on or after withdrawFrom
+### (publish a version without the service first, then withdraw it from that version's start date).
+POST {{host}}/api/v1/services/{{serviceId}}/withdraw
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "withdrawFrom": "2027-04-01"
 }

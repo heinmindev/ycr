@@ -11,7 +11,7 @@
 | Reports | ✓ | ✓ | ✓ | limited | limited | ✓ | ✓ |
 | Audit logs | ✓ | ✓ | - | - | - | - | ✓ |
 
-**The table above is a proposal only, and the permission inventory below governs**, except for `stations.manage`/`stations.read`, `routes.manage`/`routes.read`, `services.manage`/`services.read` and the identity permissions per the rulings below. Where the two disagree, the inventory wins: a capability shown as granted in the table is still an OPEN QUESTION until the inventory records an approved grant. (ENGINEERING DECISION — tech lead, hein, 2026-09-20, resolving contradictions C1 and C2 in `docs/features/F-001-walking-skeleton/spec.md` §0.3. The underlying role question was OQ28.)
+**The table above is a proposal only, and the permission inventory below governs**, except for `stations.manage`/`stations.read`, `routes.manage`/`routes.read`, `services.manage`/`services.read`, `schedules.manage`/`schedules.read` and the identity permissions per the rulings below. Where the two disagree, the inventory wins: a capability shown as granted in the table is still an OPEN QUESTION until the inventory records an approved grant. (ENGINEERING DECISION — tech lead, hein, 2026-09-20, resolving contradictions C1 and C2 in `docs/features/F-001-walking-skeleton/spec.md` §0.3. The underlying role question was OQ28.)
 
 This is a starting proposal and must be approved against actual railway roles.
 
@@ -42,7 +42,16 @@ Holding `stations.manage` or `stations.read` gives no route right. The permissio
 - `services.manage` → **`SystemAdministrator` and `RailwayAdministrator` only** (`StationManager`, `TicketOperator`, `TicketInspector`, `FinanceOfficer`, `Auditor` and `ReportingUser` do **not** hold it).
 - `services.read` → **all eight roles:** `SystemAdministrator`, `RailwayAdministrator`, `StationManager`, `TicketOperator`, `TicketInspector`, `FinanceOfficer`, `Auditor` and `ReportingUser`.
 
-Holding a station or route permission gives no service right. The permission name `services.read` was added on 2026-09-25 (hein, T-044, E6). `trains.manage` is not used in Phase 1 and has no grant (OQ42 ruling); `schedules.manage` stays an OPEN QUESTION for FR-004. These grants are data seeded by a reviewed migration, like every other grant; no API edits them (see §Identity permission grants). See `docs/features/F-004-service-management/spec.md` §0.9, R3, R4.
+Holding a station or route permission gives no service right. The permission name `services.read` was added on 2026-09-25 (hein, T-044, E6). `trains.manage` is not used in Phase 1 and has no grant (OQ42 ruling); `schedules.manage` and `schedules.read` are resolved for FR-004 by OQ59 (see §Schedule permission grants). These grants are data seeded by a reviewed migration, like every other grant; no API edits them (see §Identity permission grants). See `docs/features/F-004-service-management/spec.md` §0.9, R3, R4.
+
+## Schedule permission grants — resolved (OQ59)
+
+**Resolved by tech-lead ruling (hein, 2026-09-26; T-053) — not a Myanma Railways answer.** Myanma Railways has not confirmed role grants for timetable versions; this project chose not to wait. **Still open with Myanma Railways.** If Myanma Railways later gives an official, different answer, that supersedes this ruling and needs its own follow-up task.
+
+- `schedules.manage` → **`SystemAdministrator` and `RailwayAdministrator` only** (`StationManager`, `TicketOperator`, `TicketInspector`, `FinanceOfficer`, `Auditor` and `ReportingUser` do **not** hold it). It covers creating, discarding, publishing and cancelling timetable versions.
+- `schedules.read` → **all eight roles:** `SystemAdministrator`, `RailwayAdministrator`, `StationManager`, `TicketOperator`, `TicketInspector`, `FinanceOfficer`, `Auditor` and `ReportingUser`.
+
+There is no separate `schedules.publish` permission: any holder of `schedules.manage` may publish, including the author of the draft, and there is no second approver in Phase 1 (OQ57 ruling). Holding a station, route or service permission gives no schedule right, and holding a schedule permission gives no station, route or service right. The permission name `schedules.read` was added on 2026-09-26 (hein, T-053, E5). These grants are data seeded by a reviewed migration, like every other grant; no API edits them (see §Identity permission grants). The migration is `20260927071025_Identity_SeedSchedulePermissionGrants` (ten rows; 44 grants in all). See `docs/features/F-005-timetables/spec.md` §0.10, R3–R5.
 
 ## Identity permission grants — F-002
 
@@ -59,7 +68,7 @@ No other role holds these. Grants, including these, are data seeded by a reviewe
 
 ## Permission inventory requiring explicit approval
 
-The following permission identifiers are referenced by ADR-0013 and the API proposal. Their role grants are **OPEN QUESTION** until the authorization matrix is approved; agents must not infer grants from the names. (`stations.manage`, `stations.read`, `routes.manage`, `routes.read`, `services.manage`, `services.read` and the four identity permissions are the exceptions — see §Station permission grants, §Route permission grants, §Service permission grants and §Identity permission grants above.)
+The following permission identifiers are referenced by ADR-0013 and the API proposal. Their role grants are **OPEN QUESTION** until the authorization matrix is approved; agents must not infer grants from the names. (`stations.manage`, `stations.read`, `routes.manage`, `routes.read`, `services.manage`, `services.read`, `schedules.manage`, `schedules.read` and the four identity permissions are the exceptions — see §Station permission grants, §Route permission grants, §Service permission grants, §Schedule permission grants and §Identity permission grants above.)
 
 - `sales.void`
 - `sales.sell`
@@ -84,7 +93,8 @@ The following permission identifiers are referenced by ADR-0013 and the API prop
 - `services.manage` (role grants resolved — see §Service permission grants above)
 - `services.read` (added 2026-09-25 by hein, T-044, E6; role grants resolved — see §Service permission grants above)
 - `fares.manage`
-- `schedules.manage`
+- `schedules.manage` (role grants resolved — see §Schedule permission grants above)
+- `schedules.read` (added 2026-09-26 by hein, T-053, E5; role grants resolved — see §Schedule permission grants above). There is no `schedules.publish` permission (OQ59 ruling): publishing is part of `schedules.manage`
 - `reports.read`
 - `ticket-qr.trust-list.read`
 - `idempotency.read`

@@ -42,6 +42,21 @@ public static class Permissions
     public const string ServicesRead = "services.read";
 
     /// <summary>
+    /// Create, discard, publish and cancel timetable versions (F-005). BUSINESS DECISION -
+    /// provisional tech-lead ruling (hein, 2026-09-26; T-053, OQ59) - not a Myanma Railways answer:
+    /// schedules.manage -> SystemAdministrator and RailwayAdministrator; schedules.read -> all eight
+    /// roles (docs/10 §Schedule permission grants). There is no schedules.publish: publishing is
+    /// part of schedules.manage, and a draft's author may publish it (OQ57). Holding a station,
+    /// route or service permission gives no schedule right, and a schedule permission gives no
+    /// station, route or service right. Grants are data, seeded by migration, never in code. The
+    /// name schedules.read is an ENGINEERING DECISION (tech lead, hein, 2026-09-26; E5).
+    /// </summary>
+    public const string SchedulesManage = "schedules.manage";
+
+    /// <summary>Read timetable versions, their times and the version in force (F-005; see <see cref="SchedulesManage"/>).</summary>
+    public const string SchedulesRead = "schedules.read";
+
+    /// <summary>
     /// BUSINESS DECISION - provisional tech-lead ruling (hein, 2026-09-23; T-023, D8) - not a
     /// Myanma Railways answer: the four identity permissions are held by SystemAdministrator
     /// only (docs/10 §Identity permission grants).

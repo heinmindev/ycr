@@ -10,8 +10,7 @@ Initial resources:
 - GET/POST `/routes`, POST `/routes/{id}/deactivate` — implemented in F-003 (below). **`PATCH /routes` is not provided** (OQ41 ruling: code and names are fixed after creation), and there is no `PUT /routes/{id}/stations` (OQ38 ruling: sequences are immutable)
 - ~~GET/POST/PATCH `/trains`~~ — **not provided** (OQ42 provisional ruling, hein, 2026-09-25: there is no `Train` concept in Phase 1; use case 3 is met by services)
 - GET/POST `/services`, POST `/services/{id}/withdraw` — implemented in F-004 (below). **`PATCH /services` is not provided** (OQ48 ruling: a service is immutable except for withdrawal)
-- POST `/schedules/versions`
-- POST `/schedules/versions/{id}/publish`
+- GET/POST `/schedules/versions`, GET `/schedules/versions/{id}`, GET `/schedules/versions/{id}/services/{serviceId}`, GET `/schedules/versions/in-force`, POST `/schedules/versions/{id}/publish`, `/cancel` and `/discard` — implemented in F-005 (below). **Not provided:** withdrawing a version that has already taken effect (OQ58 ruling: it is corrected by publishing a later version), and editable drafts — no `PATCH`/`PUT`/`DELETE` and no endpoint that adds, removes or changes a draft's services or times (OQ56 ruling: a draft is created whole)
 - POST `/fares/versions`
 - POST `/fares/versions/{id}/publish`
 - POST `/sales` (creates Sale + Payment + Ticket in one transaction)
@@ -232,7 +231,7 @@ endpoint takes an `Idempotency-Key` (spec R25), and no request or response carri
 | POST | `/api/v1/services` | `CreateServiceRequest`. Body at most **32 KiB** | `201` + `CreateServiceResponse { id }` and `Location: /api/v1/services/{id}` | `400` `Common.ValidationFailed` · `400` `Timetable.InvalidServiceCode` · `400` `Timetable.InvalidServiceName` · `400` `Timetable.InvalidEffectivePeriod` · `400` malformed JSON · `401` · `403` · `409` `Timetable.ServiceCodePeriodOverlap` · `413` body over 32 KiB · `422` `Timetable.ServiceEffectiveToInPast` · `422` `Timetable.ServiceRouteNotFound` · `422` `Timetable.ServiceRouteInactive` · `422` `Timetable.ServiceStopNotOnRoute` · `422` `Timetable.ServiceStopRepeated` · `422` `Timetable.ServiceTooFewStops` · `422` `Timetable.ServiceStopsOutOfOrder` · `422` `Timetable.ServiceStopStationInactive` | `services.manage` |
 | GET | `/api/v1/services/{id}` | — | `200` + `ServiceResponse` | `401` · `403` · `404` `Timetable.ServiceNotFound` | `services.read` |
 | GET | `/api/v1/services` | `?page=1&pageSize=50` (max 200) `&routeId=` (optional); ordered by `code`, then `effectiveFrom`, then `id`; withdrawn services included; an unknown `routeId` gives an empty page | `200` + `{ items: ServiceSummaryResponse[], page, pageSize, totalCount }` | `400` `Timetable.InvalidPageRequest` · `401` · `403` | `services.read` |
-| POST | `/api/v1/services/{id}/withdraw` | `WithdrawServiceRequest { withdrawFrom }`. Body at most **1 KiB** | `204` | `400` `Common.ValidationFailed` · `400` malformed JSON · `401` · `403` · `404` `Timetable.ServiceNotFound` · `409` `Timetable.ServiceChangedConcurrently` · `413` body over 1 KiB · `422` `Timetable.WithdrawalDateInPast` · `422` `Timetable.WithdrawalDoesNotShorten` | `services.manage` |
+| POST | `/api/v1/services/{id}/withdraw` | `WithdrawServiceRequest { withdrawFrom }`. Body at most **1 KiB** | `204` | `400` `Common.ValidationFailed` · `400` malformed JSON · `401` · `403` · `404` `Timetable.ServiceNotFound` · `409` `Timetable.ServiceChangedConcurrently` · `413` body over 1 KiB · `422` `Timetable.WithdrawalDateInPast` · `422` `Timetable.WithdrawalDoesNotShorten` · `422` `Timetable.ServiceInPublishedScheduleVersion` (added by F-005) | `services.manage` |
 
 `services.manage` is held by `SystemAdministrator` and `RailwayAdministrator`; `services.read` by
 all eight roles (`docs/10` §Service permission grants). A station or route permission gives no
@@ -321,9 +320,15 @@ A withdrawal is checked in this order: `400 Common.ValidationFailed` (a missing 
 `withdrawFrom`); `404 Timetable.ServiceNotFound`; then, under the code lock, **`422
 Timetable.WithdrawalDateInPast`** (`withdrawFrom` earlier than today's Asia/Yangon date) and
 **`422 Timetable.WithdrawalDoesNotShorten`** (the new `effectiveTo`, `withdrawFrom` − 1 day, is not
-earlier than the current one; a second withdrawal is allowed when it shortens further). **`409
+earlier than the current one; a second withdrawal is allowed when it shortens further); then,
+**added by F-005** (spec R19, §0.12) and also under the Timetable-wide lock, **`422
+Timetable.ServiceInPublishedScheduleVersion`** — checked last: a published (not cancelled) timetable
+version that lists the service applies on some date on or after `withdrawFrom`. A version applies
+from its start date to the day before the next published version's start date, or open-ended.
+Drafts, discarded and cancelled versions never refuse a withdrawal. To drop a listed service,
+publish a version without it, then withdraw the service from that version's start date. **`409
 Timetable.ServiceChangedConcurrently`** is the concurrency-token backstop for a writer that
-bypassed the code lock; nothing is written. A withdrawal never causes `ServiceCodePeriodOverlap`,
+bypassed the locks; nothing is written. A refused withdrawal writes no audit event. A withdrawal never causes `ServiceCodePeriodOverlap`,
 because it only shortens a period, and it has no route or station guard. "Today" is always the
 Asia/Yangon date of the server clock (`Time:LocalTimeZone`, `docs/15`).
 
@@ -341,10 +346,181 @@ Malformed JSON is the framework's `400`. Neither carries an `errorCode` (as for 
 above).
 
 **Not provided** (OQ42 and OQ48 rulings): no `PATCH` or `PUT /services/{id}` and no other edit (to
-change a timetable, withdraw the old service from date D and create a new one with the same code
-from D), no reactivation, no `DELETE`, no `/trains`, and no `/schedules/versions*` or time field
-(FR-004). Each answers `404` or `405`. The service endpoints appear in the Development-only OpenAPI
-document under the tag `Services`.
+change a stopping pattern, withdraw the old service from date D and create a new one with the same
+code from D; since F-005 a change of times is a new timetable version, OQ54), no reactivation, no `DELETE`, no `/trains`, and no time field on a service. Each answers
+`404` or `405`. The service endpoints appear in the Development-only OpenAPI document under the tag
+`Services`. (F-004 also listed `/schedules/versions*` as absent; F-005 now provides them, below.)
+
+## Implemented in F-005 — timetable versions
+
+F-005 spec §6. A **timetable version** (`ScheduleVersion`) lists the services that run on the
+whole network from its start date, with every listed service's stop times. It is created whole as a
+**draft**, then **published** or **discarded**; a published version may be **cancelled** only
+before it takes effect. The version **in force** on a date is the published version with the latest
+start date on or before it. The version **rules** below are **BUSINESS DECISION — provisional
+tech-lead rulings (hein, 2026-09-26; T-053, OQ51–OQ60, Q2; Amendments 1–2, 2026-09-27) — not a
+Myanma Railways answer**; an official, different answer supersedes them. Public holidays and
+per-date exceptions are not implemented (OQ47 stays open). Every endpoint also has the responses in
+§Applies to every protected endpoint. No endpoint takes an `Idempotency-Key` (spec R40), and no
+request or response carries a version token (R47).
+
+| Method | Path | Request | Success | Error codes | Permission |
+|---|---|---|---|---|---|
+| POST | `/api/v1/schedules/versions` | `CreateScheduleVersionRequest`. Body at most **2 MiB** | `201` + `CreateScheduleVersionResponse { id, number }` and `Location: /api/v1/schedules/versions/{id}` | `400` `Common.ValidationFailed` · `400` `Timetable.InvalidScheduleVersionName` · `400` `Timetable.InvalidTimetableTime` · `400` malformed JSON · `401` · `403` · `413` body over 2 MiB · `422` `Timetable.ScheduleVersionEffectiveFromInPast` · `422` `Timetable.EmptyScheduleVersionNotInFuture` · `422` `Timetable.ScheduleServiceNotFound` · `422` `Timetable.ScheduleServiceRepeated` · `422` `Timetable.ScheduleServiceNotEffective` · `422` `Timetable.ScheduleStopNotInService` · `422` `Timetable.ScheduleStopTimesIncomplete` · `422` `Timetable.ScheduleStopTimeUnexpected` · `422` `Timetable.ScheduleDwellNegative` · `422` `Timetable.ScheduleTimesNotIncreasing` | `schedules.manage` |
+| GET | `/api/v1/schedules/versions/{id}` | — | `200` + `ScheduleVersionResponse` | `401` · `403` · `404` `Timetable.ScheduleVersionNotFound` | `schedules.read` |
+| GET | `/api/v1/schedules/versions/{id}/services/{serviceId}` | — | `200` + `ScheduleServiceTimesResponse` | `401` · `403` · `404` `Timetable.ScheduleVersionNotFound` · `404` `Timetable.ScheduleServiceNotInVersion` | `schedules.read` |
+| GET | `/api/v1/schedules/versions` | `?page=1&pageSize=50` (max 200) `&status=` (optional: exactly `Draft`, `Published`, `Discarded` or `Cancelled`); ordered by `number`; every status included unless filtered | `200` + `{ items: ScheduleVersionSummaryResponse[], page, pageSize, totalCount }` | `400` `Common.ValidationFailed` (an unknown `status`) · `400` `Timetable.InvalidPageRequest` · `401` · `403` | `schedules.read` |
+| GET | `/api/v1/schedules/versions/in-force` | `?date=YYYY-MM-DD` (required) | `200` + `ScheduleVersionInForceResponse` | `400` `Common.ValidationFailed` (a missing or malformed `date`) · `401` · `403` · `404` `Timetable.ScheduleVersionNotInForce` | `schedules.read` |
+| POST | `/api/v1/schedules/versions/{id}/publish` | no body | `204` | `401` · `403` · `404` `Timetable.ScheduleVersionNotFound` · `409` `Timetable.ScheduleVersionEffectiveFromTaken` · `409` `Timetable.ScheduleVersionChangedConcurrently` · `422` `Timetable.ScheduleVersionNotDraft` · `422` `Timetable.ScheduleVersionEffectiveFromInPast` · `422` `Timetable.EmptyScheduleVersionNotInFuture` · `422` `Timetable.ScheduleServiceNotEffective` | `schedules.manage` |
+| POST | `/api/v1/schedules/versions/{id}/cancel` | no body | `204` | `401` · `403` · `404` `Timetable.ScheduleVersionNotFound` · `409` `Timetable.ScheduleVersionChangedConcurrently` · `422` `Timetable.ScheduleVersionNotPublished` · `422` `Timetable.ScheduleVersionAlreadyEffective` | `schedules.manage` |
+| POST | `/api/v1/schedules/versions/{id}/discard` | no body | `204` | `401` · `403` · `404` `Timetable.ScheduleVersionNotFound` · `409` `Timetable.ScheduleVersionChangedConcurrently` · `422` `Timetable.ScheduleVersionNotDraft` | `schedules.manage` |
+
+`schedules.manage` is held by `SystemAdministrator` and `RailwayAdministrator`; `schedules.read` by
+all eight roles (`docs/10` §Schedule permission grants). There is no `schedules.publish`: any holder
+of `schedules.manage` may publish, including the draft's author, with no second approver (OQ57). A
+station, route or service permission gives no schedule right, and a schedule permission gives no
+station, route or service right; withdrawing a service still needs `services.manage`. `{id}` and
+`{serviceId}` are GUID route parameters; `/in-force` is matched before `/{id}`.
+
+**Contracts.**
+
+```text
+CreateScheduleVersionRequest   { nameEn, nameMy, effectiveFrom: date,
+                                 services: [ { serviceId,
+                                               stopTimes: [ { position,               // 1..k of the service
+                                                              arrival: "HH:mm" | null,
+                                                              departure: "HH:mm" | null } ] } ] }
+CreateScheduleVersionResponse  { id, number }
+ScheduleVersionResponse        { id, number, nameEn, nameMy, effectiveFrom, status,
+                                 createdAtUtc, publishedAtUtc, discardedAtUtc, cancelledAtUtc,
+                                 services: [ { serviceId, code, nameEn, nameMy, direction, stopCount,
+                                               effectiveFrom, effectiveTo, neverRuns } ] }
+ScheduleServiceTimesResponse   { versionId, serviceId, code,
+                                 stops: [ { position, stationId, stationCode, stationNameEn,
+                                            stationNameMy, arrival, departure } ] }   // position order
+ScheduleVersionSummaryResponse { id, number, nameEn, nameMy, effectiveFrom, status, serviceCount,
+                                 createdAtUtc, publishedAtUtc, discardedAtUtc, cancelledAtUtc }
+ScheduleVersionInForceResponse { date, id, number, nameEn, nameMy, effectiveFrom, publishedAtUtc,
+                                 services: [ { serviceId, code, runsOnDate } ] }
+```
+
+- `effectiveFrom` and `date` are exactly `YYYY-MM-DD`; `serviceId` is a GUID in `D` format.
+  `effectiveFrom` is the start date; there is no end date.
+- A **time** is exactly `HH:mm`, `00:00`–`23:59`, two ASCII digits each (`24:00`, `6:00`, `06:60`,
+  `06:00:30`, `0600` and Myanmar digits are refused). It is a whole number of minutes after local
+  midnight of the service's operating date (ADR-0027). **No service runs past midnight** (OQ53):
+  every time falls on the operating date.
+- Stop 1 has a `departure` only, the last stop (including a full circuit's closing stop) an
+  `arrival` only, every other stop both. At one stop arrival ≤ departure (a dwell of 0 is allowed);
+  each arrival is strictly later than the previous stop's departure. Every position `1..k` of the
+  service is given exactly once; there are no passing times.
+- `services` is required and may be **empty** (`[]`): a version that lists no services stops every
+  service from its start date — a network-wide suspension (OQ60). An empty version may be created
+  and published only with a start date **later than today** (Amendments 1–2).
+- `status` is `"Draft"`, `"Published"`, `"Discarded"` or `"Cancelled"`. A transition instant is
+  `null` until set; a cancelled version keeps its `publishedAtUtc`.
+- `number` is system-assigned: `1`, then one more than the highest ever assigned, so numbers are
+  contiguous and never reused; a discarded or cancelled version keeps its number.
+- Service fields (`code`, names, `direction`, `stopCount`, `effectiveFrom`, `effectiveTo`,
+  `neverRuns`) and station fields are **current** values, read at query time; station fields come
+  through the Network contract. Listed services are ordered by service `code`, then `serviceId`.
+- No request has an actor field; audit actors come from the server.
+
+**Error codes, and the order they are checked in.** A create that breaks several rules gets the
+first failure in this order (spec R45, plan P4). Checks 6–13 run for each service in request order,
+finishing one service before the next.
+
+1. **`400 Common.ValidationFailed`** — the request validator, before the handler runs: a missing or
+   malformed `effectiveFrom`; a missing `services` array, more than **250** services, a `null`
+   entry; a missing or non-GUID `serviceId`; a missing `stopTimes`, more than **200** for one
+   service, a `null` element; a missing `position` or one below 1; more than **10,000** stop times
+   in the whole version. Nothing is read or written.
+2. **`400 Timetable.InvalidScheduleVersionName`** — a missing or blank name, or one longer than 100
+   characters after trimming.
+3. **`400 Timetable.InvalidTimetableTime`** — any `arrival` or `departure` not in the time format
+   above, in request order.
+4. **`422 Timetable.ScheduleVersionEffectiveFromInPast`** — `effectiveFrom` earlier than today's
+   Asia/Yangon date. Today is allowed.
+5. **`422 Timetable.EmptyScheduleVersionNotInFuture`** — `services` is empty and `effectiveFrom` is
+   not later than today (Amendment 2).
+
+   Then, under the Timetable-wide lock:
+6. **`422 Timetable.ScheduleServiceNotFound`** — no service has `serviceId` (a `422`, not a `404`:
+   the addressed resource is the new version).
+7. **`422 Timetable.ScheduleServiceRepeated`** — the service is listed twice (reported on the second
+   occurrence).
+8. **`422 Timetable.ScheduleServiceNotEffective`** — the service is not effective, or is withdrawn,
+   on the start date (`effectiveFrom` ≤ start ≤ `effectiveTo`), including a service that never
+   runs.
+9. **`422 Timetable.ScheduleStopNotInService`** — a `position` greater than the service's stop
+   count.
+10. **`422 Timetable.ScheduleStopTimesIncomplete`** — a position given twice, or missing.
+11. For each stop in order: **`422 Timetable.ScheduleStopTimeUnexpected`** (an arrival at stop 1 or
+    a departure at the last stop), then **`422 Timetable.ScheduleStopTimesIncomplete`** (a required
+    time missing).
+12. **`422 Timetable.ScheduleDwellNegative`** — at a stop, departure earlier than arrival.
+13. **`422 Timetable.ScheduleTimesNotIncreasing`** — an arrival not later than the previous stop's
+    departure. A journey that would cross midnight fails here.
+
+**Publish** (under the lock): `404 Timetable.ScheduleVersionNotFound` → `422
+Timetable.ScheduleVersionNotDraft` → `422 Timetable.ScheduleVersionEffectiveFromInPast` (the start
+date is before today; publishing on the start date is allowed) → `422
+Timetable.EmptyScheduleVersionNotInFuture` (an empty version whose start date is not later than
+today; Amendment 1) → `422 Timetable.ScheduleServiceNotEffective` (every listed service is checked
+again; the first by `serviceId` in ordinal order of its lower-case text is reported) → **`409
+Timetable.ScheduleVersionEffectiveFromTaken`** (a published version already has this start date;
+decided by the filtered unique index when the change is saved, so it is also the answer to the loser
+of two concurrent publishes) → `409 Timetable.ScheduleVersionChangedConcurrently`. A draft whose
+start date has passed can never be published; it stays a draft until discarded.
+
+**Cancel** (under the lock): `404` → `422 Timetable.ScheduleVersionNotPublished` (not `Published`)
+→ `422 Timetable.ScheduleVersionAlreadyEffective` (the start date is today or earlier) → `409
+Timetable.ScheduleVersionChangedConcurrently`. A cancelled version is kept and never applies; the
+version before it applies again over its dates. A service withdrawn while the cancelled version
+applied stays withdrawn (Q2, spec R49).
+
+**Discard** (under the lock): `404` → `422 Timetable.ScheduleVersionNotDraft` → `409
+Timetable.ScheduleVersionChangedConcurrently`. A discarded version is kept, stays readable and
+never applies.
+
+**Reads.** `GET /{id}/services/{serviceId}`: `404 Timetable.ScheduleVersionNotFound`, then `404
+Timetable.ScheduleServiceNotInVersion`. The list checks `status` in the request validator first
+(`400 Common.ValidationFailed`), then `page`/`pageSize` (`400 Timetable.InvalidPageRequest`). A
+malformed `page` or `pageSize` value is a framework `400` without an `errorCode` (T-042).
+
+**The version in force (`GET /in-force?date=`).** Returns the published version with the latest
+start date on or before `date`; cancelled, discarded and draft versions never apply. Before the
+first published version's start date it is **`404 Timetable.ScheduleVersionNotInForce`**, meaning
+no service runs. An empty version in force is `200` with `services: []`, not `404`. For each listed
+service, **`runsOnDate`** is `true` only when `date` is within the service's own effective period
+and its weekday is one of the service's operating days (spec R18, R48); holidays are not
+considered (OQ47). A listed service withdrawn or ended before `date` is still listed, with
+`runsOnDate = false`. Reads take no lock and see each publish or cancel whole or not at all.
+
+**`409 Timetable.ScheduleVersionChangedConcurrently`** is the `Status` concurrency-token backstop
+for a writer that bypassed the Timetable-wide lock; nothing is written. Create, publish, discard,
+cancel and service withdrawal are serialised by that lock (`docs/07` §F-005 §The Timetable-wide
+lock); a lock timeout is the opaque `500` (`Common.UnexpectedError`, ADR-0026). A refused request
+writes no audit event; each accepted create, publish, discard and cancel writes one
+`Timetable.ScheduleVersion*` event whose actor and permission come from the server.
+
+**Request-body limit and caps (REQUIRED CONTROL, spec R41, plan P15; Q1).** `POST
+/api/v1/schedules/versions` accepts a body of at most **2 MiB (2,097,152 bytes)**, as endpoint
+metadata applied to Kestrel before the body is read, so a larger body, with a declared length or
+chunked, is refused with the framework's `413` before JSON binding; malformed JSON is the
+framework's `400`; neither carries an `errorCode` (as for `POST /routes` above). The validator caps a
+version at **250 services**, **200 stop times per service** and **10,000 stop times in all**; one
+over any cap is `400 Common.ValidationFailed` before the handler runs. The caps admit a
+whole-network version of 200 services × 40 stops; the largest body the caps allow is about 554 KB
+compact (at most 568,300 bytes), so 2 MiB leaves a margin of 3.8 times. `publish`, `cancel` and
+`discard` take no body and keep the server default.
+
+**Not provided** (spec §6, SC, OQ56 and OQ58 rulings): no `PATCH`, `PUT` or `DELETE` on
+`/schedules/versions` or `/schedules/versions/{id}` (a published version is immutable, a draft is
+never edited, and no version is deleted); no endpoint that adds, removes or changes a draft's
+services or times; no withdrawal of a version that has already taken effect (publish a later version
+instead); no `schedules.publish` permission; no anonymous or public timetable read. The schedule
+endpoints appear in the Development-only OpenAPI document under the tag `ScheduleVersions`.
 
 ## Blocked behavior
 

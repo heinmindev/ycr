@@ -95,6 +95,7 @@ api.MapUserEndpoints();
 api.MapStationEndpoints();
 api.MapRouteEndpoints();
 api.MapServiceEndpoints();
+api.MapScheduleVersionEndpoints();
 app.MapHealthEndpoints();
 
 await app.RunAsync();

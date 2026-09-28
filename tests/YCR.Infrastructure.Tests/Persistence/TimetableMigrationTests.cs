@@ -158,8 +158,9 @@ public sealed class TimetableMigrationTests(SqlServerFixture fixture) : IAsyncLi
         Assert.Equal(0, await ScalarOnAsync(upgraded, "SELECT COUNT(*) FROM [timetable].[Services];"));
         Assert.Equal(0, await ScalarOnAsync(upgraded, "SELECT COUNT(*) FROM [timetable].[ServiceStops];"));
 
+        // F-005 adds its three tables to the schema (this test migrates to the latest migration).
         Assert.Equal(
-            ["ServiceStops", "Services"],
+            ["ScheduleStopTimes", "ScheduleVersionServices", "ScheduleVersions", "ServiceStops", "Services"],
             (await StringsOnAsync(upgraded, "SELECT name FROM sys.tables WHERE schema_id = SCHEMA_ID(N'timetable')"))
                 .Order(StringComparer.Ordinal));
 
@@ -238,7 +239,7 @@ public sealed class TimetableMigrationTests(SqlServerFixture fixture) : IAsyncLi
                 SELECT CONCAT(r.[Name], N':', p.[Permission]) FROM [identity].[RolePermissions] AS p
                 JOIN [identity].[Roles] AS r ON r.[Id] = p.[RoleId] WHERE p.[Permission] LIKE N'services.%'
                 """)).Order(StringComparer.Ordinal));
-        Assert.Equal(34, await ScalarOnAsync(upgraded, "SELECT COUNT(*) FROM [identity].[RolePermissions];"));
+        Assert.Equal(44, await ScalarOnAsync(upgraded, "SELECT COUNT(*) FROM [identity].[RolePermissions];"));
     }
 
     /// <summary>
@@ -285,7 +286,7 @@ public sealed class TimetableMigrationTests(SqlServerFixture fixture) : IAsyncLi
         }
 
         Assert.Equal(ExpectedTimetableGrants, (await TimetableGrantsAsync(database)).Order(StringComparer.Ordinal));
-        Assert.Equal(34, await ScalarAsync("SELECT COUNT(*) FROM [identity].[RolePermissions];"));
+        Assert.Equal(44, await ScalarAsync("SELECT COUNT(*) FROM [identity].[RolePermissions];"));
         Assert.Equal(0, await ScalarAsync("SELECT COUNT(*) FROM [timetable].[Services];"));
     }
 
@@ -294,7 +295,7 @@ public sealed class TimetableMigrationTests(SqlServerFixture fixture) : IAsyncLi
     private static readonly Guid UpgradeStationId = Guid.Parse("0199b3a0-0000-7000-8000-00000000f401");
     private static readonly Guid UpgradeRouteId = Guid.Parse("0199b3a0-0000-7000-8000-00000000f402");
 
-    private static readonly string[] ExpectedTimetableGrants =
+    private static readonly string[] ExpectedServiceGrants =
     [
         "INSERT:ServiceStops:",
         "INSERT:Services:",
@@ -303,6 +304,13 @@ public sealed class TimetableMigrationTests(SqlServerFixture fixture) : IAsyncLi
         "UPDATE:Services:EffectiveTo",
         "UPDATE:Services:WithdrawnAtUtc",
     ];
+
+    /// <summary>
+    /// The grant query is schema-wide and these tests migrate to the latest migration, so F-005's
+    /// ten schedule grants (<c>Security_TimetableScheduleGrants</c>) are part of the exact set.
+    /// </summary>
+    private static readonly string[] ExpectedTimetableGrants =
+        [.. ExpectedServiceGrants.Concat(ScheduleMigrationTests.ExpectedScheduleGrants).Order(StringComparer.Ordinal)];
 
     /// <summary>The <c>ycr_app</c> role's grants on the timetable schema and its objects, as <c>PERMISSION:Object:Column</c>.</summary>
     private static Task<List<string>> TimetableGrantsAsync(TestDatabase target) =>

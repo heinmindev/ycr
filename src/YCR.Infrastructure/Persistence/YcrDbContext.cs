@@ -19,6 +19,8 @@ public sealed class YcrDbContext(DbContextOptions<YcrDbContext> options)
 
     public DbSet<Service> Services => Set<Service>();
 
+    public DbSet<ScheduleVersion> ScheduleVersions => Set<ScheduleVersion>();
+
     public DbSet<StaffUser> Users => Set<StaffUser>();
 
     public DbSet<Role> Roles => Set<Role>();

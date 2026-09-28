@@ -20,8 +20,14 @@ namespace YCR.Api.Endpoints.Timetable;
 /// <c>.RequireAuthorization(&lt;permission&gt;)</c>; there is no anonymous service endpoint.
 /// <para>
 /// Deliberately absent (spec §6): <c>PATCH</c>/<c>PUT /services/{id}</c> and any other edit
-/// (R20), reactivation, <c>DELETE</c> (R33), <c>/trains</c> (R5), <c>/schedules/versions*</c> and
-/// any time field (R22). No endpoint takes an <c>Idempotency-Key</c> (R25).
+/// (R20), reactivation, <c>DELETE</c> (R33), <c>/trains</c> (R5), and any time field (R22): times
+/// live in F-005's timetable versions (<c>ScheduleVersionEndpoints</c>). No endpoint takes an
+/// <c>Idempotency-Key</c> (R25).
+/// </para>
+/// <para>
+/// F-005 (spec R19, §0.12): the withdrawal is also refused with
+/// <c>422 Timetable.ServiceInPublishedScheduleVersion</c> while a published timetable version that
+/// lists the service applies on or after the withdrawal date.
 /// </para>
 /// </remarks>
 public static class ServiceEndpoints
@@ -125,7 +131,8 @@ public static class ServiceEndpoints
             .WithName("WithdrawService")
             .WithSummary(
                 "Withdraws a service from withdrawFrom (YYYY-MM-DD), the first date it no longer runs: "
-                + "effectiveTo becomes the day before. It may only shorten the period.")
+                + "effectiveTo becomes the day before. It may only shorten the period, and is refused (422) while a "
+                + "published timetable version that lists the service applies on or after withdrawFrom.")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized)

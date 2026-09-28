@@ -423,6 +423,41 @@ jobs:
             -H "Content-Type: application/json" -d "{\"withdrawFrom\":\"$later\"}")"
           check "and says Timetable.WithdrawalDoesNotShorten" "Timetable.WithdrawalDoesNotShorten" "$(jq -r .errorCode "$reply")"
 
+          # F-005: timetable versions in the deployed shape, through the seeded schedules.* grants
+          # (Identity_SeedSchedulePermissionGrants), the Security_TimetableScheduleGrants grants, the
+          # Timetable-wide lock and the filtered unique index under ycr_app, with the same
+          # administrator token. SV1 above runs from today until the day before $later.
+          tomorrow=$(TZ=Asia/Yangon date -d '+1 day' +%F)
+          body=$(curl -s "$api/api/v1/schedules/versions")
+          check "anonymous GET /api/v1/schedules/versions is Auth.Unauthenticated" "Auth.Unauthenticated" "$(echo "$body" | jq -r .errorCode)"
+          check "anonymous GET /api/v1/schedules/versions is 401" 401 "$(curl -s -o /dev/null -w '%{http_code}' "$api/api/v1/schedules/versions")"
+          check "POST /api/v1/schedules/versions (today, SV1) is 201" 201 "$(send -X POST "$api/api/v1/schedules/versions" -H "Content-Type: application/json" \
+            -d "{\"nameEn\":\"Smoke timetable\",\"nameMy\":\"အချိန်ဇယား\",\"effectiveFrom\":\"$today\",\"services\":[{\"serviceId\":\"$service\",\"stopTimes\":[{\"position\":1,\"departure\":\"06:00\"},{\"position\":2,\"arrival\":\"06:10\"}]}]}")"
+          version=$(jq -r .id "$reply")
+          check "GET /api/v1/schedules/versions/{id} is 200" 200 "$(send "$api/api/v1/schedules/versions/$version")"
+          check "GET /api/v1/schedules/versions/{id}/services/{serviceId} is 200" 200 "$(send "$api/api/v1/schedules/versions/$version/services/$service")"
+          check "the service's times read back as HH:mm" "06:00" "$(jq -r '.stops[0].departure' "$reply")"
+          check "GET /api/v1/schedules/versions is 200" 200 "$(send "$api/api/v1/schedules/versions")"
+          check "publishing it is 204" 204 "$(send -X POST "$api/api/v1/schedules/versions/$version/publish")"
+          check "GET /api/v1/schedules/versions/in-force?date=today is 200" 200 "$(send "$api/api/v1/schedules/versions/in-force?date=$today")"
+          check "and names it" "$version" "$(jq -r .id "$reply")"
+          check "cancelling a version in force is 422" 422 "$(send -X POST "$api/api/v1/schedules/versions/$version/cancel")"
+          check "and says Timetable.ScheduleVersionAlreadyEffective" "Timetable.ScheduleVersionAlreadyEffective" "$(jq -r .errorCode "$reply")"
+          check "an empty version from today is 422" 422 "$(send -X POST "$api/api/v1/schedules/versions" -H "Content-Type: application/json" \
+            -d "{\"nameEn\":\"Smoke suspension\",\"nameMy\":\"ရပ်ဆိုင်း\",\"effectiveFrom\":\"$today\",\"services\":[]}")"
+          check "and says Timetable.EmptyScheduleVersionNotInFuture" "Timetable.EmptyScheduleVersionNotInFuture" "$(jq -r .errorCode "$reply")"
+          check "an empty version from tomorrow is 201" 201 "$(send -X POST "$api/api/v1/schedules/versions" -H "Content-Type: application/json" \
+            -d "{\"nameEn\":\"Smoke suspension\",\"nameMy\":\"ရပ်ဆိုင်း\",\"effectiveFrom\":\"$tomorrow\",\"services\":[]}")"
+          suspension=$(jq -r .id "$reply")
+          check "publishing it is 204" 204 "$(send -X POST "$api/api/v1/schedules/versions/$suspension/publish")"
+          check "cancelling it before it takes effect is 204" 204 "$(send -X POST "$api/api/v1/schedules/versions/$suspension/cancel")"
+          check "a draft for tomorrow is 201" 201 "$(send -X POST "$api/api/v1/schedules/versions" -H "Content-Type: application/json" \
+            -d "{\"nameEn\":\"Smoke draft\",\"nameMy\":\"မူကြမ်း\",\"effectiveFrom\":\"$tomorrow\",\"services\":[]}")"
+          check "discarding it is 204" 204 "$(send -X POST "$api/api/v1/schedules/versions/$(jq -r .id "$reply")/discard")"
+          check "withdrawing SV1 while the published version lists it is 422" 422 "$(send -X POST "$api/api/v1/services/$service/withdraw" \
+            -H "Content-Type: application/json" -d "{\"withdrawFrom\":\"$tomorrow\"}")"
+          check "and says Timetable.ServiceInPublishedScheduleVersion" "Timetable.ServiceInPublishedScheduleVersion" "$(jq -r .errorCode "$reply")"
+
           # D10: a second bootstrap is refused (exit 1) and creates nothing.
           printf '%s\n' "$YCR_SMOKE_ADMIN_INITIAL_PASSWORD" | \
             DOTNET_ENVIRONMENT=Testing \

@@ -44,6 +44,10 @@ public sealed class DatabasePrivilegeTests(SqlServerFixture fixture) : IAsyncLif
     [InlineData("CREATE TABLE [timetable].[Smuggled] ([Id] int NOT NULL);")]
     [InlineData("ALTER TABLE [timetable].[Services] ADD [Smuggled] int NULL;")]
     [InlineData("DROP TABLE [timetable].[ServiceStops];")]
+    // F-005 SV51: nor on the timetable-version tables and their filtered index.
+    [InlineData("ALTER TABLE [timetable].[ScheduleVersions] ADD [Smuggled] int NULL;")]
+    [InlineData("DROP TABLE [timetable].[ScheduleStopTimes];")]
+    [InlineData("DROP INDEX [UX_ScheduleVersions_EffectiveFrom_Published] ON [timetable].[ScheduleVersions];")]
     public async Task ApplicationCredential_AttemptingDdl_IsDenied(string ddl)
     {
         var failure = await Assert.ThrowsAsync<SqlException>(() => ExecuteAsApplicationAsync(ddl));
@@ -362,6 +366,244 @@ public sealed class DatabasePrivilegeTests(SqlServerFixture fixture) : IAsyncLif
             "SELECT COUNT(*) FROM [timetable].[Services] WHERE [Code] IN (N'FA1', N'FA2');"));
     }
 
+    /// <summary>
+    /// F-005 SV51 (plan §DB changes 3): the presences and the absences on the three schedule tables.
+    /// </summary>
+    [Fact]
+    public async Task ApplicationCredential_HasExactlyTheScheduleGrants()
+    {
+        Assert.Equal(1, await PermissionAsApplicationAsync("timetable.ScheduleVersions", "SELECT"));
+        Assert.Equal(1, await PermissionAsApplicationAsync("timetable.ScheduleVersions", "INSERT"));
+        foreach (var column in new[] { "Status", "PublishedAtUtc", "DiscardedAtUtc", "CancelledAtUtc" })
+        {
+            Assert.Equal(1, await ColumnPermissionAsApplicationAsync("timetable.ScheduleVersions", "UPDATE", column));
+        }
+
+        foreach (var table in new[] { "timetable.ScheduleVersionServices", "timetable.ScheduleStopTimes" })
+        {
+            Assert.Equal(1, await PermissionAsApplicationAsync(table, "SELECT"));
+            Assert.Equal(1, await PermissionAsApplicationAsync(table, "INSERT"));
+        }
+
+        foreach (var table in new[] { "timetable.ScheduleVersions", "timetable.ScheduleVersionServices", "timetable.ScheduleStopTimes" })
+        {
+            Assert.Equal(0, await PermissionAsApplicationAsync(table, "DELETE"));
+            Assert.Equal(0, await PermissionAsApplicationAsync(table, "ALTER"));
+            Assert.Equal(0, await PermissionAsApplicationAsync(table, "CONTROL"));
+            // Table-level UPDATE would mean every column.
+            Assert.Equal(0, await PermissionAsApplicationAsync(table, "UPDATE"));
+        }
+
+        foreach (var column in new[] { "Id", "Number", "NameEn", "NameMy", "EffectiveFrom", "CreatedAtUtc" })
+        {
+            Assert.Equal(0, await ColumnPermissionAsApplicationAsync("timetable.ScheduleVersions", "UPDATE", column));
+        }
+
+        foreach (var column in new[] { "ScheduleVersionId", "ServiceId" })
+        {
+            Assert.Equal(0, await ColumnPermissionAsApplicationAsync("timetable.ScheduleVersionServices", "UPDATE", column));
+        }
+
+        foreach (var column in new[] { "ScheduleVersionId", "ServiceId", "Position", "ArrivalMinute", "DepartureMinute" })
+        {
+            Assert.Equal(0, await ColumnPermissionAsApplicationAsync("timetable.ScheduleStopTimes", "UPDATE", column));
+        }
+    }
+
+    /// <summary>
+    /// F-005 SV51 / R25, R27, R32, executed rather than inferred: the application can move a
+    /// version's status (the status and one instant) and can do nothing else to it, its entries or
+    /// its times; the rows are unchanged.
+    /// </summary>
+    [Fact]
+    public async Task ApplicationCredential_CanMoveAVersionsStatusButNotRewriteIt()
+    {
+        var (versionId, serviceId) = await InsertVersionAsApplicationAsync("MV", number: 1);
+
+        // PublishScheduleVersion, the transition F-005 performs: status and its instant in one UPDATE.
+        await ExecuteAsApplicationAsync(
+            $"UPDATE [timetable].[ScheduleVersions] SET [Status] = N'Published', [PublishedAtUtc] = SYSUTCDATETIME() AT TIME ZONE 'UTC' WHERE [Id] = '{versionId}' AND [Status] = N'Draft';");
+
+        string[] denied =
+        [
+            "UPDATE [timetable].[ScheduleVersions] SET [EffectiveFrom] = '2026-11-01';",
+            "UPDATE [timetable].[ScheduleVersions] SET [Number] = 99;",
+            "UPDATE [timetable].[ScheduleVersions] SET [NameEn] = N'Renamed';",
+            "UPDATE [timetable].[ScheduleVersions] SET [CreatedAtUtc] = SYSUTCDATETIME() AT TIME ZONE 'UTC';",
+            $"UPDATE [timetable].[ScheduleVersionServices] SET [ServiceId] = '{serviceId}';",
+            "UPDATE [timetable].[ScheduleStopTimes] SET [DepartureMinute] = 361;",
+            "DELETE FROM [timetable].[ScheduleStopTimes];",
+            "DELETE FROM [timetable].[ScheduleVersionServices];",
+            "DELETE FROM [timetable].[ScheduleVersions];",
+        ];
+        foreach (var sql in denied)
+        {
+            var failure = await Assert.ThrowsAsync<SqlException>(() => ExecuteAsApplicationAsync(sql));
+            Assert.Contains("permission", failure.Message, StringComparison.OrdinalIgnoreCase);
+        }
+
+        Assert.Equal(1, await ScalarAsMigratorAsync(
+            $"""
+            SELECT COUNT(*) FROM [timetable].[ScheduleVersions]
+            WHERE [Id] = '{versionId}' AND [Number] = 1 AND [NameEn] = N'October' AND [EffectiveFrom] = '2026-10-05'
+              AND [Status] = N'Published' AND [PublishedAtUtc] IS NOT NULL;
+            """));
+        Assert.Equal(1, await ScalarAsMigratorAsync(
+            $"SELECT COUNT(*) FROM [timetable].[ScheduleVersionServices] WHERE [ScheduleVersionId] = '{versionId}' AND [ServiceId] = '{serviceId}';"));
+        Assert.Equal(1, await ScalarAsMigratorAsync(
+            $"SELECT COUNT(*) FROM [timetable].[ScheduleStopTimes] WHERE [ScheduleVersionId] = '{versionId}' AND [Position] = 1 AND [DepartureMinute] = 360;"));
+        Assert.Equal(2, await ScalarAsMigratorAsync(
+            $"SELECT COUNT(*) FROM [timetable].[ScheduleStopTimes] WHERE [ScheduleVersionId] = '{versionId}';"));
+    }
+
+    /// <summary>F-005 SV52: the checks and unique indexes refuse invalid rows from the application credential.</summary>
+    [Theory]
+    [InlineData("CK_ScheduleStopTimes_Minutes", "arrival", "-1")]
+    [InlineData("CK_ScheduleStopTimes_Minutes", "arrival", "1440")]
+    [InlineData("CK_ScheduleStopTimes_Minutes", "departure", "1440")]
+    [InlineData("CK_ScheduleStopTimes_Dwell", "dwell", "")]
+    [InlineData("CK_ScheduleStopTimes_AnyTime", "no time", "")]
+    [InlineData("CK_ScheduleVersions_Number", "number", "0")]
+    [InlineData("CK_ScheduleVersions_Status", "status", "N'Live'")]
+    [InlineData("CK_ScheduleVersions_StatusInstants", "instants", "N'Draft'|UtcNow|NULL|NULL")]
+    [InlineData("CK_ScheduleVersions_StatusInstants", "instants", "N'Published'|NULL|NULL|NULL")]
+    [InlineData("CK_ScheduleVersions_StatusInstants", "instants", "N'Discarded'|NULL|NULL|NULL")]
+    [InlineData("CK_ScheduleVersions_StatusInstants", "instants", "N'Cancelled'|UtcNow|NULL|NULL")]
+    [InlineData("CK_ScheduleVersions_StatusInstants", "instants", "N'Published'|UtcNow|UtcNow|NULL")]
+    [InlineData("CK_ScheduleVersions_CreatedAtUtc_Utc", "utc", "CreatedAtUtc")]
+    [InlineData("CK_ScheduleVersions_PublishedAtUtc_Utc", "utc", "PublishedAtUtc")]
+    [InlineData("CK_ScheduleVersions_DiscardedAtUtc_Utc", "utc", "DiscardedAtUtc")]
+    [InlineData("CK_ScheduleVersions_CancelledAtUtc_Utc", "utc", "CancelledAtUtc")]
+    [InlineData("UX_ScheduleVersions_Number", "duplicate number", "")]
+    [InlineData("UX_ScheduleVersions_EffectiveFrom_Published", "second published", "")]
+    public async Task ApplicationCredential_ScheduleBackstops_RejectInvalidRows(string constraint, string kind, string value)
+    {
+        const string utc = ScheduleMigrationTests.UtcNow;
+        const string yangon = "'2026-10-01T09:30:00+06:30'";
+
+        // The setup version is published from 2026-10-05; a row that must fail on a check, not on
+        // R22's filtered unique index, starts on another date.
+        const string OtherStart = "'2026-12-01'";
+        var prefix = $"B{Math.Abs(constraint.GetHashCode(StringComparison.Ordinal) % 90) + 10}";
+        var (versionId, serviceId) = await InsertVersionAsApplicationAsync(prefix, number: 1, status: "N'Published'", publishedAtUtc: utc);
+        var otherId = Guid.NewGuid();
+
+        var sql = kind switch
+        {
+            "arrival" => ScheduleMigrationTests.InsertStopTimeSql(versionId, serviceId, 3, value, "NULL"),
+            "departure" => ScheduleMigrationTests.InsertStopTimeSql(versionId, serviceId, 3, "NULL", value),
+            "dwell" => ScheduleMigrationTests.InsertStopTimeSql(versionId, serviceId, 3, "500", "499"),
+            "no time" => ScheduleMigrationTests.InsertStopTimeSql(versionId, serviceId, 3, "NULL", "NULL"),
+            "number" => ScheduleMigrationTests.InsertVersionSql(otherId, number: int.Parse(value, System.Globalization.CultureInfo.InvariantCulture)),
+            "status" => ScheduleMigrationTests.InsertVersionSql(otherId, number: 2, status: value),
+            "instants" => InstantsSql(otherId, value.Split('|'), utc),
+            "utc" => ScheduleMigrationTests.InsertVersionSql(
+                otherId,
+                number: 2,
+                effectiveFrom: OtherStart,
+                status: value switch { "PublishedAtUtc" => "N'Published'", "DiscardedAtUtc" => "N'Discarded'", "CancelledAtUtc" => "N'Cancelled'", _ => "N'Draft'" },
+                createdAtUtc: value == "CreatedAtUtc" ? yangon : utc,
+                publishedAtUtc: value switch { "PublishedAtUtc" => yangon, "CancelledAtUtc" => utc, _ => "NULL" },
+                discardedAtUtc: value == "DiscardedAtUtc" ? yangon : "NULL",
+                cancelledAtUtc: value == "CancelledAtUtc" ? yangon : "NULL"),
+            "duplicate number" => ScheduleMigrationTests.InsertVersionSql(otherId, number: 1, effectiveFrom: "'2026-12-01'"),
+            "second published" => ScheduleMigrationTests.InsertVersionSql(otherId, number: 2, status: "N'Published'", publishedAtUtc: utc),
+            _ => throw new ArgumentOutOfRangeException(nameof(kind))
+        };
+
+        var failure = await Assert.ThrowsAsync<SqlException>(() => ExecuteAsApplicationAsync(sql));
+
+        Assert.Contains(constraint, failure.Message, StringComparison.Ordinal);
+        Assert.Equal(constraint.StartsWith("UX_", StringComparison.Ordinal) ? 2601 : 547, failure.Number);
+        Assert.Equal(1, await ScalarAsMigratorAsync("SELECT COUNT(*) FROM [timetable].[ScheduleVersions];"));
+        Assert.Equal(2, await ScalarAsMigratorAsync("SELECT COUNT(*) FROM [timetable].[ScheduleStopTimes];"));
+
+        static string InstantsSql(Guid id, string[] parts, string utc)
+        {
+            string Instant(string part) => part == "UtcNow" ? utc : part;
+            return ScheduleMigrationTests.InsertVersionSql(
+                id, number: 2, effectiveFrom: OtherStart, status: parts[0], publishedAtUtc: Instant(parts[1]), discardedAtUtc: Instant(parts[2]), cancelledAtUtc: Instant(parts[3]));
+        }
+    }
+
+    /// <summary>
+    /// F-005 R22, SV52: start dates are unique among published versions only; drafts, discarded and
+    /// cancelled versions share a start date with anything, including the published one.
+    /// </summary>
+    [Fact]
+    public async Task ApplicationCredential_ScheduleBackstops_AllowSharedStartDatesOutsidePublished()
+    {
+        const string utc = ScheduleMigrationTests.UtcNow;
+        await InsertVersionAsApplicationAsync("SS", number: 1, status: "N'Published'", publishedAtUtc: utc);
+
+        await ExecuteAsApplicationAsync(
+            ScheduleMigrationTests.InsertVersionSql(Guid.NewGuid(), number: 2) +
+            ScheduleMigrationTests.InsertVersionSql(Guid.NewGuid(), number: 3) +
+            ScheduleMigrationTests.InsertVersionSql(Guid.NewGuid(), number: 4, status: "N'Discarded'", discardedAtUtc: utc) +
+            ScheduleMigrationTests.InsertVersionSql(Guid.NewGuid(), number: 5, status: "N'Cancelled'", publishedAtUtc: utc, cancelledAtUtc: utc));
+
+        Assert.Equal(5, await ScalarAsMigratorAsync(
+            "SELECT COUNT(*) FROM [timetable].[ScheduleVersions] WHERE [EffectiveFrom] = '2026-10-05';"));
+        Assert.Equal(1, await ScalarAsMigratorAsync(
+            "SELECT COUNT(*) FROM [timetable].[ScheduleVersions] WHERE [EffectiveFrom] = '2026-10-05' AND [Status] = N'Published';"));
+    }
+
+    /// <summary>F-005 SV52, spec D16: the keys refuse an entry naming no service and a time naming no stop.</summary>
+    [Fact]
+    public async Task ApplicationCredential_CannotInsertAnEntryOrStopTimeNamingNoServiceOrStop()
+    {
+        var (versionId, serviceId) = await InsertVersionAsApplicationAsync("NS", number: 1);
+
+        var noService = await Assert.ThrowsAsync<SqlException>(() => ExecuteAsApplicationAsync(
+            ScheduleMigrationTests.InsertEntrySql(versionId, Guid.NewGuid())));
+        Assert.Equal(547, noService.Number);
+        Assert.Contains("FK_ScheduleVersionServices_Services_ServiceId", noService.Message, StringComparison.Ordinal);
+
+        var noVersion = await Assert.ThrowsAsync<SqlException>(() => ExecuteAsApplicationAsync(
+            ScheduleMigrationTests.InsertEntrySql(Guid.NewGuid(), serviceId)));
+        Assert.Equal(547, noVersion.Number);
+        Assert.Contains("FK_ScheduleVersionServices_ScheduleVersions_ScheduleVersionId", noVersion.Message, StringComparison.Ordinal);
+
+        // Position 3 is not a stop of the two-stop service.
+        var noStop = await Assert.ThrowsAsync<SqlException>(() => ExecuteAsApplicationAsync(
+            ScheduleMigrationTests.InsertStopTimeSql(versionId, serviceId, 3, "420", "NULL")));
+        Assert.Equal(547, noStop.Number);
+        Assert.Contains("FK_ScheduleStopTimes_ServiceStops_ServiceId_Position", noStop.Message, StringComparison.Ordinal);
+
+        // A time for a service the version does not list.
+        var (_, otherService) = await InsertVersionAsApplicationAsync("NT", number: 2);
+        var noEntry = await Assert.ThrowsAsync<SqlException>(() => ExecuteAsApplicationAsync(
+            ScheduleMigrationTests.InsertStopTimeSql(versionId, otherService, 1, "NULL", "360")));
+        Assert.Equal(547, noEntry.Number);
+        Assert.Contains("FK_ScheduleStopTimes_ScheduleVersionServices_ScheduleVersionId_ServiceId", noEntry.Message, StringComparison.Ordinal);
+
+        Assert.Equal(2, await ScalarAsMigratorAsync(
+            $"SELECT COUNT(*) FROM [timetable].[ScheduleStopTimes] WHERE [ScheduleVersionId] = '{versionId}';"));
+        Assert.Equal(1, await ScalarAsMigratorAsync(
+            $"SELECT COUNT(*) FROM [timetable].[ScheduleVersionServices] WHERE [ScheduleVersionId] = '{versionId}';"));
+    }
+
+    /// <summary>
+    /// A two-stop service and a version listing it (departure 06:00 at stop 1, arrival 06:40 at
+    /// stop 2), written as <c>ycr_app</c> (its F-001, F-003, F-004 and F-005 grants).
+    /// </summary>
+    private async Task<(Guid VersionId, Guid ServiceId)> InsertVersionAsApplicationAsync(
+        string prefix, int number, string status = "N'Draft'", string publishedAtUtc = "NULL")
+    {
+        var (routeId, stationId) = await InsertRouteAsApplicationAsync(prefix);
+        var serviceId = Guid.NewGuid();
+        var versionId = Guid.NewGuid();
+        await ExecuteAsApplicationAsync(
+            TimetableMigrationTests.InsertServiceSql(serviceId, routeId, code: $"N'{prefix}1'") +
+            TimetableMigrationTests.InsertStopSql(serviceId, 1, stationId) +
+            TimetableMigrationTests.InsertStopSql(serviceId, 2, stationId) +
+            ScheduleMigrationTests.InsertVersionSql(versionId, number, status: status, publishedAtUtc: publishedAtUtc) +
+            ScheduleMigrationTests.InsertEntrySql(versionId, serviceId) +
+            ScheduleMigrationTests.InsertStopTimeSql(versionId, serviceId, 1, "NULL", "360") +
+            ScheduleMigrationTests.InsertStopTimeSql(versionId, serviceId, 2, "400", "NULL"));
+        return (versionId, serviceId);
+    }
+
     /// <summary>A station and an open route on it, written as <c>ycr_app</c> (its F-001/F-003 grants).</summary>
     private async Task<(Guid RouteId, Guid StationId)> InsertRouteAsApplicationAsync(string prefix)
     {
@@ -402,9 +644,9 @@ public sealed class DatabasePrivilegeTests(SqlServerFixture fixture) : IAsyncLif
             SELECT [Id], N'users.manage' FROM [identity].[Roles] WHERE [Name] = N'TicketOperator';
             """));
         Assert.Contains("permission", failure.Message, StringComparison.OrdinalIgnoreCase);
-        // 14 F-002 grants, the ten F-003 route grants (OQ40) and the ten F-004 service grants (OQ49);
-        // unchanged by the denied INSERT.
-        Assert.Equal(34, await ScalarAsMigratorAsync("SELECT COUNT(*) FROM [identity].[RolePermissions];"));
+        // 14 F-002 grants, the ten F-003 route grants (OQ40), the ten F-004 service grants (OQ49) and
+        // the ten F-005 schedule grants (OQ59); unchanged by the denied INSERT.
+        Assert.Equal(44, await ScalarAsMigratorAsync("SELECT COUNT(*) FROM [identity].[RolePermissions];"));
     }
 
     /// <summary>
@@ -524,6 +766,80 @@ public sealed class DatabasePrivilegeTests(SqlServerFixture fixture) : IAsyncLif
         await firstTransaction.CommitAsync(cancellationToken);
         await waiting.WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
         await sameCodeTransaction.CommitAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// F-005 SV51, R46, plan V6: <c>ycr_app</c> can take <c>timetable.ScheduleVersions</c> with no
+    /// grant; it refuses to run without a transaction; a second transaction on it waits; and a
+    /// service-code lock neither blocks it nor is blocked by it.
+    /// </summary>
+    [Fact]
+    public async Task ApplicationCredential_CanTakeTheScheduleVersionsApplock()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var provider = new ServiceCollection()
+            .AddLogging()
+            .AddInfrastructure(database.ApplicationConnectionString)
+            .BuildServiceProvider();
+        await using var firstScope = provider.CreateAsyncScope();
+        await using var secondScope = provider.CreateAsyncScope();
+        await using var codeScope = provider.CreateAsyncScope();
+        var firstContext = firstScope.ServiceProvider.GetRequiredService<YcrDbContext>();
+        var secondContext = secondScope.ServiceProvider.GetRequiredService<YcrDbContext>();
+        var codeContext = codeScope.ServiceProvider.GetRequiredService<YcrDbContext>();
+        var firstLock = firstScope.ServiceProvider.GetRequiredService<IScheduleVersionsLock>();
+        var secondLock = secondScope.ServiceProvider.GetRequiredService<IScheduleVersionsLock>();
+        var codeLock = codeScope.ServiceProvider.GetRequiredService<IServiceCodeLock>();
+        var codeScheduleLock = codeScope.ServiceProvider.GetRequiredService<IScheduleVersionsLock>();
+
+        // Without a transaction the lock refuses to run unowned.
+        await Assert.ThrowsAsync<InvalidOperationException>(() => firstLock.AcquireAsync(cancellationToken));
+
+        // A transaction holding a service-code lock does not block the schedule lock...
+        await using var codeTransaction = await codeContext.Database.BeginTransactionAsync(cancellationToken);
+        await codeLock.AcquireAsync(ServiceCode.Create("SV1").Value, cancellationToken);
+
+        await using var firstTransaction = await firstContext.Database.BeginTransactionAsync(cancellationToken);
+        await firstLock.AcquireAsync(cancellationToken).WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
+
+        // ...and, holding its code lock, it can still ask for the schedule lock: it waits for the
+        // first holder only (the P9 order: code lock, then schedule lock).
+        var codeHolderWaiting = codeScheduleLock.AcquireAsync(cancellationToken);
+
+        // The same resource in another transaction waits until the first transaction ends.
+        await using var secondTransaction = await secondContext.Database.BeginTransactionAsync(cancellationToken);
+        var waiting = secondLock.AcquireAsync(cancellationToken);
+        await Task.Delay(TimeSpan.FromMilliseconds(750), cancellationToken);
+        Assert.False(waiting.IsCompleted, "The second transaction acquired the schedule lock while the first still held it.");
+        Assert.False(codeHolderWaiting.IsCompleted, "The code-lock holder acquired the schedule lock while the first still held it.");
+
+        // A service-code lock is another resource: the schedule-lock holder does not block it.
+        await using (var otherCodeScope = provider.CreateAsyncScope())
+        {
+            var otherCodeContext = otherCodeScope.ServiceProvider.GetRequiredService<YcrDbContext>();
+            await using var otherCodeTransaction = await otherCodeContext.Database.BeginTransactionAsync(cancellationToken);
+            await otherCodeScope.ServiceProvider.GetRequiredService<IServiceCodeLock>()
+                .AcquireAsync(ServiceCode.Create("SV2").Value, cancellationToken)
+                .WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
+            await otherCodeTransaction.CommitAsync(cancellationToken);
+        }
+
+        await firstTransaction.CommitAsync(cancellationToken);
+        await Task.WhenAny(waiting, codeHolderWaiting).WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
+
+        // Exactly one of the two waiters holds it now; the other gets it when that one commits.
+        if (waiting.IsCompleted)
+        {
+            await secondTransaction.CommitAsync(cancellationToken);
+            await codeHolderWaiting.WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
+            await codeTransaction.CommitAsync(cancellationToken);
+        }
+        else
+        {
+            await codeTransaction.CommitAsync(cancellationToken);
+            await waiting.WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
+            await secondTransaction.CommitAsync(cancellationToken);
+        }
     }
 
     [Fact]

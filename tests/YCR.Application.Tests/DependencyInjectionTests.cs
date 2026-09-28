@@ -66,7 +66,19 @@ public sealed class DependencyInjectionTests
         Assert.Contains(typeof(YCR.Application.Timetable.GetService.GetServiceHandler), handlers);
         Assert.Contains(typeof(YCR.Application.Timetable.ListServices.ListServicesHandler), handlers);
 
-        Assert.Equal(30, handlers.Count);
+        // F-005: timetable-version writes.
+        Assert.Contains(typeof(YCR.Application.Timetable.CreateScheduleVersion.CreateScheduleVersionHandler), handlers);
+        Assert.Contains(typeof(YCR.Application.Timetable.PublishScheduleVersion.PublishScheduleVersionHandler), handlers);
+        Assert.Contains(typeof(YCR.Application.Timetable.DiscardScheduleVersion.DiscardScheduleVersionHandler), handlers);
+        Assert.Contains(typeof(YCR.Application.Timetable.CancelScheduleVersion.CancelScheduleVersionHandler), handlers);
+
+        // F-005: timetable-version reads.
+        Assert.Contains(typeof(YCR.Application.Timetable.GetScheduleVersion.GetScheduleVersionHandler), handlers);
+        Assert.Contains(typeof(YCR.Application.Timetable.GetScheduleServiceTimes.GetScheduleServiceTimesHandler), handlers);
+        Assert.Contains(typeof(YCR.Application.Timetable.ListScheduleVersions.ListScheduleVersionsHandler), handlers);
+        Assert.Contains(typeof(YCR.Application.Timetable.GetScheduleVersionInForce.GetScheduleVersionInForceHandler), handlers);
+
+        Assert.Equal(38, handlers.Count);
     }
 
     /// <summary>

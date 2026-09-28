@@ -708,13 +708,16 @@ public sealed class ServiceEndpointsTests(SqlServerFixture fixture) : ApiTestBas
         Assert.Equal(["Monday", "Sunday"], summary!.Items.Single().OperatingDays);
     }
 
-    /// <summary>R5, R20, R22, R33: no edit, no delete, no trains, no schedule versions.</summary>
+    /// <summary>
+    /// R5, R20, R33: no edit, no delete, no trains. (F-005 routes <c>POST /schedules/versions</c>;
+    /// its row was removed by ruling Q4, hein, 2026-09-27, and its absent routes are
+    /// <c>ScheduleVersionEndpointsTests.AbsentScheduleEndpoints_AreNotRouted</c>.)
+    /// </summary>
     [Theory]
     [InlineData("PATCH", "/api/v1/services/11111111-1111-1111-1111-111111111111")]
     [InlineData("PUT", "/api/v1/services/11111111-1111-1111-1111-111111111111")]
     [InlineData("DELETE", "/api/v1/services/11111111-1111-1111-1111-111111111111")]
     [InlineData("GET", "/api/v1/trains")]
-    [InlineData("POST", "/api/v1/schedules/versions")]
     public async Task AbsentEndpoints_AreNotRouted(string method, string path)
     {
         using var client = AdminClient();

@@ -332,6 +332,117 @@ namespace YCR.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("YCR.Domain.Timetable.ScheduleStopTime", b =>
+                {
+                    b.Property<Guid>("ScheduleVersionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ServiceId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("int");
+
+                    b.Property<short?>("Arrival")
+                        .HasColumnType("smallint")
+                        .HasColumnName("ArrivalMinute");
+
+                    b.Property<short?>("Departure")
+                        .HasColumnType("smallint")
+                        .HasColumnName("DepartureMinute");
+
+                    b.HasKey("ScheduleVersionId", "ServiceId", "Position")
+                        .HasName("PK_ScheduleStopTimes");
+
+                    b.HasIndex("ServiceId", "Position")
+                        .HasDatabaseName("IX_ScheduleStopTimes_ServiceId_Position");
+
+                    b.ToTable("ScheduleStopTimes", "timetable", t =>
+                        {
+                            t.HasCheckConstraint("CK_ScheduleStopTimes_AnyTime", "[ArrivalMinute] IS NOT NULL OR [DepartureMinute] IS NOT NULL");
+
+                            t.HasCheckConstraint("CK_ScheduleStopTimes_Dwell", "[ArrivalMinute] IS NULL OR [DepartureMinute] IS NULL OR [DepartureMinute] >= [ArrivalMinute]");
+
+                            t.HasCheckConstraint("CK_ScheduleStopTimes_Minutes", "([ArrivalMinute] IS NULL OR [ArrivalMinute] BETWEEN 0 AND 1439) AND ([DepartureMinute] IS NULL OR [DepartureMinute] BETWEEN 0 AND 1439)");
+                        });
+                });
+
+            modelBuilder.Entity("YCR.Domain.Timetable.ScheduleVersion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("CancelledAtUtc")
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<DateTimeOffset?>("DiscardedAtUtc")
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<DateOnly>("EffectiveFrom")
+                        .HasColumnType("date");
+
+                    b.Property<int>("Number")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset?>("PublishedAtUtc")
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<string>("Status")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.HasKey("Id")
+                        .HasName("PK_ScheduleVersions");
+
+                    b.HasIndex("EffectiveFrom")
+                        .IsUnique()
+                        .HasDatabaseName("UX_ScheduleVersions_EffectiveFrom_Published")
+                        .HasFilter("[Status] = N'Published'");
+
+                    b.HasIndex("Number")
+                        .IsUnique()
+                        .HasDatabaseName("UX_ScheduleVersions_Number");
+
+                    b.ToTable("ScheduleVersions", "timetable", t =>
+                        {
+                            t.HasCheckConstraint("CK_ScheduleVersions_CancelledAtUtc_Utc", "[CancelledAtUtc] IS NULL OR DATEPART(TZOFFSET, [CancelledAtUtc]) = 0");
+
+                            t.HasCheckConstraint("CK_ScheduleVersions_CreatedAtUtc_Utc", "DATEPART(TZOFFSET, [CreatedAtUtc]) = 0");
+
+                            t.HasCheckConstraint("CK_ScheduleVersions_DiscardedAtUtc_Utc", "[DiscardedAtUtc] IS NULL OR DATEPART(TZOFFSET, [DiscardedAtUtc]) = 0");
+
+                            t.HasCheckConstraint("CK_ScheduleVersions_Number", "[Number] >= 1");
+
+                            t.HasCheckConstraint("CK_ScheduleVersions_PublishedAtUtc_Utc", "[PublishedAtUtc] IS NULL OR DATEPART(TZOFFSET, [PublishedAtUtc]) = 0");
+
+                            t.HasCheckConstraint("CK_ScheduleVersions_Status", "[Status] IN (N'Draft', N'Published', N'Discarded', N'Cancelled')");
+
+                            t.HasCheckConstraint("CK_ScheduleVersions_StatusInstants", "([Status] = N'Draft' AND [PublishedAtUtc] IS NULL AND [DiscardedAtUtc] IS NULL AND [CancelledAtUtc] IS NULL) OR ([Status] = N'Published' AND [PublishedAtUtc] IS NOT NULL AND [DiscardedAtUtc] IS NULL AND [CancelledAtUtc] IS NULL) OR ([Status] = N'Discarded' AND [PublishedAtUtc] IS NULL AND [DiscardedAtUtc] IS NOT NULL AND [CancelledAtUtc] IS NULL) OR ([Status] = N'Cancelled' AND [PublishedAtUtc] IS NOT NULL AND [DiscardedAtUtc] IS NULL AND [CancelledAtUtc] IS NOT NULL)");
+                        });
+                });
+
+            modelBuilder.Entity("YCR.Domain.Timetable.ScheduleVersionService", b =>
+                {
+                    b.Property<Guid>("ScheduleVersionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ServiceId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("ScheduleVersionId", "ServiceId")
+                        .HasName("PK_ScheduleVersionServices");
+
+                    b.HasIndex("ServiceId")
+                        .HasDatabaseName("IX_ScheduleVersionServices_ServiceId");
+
+                    b.ToTable("ScheduleVersionServices", "timetable");
+                });
+
             modelBuilder.Entity("YCR.Domain.Timetable.Service", b =>
                 {
                     b.Property<Guid>("Id")
@@ -599,6 +710,71 @@ namespace YCR.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("YCR.Domain.Timetable.ScheduleStopTime", b =>
+                {
+                    b.HasOne("YCR.Domain.Timetable.ScheduleVersionService", null)
+                        .WithMany("StopTimes")
+                        .HasForeignKey("ScheduleVersionId", "ServiceId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_ScheduleStopTimes_ScheduleVersionServices_ScheduleVersionId_ServiceId");
+
+                    b.HasOne("YCR.Domain.Timetable.ServiceStop", null)
+                        .WithMany()
+                        .HasForeignKey("ServiceId", "Position")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_ScheduleStopTimes_ServiceStops_ServiceId_Position");
+                });
+
+            modelBuilder.Entity("YCR.Domain.Timetable.ScheduleVersion", b =>
+                {
+                    b.OwnsOne("YCR.Domain.Common.BilingualName", "Name", b1 =>
+                        {
+                            b1.Property<Guid>("ScheduleVersionId")
+                                .HasColumnType("uniqueidentifier");
+
+                            b1.Property<string>("En")
+                                .IsRequired()
+                                .HasMaxLength(100)
+                                .HasColumnType("nvarchar(100)")
+                                .HasColumnName("NameEn");
+
+                            b1.Property<string>("My")
+                                .IsRequired()
+                                .HasMaxLength(100)
+                                .HasColumnType("nvarchar(100)")
+                                .HasColumnName("NameMy");
+
+                            b1.HasKey("ScheduleVersionId");
+
+                            b1.ToTable("ScheduleVersions", "timetable");
+
+                            b1.WithOwner()
+                                .HasForeignKey("ScheduleVersionId");
+                        });
+
+                    b.Navigation("Name")
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("YCR.Domain.Timetable.ScheduleVersionService", b =>
+                {
+                    b.HasOne("YCR.Domain.Timetable.ScheduleVersion", null)
+                        .WithMany("Services")
+                        .HasForeignKey("ScheduleVersionId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_ScheduleVersionServices_ScheduleVersions_ScheduleVersionId");
+
+                    b.HasOne("YCR.Domain.Timetable.Service", null)
+                        .WithMany()
+                        .HasForeignKey("ServiceId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_ScheduleVersionServices_Services_ServiceId");
+                });
+
             modelBuilder.Entity("YCR.Domain.Timetable.Service", b =>
                 {
                     b.HasOne("YCR.Domain.Network.Route", null)
@@ -716,6 +892,16 @@ namespace YCR.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("YCR.Domain.Network.Route", b =>
                 {
                     b.Navigation("Stations");
+                });
+
+            modelBuilder.Entity("YCR.Domain.Timetable.ScheduleVersion", b =>
+                {
+                    b.Navigation("Services");
+                });
+
+            modelBuilder.Entity("YCR.Domain.Timetable.ScheduleVersionService", b =>
+                {
+                    b.Navigation("StopTimes");
                 });
 
             modelBuilder.Entity("YCR.Domain.Timetable.Service", b =>

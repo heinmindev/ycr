@@ -12,6 +12,8 @@ Proposed — 2026-09-24 (claude, T-032). Needs hein's approval to become Accepte
 
 **FACT — that protection does not cover an edit the caller composed from an earlier read.** F-003's sequence change sends the complete new station sequence of a route (`docs/features/F-003-route-management/spec.md` §6). Administrator A reads the route, administrator B saves a new sequence, then A saves a sequence built from what A read. A's request loads B's row, which is current, so a server-side token raises nothing, and B's change is silently lost. The same pattern will recur wherever a client edits a whole document: route sequences now; fare and timetable drafts later (`docs/08` §Initial resources, `PATCH /routes`, `/trains`, `/services`).
 
+**Proposed-stage note — the paragraph above is stale (2026-09-28, T-059; F-005 C5).** No current feature uses this ADR. Every user it names has since been ruled immutable on creation: route sequences and `PATCH /routes` (OQ38, OQ41), `/trains`, which does not exist (OQ42), `PATCH /services` (OQ48: a service changes only by withdrawal), and timetable drafts (OQ56: a draft is created whole and never edited; F-005 spec R27). All of these are provisional tech-lead rulings, not Myanma Railways answers. The one named user left is fare drafts, whose rules are not yet specified. Before this ADR is taken up, its Context must name the feature that needs it. Its Status is unchanged: Proposed.
+
 **FACT — ADR-0004 §Errors** maps `ErrorType` to HTTP as `Validation` 400, `Unauthorized` 401, `Forbidden` 403, `NotFound` 404, `Conflict` 409, `BusinessRule` 422. It has no 412 or 428.
 
 **FACT — no document defines an API-level concurrency convention.** `docs/08` and `docs/20` §4 say nothing about ETags, `If-Match` or version fields.

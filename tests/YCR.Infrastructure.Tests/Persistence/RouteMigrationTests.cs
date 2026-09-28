@@ -184,7 +184,7 @@ public sealed class RouteMigrationTests(SqlServerFixture fixture) : IAsyncLifeti
         // OQ40: the ten route grants, on top of F-002's fourteen; the total includes F-004's ten
         // service grants (OQ49), because the database is migrated to the latest migration.
         Assert.Equal(10, await ScalarOnAsync(upgraded, "SELECT COUNT(*) FROM [identity].[RolePermissions] WHERE [Permission] LIKE N'routes.%';"));
-        Assert.Equal(34, await ScalarOnAsync(upgraded, "SELECT COUNT(*) FROM [identity].[RolePermissions];"));
+        Assert.Equal(44, await ScalarOnAsync(upgraded, "SELECT COUNT(*) FROM [identity].[RolePermissions];"));
     }
 
     /// <summary>
@@ -232,7 +232,7 @@ public sealed class RouteMigrationTests(SqlServerFixture fixture) : IAsyncLifeti
 
         Assert.Equal(6, (await RouteGrantsAsync(database)).Count);
         // Forward to the latest migration, so F-004's ten service grants (OQ49) are back too.
-        Assert.Equal(34, await ScalarAsync("SELECT COUNT(*) FROM [identity].[RolePermissions];"));
+        Assert.Equal(44, await ScalarAsync("SELECT COUNT(*) FROM [identity].[RolePermissions];"));
     }
 
     private const string LastF002Migration = "20260923133743_Security_IdentityGrants";

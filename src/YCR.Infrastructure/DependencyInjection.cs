@@ -49,6 +49,9 @@ public static class DependencyInjection
         // transaction on the scoped context.
         services.AddScoped<IServiceCodeLock, SqlServerServiceCodeLock>();
 
+        // F-005 plan P8: the R46 Timetable-wide lock. Scoped, for the same reason.
+        services.AddScoped<IScheduleVersionsLock, SqlServerScheduleVersionsLock>();
+
         services.AddIdentityServices();
 
         return services;
