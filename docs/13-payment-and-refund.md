@@ -16,7 +16,7 @@ Validation is append-only evidence (`TicketValidation`) and is not a Ticket stat
 - **Payment is cash only in Phase 1** (`docs/19-open-questions.md` OQ11).
 - **Cancel and Refund are out of Phase 1 scope.** Sold tickets are final: no cancellation and no refund in Phase 1 (OQ10). The refund flow below and the Cancel/Refund transitions in `docs/11-ticket-lifecycle.md` stay documented and are not deleted; they are not built in Phase 1.
 
-Phase 1 currently assumes cash only as an **ASSUMPTION — design default, business to confirm**. This is not an approved railway business decision. Pending/gateway payment states are out of scope until a gateway is approved.
+Payment methods: see the OQ11 provisional tech-lead ruling in `docs/19-open-questions.md` (cash only in Phase 1; not a Myanma Railways answer; still open with Myanma Railways). Pending/gateway payment states are out of scope until a gateway is approved.
 
 Refund flow is `Requested -> Approved -> Disbursed` or `Requested -> Rejected`; eligibility, amount, and void/cancellation guards remain BLOCKED by OQ10 and related questions.
 

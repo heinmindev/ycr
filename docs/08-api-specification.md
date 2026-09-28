@@ -526,4 +526,4 @@ endpoints appear in the Development-only OpenAPI document under the tag `Schedul
 
 - **OPEN QUESTION:** fare quote inputs, loop direction, ticket validity, cancellation guards, refund eligibility/amount, and repeat-use handling remain blocked by `docs/19-open-questions.md`.
 - **OPEN QUESTION:** `AuthenticUnverified` ticket validation handling is blocked by OQ8.
-- **OPEN QUESTION:** whether reprint invalidates earlier prints is blocked by OQ23.
+- **Provisional tech-lead ruling (hein, 2026-09-28; T-062) — OQ23, not a Myanma Railways answer, still open with Myanma Railways:** a reprint invalidates every earlier copy; validation accepts only the current signed `printSequence`.
