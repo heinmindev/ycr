@@ -195,6 +195,9 @@ Reviewer: codex (hein, 2026-09-28)
 | M-1 | Medium | `docs/business/mr-questions-pack.md:268` (OQ48) still says “a timetable change withdraws the old service and creates a new one with the same code.” OQ54 now rules that stopping-pattern changes use services, but timetable-time changes use versions, and service withdrawal is refused while a published version listing it applies. This stale sentence can mislead Myanma Railways readers about the current engineering behavior. | Append: **“This timetable-change sentence is superseded by OQ54: stopping-pattern changes use services; time changes use timetable versions.”** |
 | M-2 | Medium | `docs/business/mr-questions-pack.md:274` (OQ49) still says “`schedules.*` is deferred to FR-004.” OQ59 has resolved `schedules.manage`/`schedules.read`, those grants are seeded, and the schedule endpoints are implemented. This stale sentence can mislead readers about the permission decision being taken to the workshop. | Append: **“The `schedules.*` clause is superseded by OQ59; schedule grants and endpoints are now recorded provisionally.”** |
 
+- **M-1 Status:** Fixed at `69b297e`.
+- **M-2 Status:** Fixed at `69b297e`.
+
 ### Verdict
 
 **Ready with two Medium documentation findings.** No implementation-facing documentation mismatch, and no Critical or High finding was found. The two MR-pack lines should be corrected before the pack is used with Myanma Railways; they do not block the implemented F-005 stage from exiting T-060 under the ledger rule.
