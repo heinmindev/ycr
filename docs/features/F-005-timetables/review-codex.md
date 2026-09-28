@@ -84,17 +84,20 @@ Commit / PR: `2bc591e` (stage 4 code SHA; branch head at review start `b1bbcc9`)
 
 ### Stage 5 result
 
-Static inspection found a named test for every live SV1–SV56 scenario and for the additional rules listed above. No permanent test addition was identified from that mapping. The T-055 progress log reports a prior mutation where broadening the withdrawal query beyond `Published` caused SV38 to fail; this reviewer has not independently rerun that database mutation.
+Static inspection found a named test for every live SV1–SV56 scenario and for the additional rules listed above. One test was strengthened during this review: `ScheduleLockTests.PublishAndWithdraw_InParallelRepeatedly_NeverDeadlockAndEndInASerialOutcome` now first holds the real transaction-owned schedule applock and asserts a publisher cannot pass it. The prior test's unforced 25 rounds could pass with the lock removed, so this was a real coverage gap.
 
 Evidence run in this review:
 
 - Pinned SDK: `C:\dn302\dotnet.exe` (10.0.302).
 - `dotnet test tests/YCR.Domain.Tests/YCR.Domain.Tests.csproj --no-restore`: 363 passed, 0 failed, 0 skipped.
 - Time-order mutation (`<=` to `<` in `ScheduleVersion.cs`): the full domain project failed 2 equality cases in `ScheduleVersionTests.CreateDraft_WithTimesNotIncreasing_ReturnsTimesNotIncreasing` (2 failed, 361 passed, 0 skipped). Predicate restored; rerun passed 363/363, 0 skipped.
-- Requested lock, withdrawal-guard, total-cap mutations and `dotnet test YCR.sln` were not run: Docker and Docker Desktop are unavailable, while the integration fixtures require the pinned SQL Server container. `docker info` failed because `docker` is not installed/on PATH; no Docker executable or service was found. The first sandboxed test build was denied writes to the feature worktree; reruns with elevated execution succeeded.
-- No scenario tests were added. T-056 exit criteria remain incomplete pending Docker-backed mutation checks and a full solution run.
+- Lock mutation: `SqlServerScheduleVersionsLock.AcquireAsync` was changed to a transaction check plus no-op. `ScheduleLockTests` then failed 7/13, including both forced orders and parallel numbering. The strengthened no-deadlock method also failed 1/1 at `Publishing passed a held Timetable-wide lock.` The real applock was restored before continuing.
+- Withdrawal mutation: the R19 `coverage.AppliesOnOrAfter` guard was removed. `WithdrawServiceScheduleGuardTests` failed 2/7 (`WhileAPublishedVersionListsIt` and `TheDayBefore`); the guard was restored.
+- Total-cap mutation: `MaxStopTimesPerVersion` was changed to 10,001. The 250-service/10,001-stop-time request (with no per-service cap violation) returned 422 instead of the expected 400, so the cap test failed 1/3. Restored to 10,000; the cap theory then passed 3/3.
+- Full suite: `dotnet test YCR.sln --no-restore --max-parallel-test-modules 1` passed **1,624/1,624, 0 skipped** in 41m 09s. Application 12m 32s, architecture 15s, domain 9s, integration 1m 05s, infrastructure 4m 17s, API 22m 45s.
+- The only permanent test addition is the deterministic held-lock assertion above. No production changes remain.
 
-Verdict: **Blocked — hardware/environment**. No coverage gap was found by static mapping; stage 5 is not complete because the required SQL Server mutation checks and full suite could not execute.
+Verdict: **Ready**. Every live scenario and listed rule has named coverage; the one weak lock test was strengthened and mutation-proven; all requested mutation checks were caught after restoring each rule; the full suite is green with 0 skipped.
 
 ## Stage 6 — Code review
 

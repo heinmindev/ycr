@@ -133,6 +133,34 @@ public sealed class ScheduleLockTests(SqlServerFixture fixture) : ScheduleHandle
         var net = await CreateScheduleNetworkAsync(setup);
         await using var publisher = BuildScheduleProvider();
         await using var withdrawer = BuildScheduleProvider();
+
+        var probeVersion = await CreateVersionOrFailAsync(
+            setup,
+            Version("2026-12-01", [ValidS1(net.S1)]));
+        await using var lockHolder = BuildScheduleProvider();
+        await using var holderScope = lockHolder.CreateAsyncScope();
+        var holderDb = holderScope.ServiceProvider.GetRequiredService<ITimetableDbContext>();
+        await using var holderTransaction = await holderDb.Database.BeginTransactionAsync(CancellationToken);
+        await holderScope.ServiceProvider.GetRequiredService<IScheduleVersionsLock>().AcquireAsync(CancellationToken);
+
+        var gate = new ServiceCodeLockGate();
+        await using var probePublisher = BuildScheduleProvider(
+            configure: services => GatedScheduleVersionsLock.Register(services, gate));
+        var probePublish = PublishAsync(probePublisher, probeVersion.Id);
+        try
+        {
+            await gate.Acquiring.Task.WaitAsync(LockWait, CancellationToken);
+            await Task.Delay(TimeSpan.FromMilliseconds(500), CancellationToken);
+            Assert.False(gate.Acquired.Task.IsCompleted, "Publishing passed a held Timetable-wide lock.");
+        }
+        finally
+        {
+            await holderTransaction.CommitAsync(CancellationToken);
+            gate.Release.TrySetResult();
+        }
+
+        Assert.True((await probePublish).IsSuccess);
+
         var publishFirst = 0;
         var withdrawFirst = 0;
 

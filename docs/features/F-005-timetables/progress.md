@@ -405,6 +405,26 @@ Correction (claude, T-054, 2026-09-27 12:32 Asia/Yangon): the entry stamped "202
 
 ---
 
+## 2026-09-28 10:37 Asia/Yangon — codex — T-056
+
+**Stage:** 5 (SCENARIO TESTS) — done.
+**Commit:** the commit carrying this checkpoint.
+**Done this session:**
+- Resumed after Docker became available. Ran the requested SQL Server mutations one at a time and restored each rule: no-op schedule lock, removed withdrawal guard, and total cap changed to 10,001 with exactly 250 services. Each mutation failed its relevant tests; the real implementation was restored after each run.
+- Strengthened `ScheduleLockTests.PublishAndWithdraw_InParallelRepeatedly_NeverDeadlockAndEndInASerialOutcome` with a deterministic held-lock assertion. The strengthened test passed with the real lock and failed under the no-op mutation.
+- Ran `dotnet test YCR.sln --no-restore --max-parallel-test-modules 1`: **1,624 passed, 0 failed, 0 skipped** in 41m 09s.
+- Completed `review-codex.md` §Stage 5. Static map covers SV1–SV56 and the rule-only checks; no remaining coverage gap.
+
+**Evidence:** Docker 29.8.0; lock mutation 7/13 failures plus strengthened test 1/1 failure; withdrawal mutation 2/7 failures; total-cap mutation 1/3 failure, restored cap 3/3; full suite 1,624/1,624/0 skipped. Only permanent code change is the added test assertion; production files are byte-for-byte restored.
+
+**Next step (exact):** T-056 is ready to mark done with this commit SHA; then claim T-057 for stage 6 code review against `2bc591e`.
+
+**Blockers / open questions:** none.
+
+**State of the branch:** test and report changes ready to commit; no production mutation remains.
+
+---
+
 ## 2026-09-28 01:39 Asia/Yangon — claude — T-055
 
 **Stage:** 4 (IMPLEMENT) — **done; T-055 → review.** Stages 5–7 are codex's.
