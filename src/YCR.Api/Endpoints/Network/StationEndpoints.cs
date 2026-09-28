@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using YCR.Api.Common;
 using YCR.Api.Contracts.Network;
 using YCR.Application.Common.Authorization;
@@ -37,6 +38,7 @@ public static class StationEndpoints
                     $"/api/v1/stations/{id}",
                     new CreateStationResponse(id))))
             .RequireAuthorization(Permissions.StationsManage)
+            .WithMetadata(new RequestSizeLimitAttribute(RequestLimits.SmallJsonBodyMaxBytes))
             .AddEndpointFilter<ValidationFilter<CreateStationRequest>>()
             .WithName("CreateStation")
             .WithSummary("Creates a station.")

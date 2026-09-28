@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Mvc;
 using YCR.Api.Common;
 using YCR.Api.Common.Authentication;
 using YCR.Api.Contracts.Identity;
@@ -41,6 +42,7 @@ public static class AuthEndpoints
                 }))
             // Anonymous: the caller has no token yet (spec §6.1).
             .AllowAnonymous()
+            .WithMetadata(new RequestSizeLimitAttribute(RequestLimits.SmallJsonBodyMaxBytes))
             .AddEndpointFilter<OriginCheckFilter>()
             .AddEndpointFilter<LoginRateLimitFilter>()
             .AddEndpointFilter<ValidationFilter<LoginRequest>>()
@@ -65,6 +67,9 @@ public static class AuthEndpoints
             // Anonymous: authenticated by the refresh cookie, read inside this endpoint and never by
             // an authentication scheme (R5, D15). Never gated by R26 for that reason.
             .AllowAnonymous()
+            // T-042 ruling 2 caps refresh with the other F-002 endpoints, although it reads only
+            // its cookie and never the body.
+            .WithMetadata(new RequestSizeLimitAttribute(RequestLimits.SmallJsonBodyMaxBytes))
             .AddEndpointFilter<OriginCheckFilter>()
             .AddEndpointFilter<RefreshRateLimitFilter>()
             .WithName("RefreshSession")
@@ -145,6 +150,7 @@ public static class AuthEndpoints
             // password; allowed while a password change is required, which is its purpose (R26).
             .RequireAuthorization()
             .WithMetadata(new AllowedWhilePasswordChangeRequiredAttribute())
+            .WithMetadata(new RequestSizeLimitAttribute(RequestLimits.SmallJsonBodyMaxBytes))
             .AddEndpointFilter<ValidationFilter<ChangePasswordRequest>>()
             .WithName("ChangeOwnPassword")
             .WithSummary("Changes the caller's password; revokes their other sessions.")
