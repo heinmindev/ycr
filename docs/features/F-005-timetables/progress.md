@@ -503,3 +503,23 @@ Correction (claude, T-054, 2026-09-27 12:32 Asia/Yangon): the entry stamped "202
 **Blockers / open questions:** none.
 
 **State of the branch:** committed and pushed; PR #14 mergeable.
+
+---
+
+## 2026-09-28 15:02 Asia/Yangon — codex — T-060
+
+**Stage:** Re-review of stage-8 documentation — done; T-060 report ready.
+**Reviewed:** docs commit `9dc4b18`, merge `5da6231`, implementation `2bc591e`.
+**Done this session:**
+- Confirmed `9dc4b18` changes only ten files under `docs/`; reviewed the merge conflict and confirmed main's OQ1–OQ50 content remains intact.
+- Re-checked `docs/07`, `docs/08`, `docs/10`, `docs/19`, `docs/20`, the MR questions pack, glossary, F-004 R21/R22 notes, ADR-0024 and ADR-0027 against the migrations, EF configurations, endpoint contracts/handlers and lock code. All implementation-facing docs are correct.
+- Recorded two Medium documentation findings in the MR questions pack: stale OQ48 timetable-change wording and stale OQ49 `schedules.*` deferred wording. Each has a one-line supersession fix in `review-codex.md`.
+- Full suite with Docker and pinned SDK `10.0.302` (`C:\dn302`, `PATH`/`DOTNET_ROOT` set): **1624 passed, 0 failed, 0 skipped**.
+
+**Evidence:** `review-codex.md` §Re-review of `9dc4b18` / `5da6231`.
+
+**Next step (exact):** commit and push the report, then mark T-060 done with the report SHA and delete `claim/T-060` in the coordination checkout.
+
+**Blockers / open questions:** none. No Critical or High finding.
+
+**State of the branch:** report and this progress entry are uncommitted; no docs or code fixes made.
