@@ -8,7 +8,7 @@
 - ~~Trains~~ — not used in Phase 1 (OQ42 provisional ruling, hein, 2026-09-25: there is no `Train` concept; use case 3 is met by services)
 - Services (`timetable.Services`; formerly listed as `TrainServices`, renamed by F-004 E2 to the aggregate's plural, `docs/20` §2)
 - ServiceStops
-- ScheduleVersions
+- ScheduleVersions (`timetable.ScheduleVersions`, with its child tables `timetable.ScheduleVersionServices` and `timetable.ScheduleStopTimes`; implemented by F-005, §F-005 below)
 - FareRuleSets
 - FareRules
 - PassengerCategories
@@ -412,8 +412,13 @@ the audit ledger. `Down()` of `Timetable_CreateServices` drops `ServiceStops`, `
 timeout), and only then read the code's periods and write. Two requests on one code run one after
 the other; requests on different codes never wait. A timeout is an opaque `500`. `sp_getapplock`
 is executable by `public`, so, like F-002's last-administrator lock, it needs no grant. The general
-rule is in `docs/20` §6 and ADR-0026 (Proposed). `EffectiveTo` is the concurrency token behind the
+rule is in `docs/20` §6 and ADR-0026 (Accepted). `EffectiveTo` is the concurrency token behind the
 lock, for a writer that bypasses it (R36).
+
+**Changed by F-005 (spec R19, §0.12; plan P9):** `WithdrawServiceHandler` also takes the
+Timetable-wide lock `timetable.ScheduleVersions`, **after** this code lock, and reads which published
+timetable versions list the service before it decides. `CreateServiceHandler` still takes only the
+code lock. The order and why it cannot deadlock are in §F-005 §The Timetable-wide lock below.
 
 ### Grants to `ycr_app` (`Security_TimetableGrants`)
 
@@ -427,3 +432,176 @@ statement that a service is immutable except for withdrawal and is never deleted
 so even arbitrary SQL under the application credential cannot rewrite or delete a service or its
 stops. `DatabasePrivilegeTests` asserts both the grants and the absences. `Down()` revokes exactly
 these grants; widening them needs a new migration, a spec change and a review.
+
+## F-005 timetable-version tables, constraints, indexes and grants
+
+Created by three migrations applied in this order under `ycr_migrator` (F-005 spec §7, plan
+§DB changes, P20): `20260927070804_Timetable_CreateScheduleVersions` (the three tables and every
+object below, EF model-built), `20260927071025_Identity_SeedSchedulePermissionGrants` (the ten
+`schedules.manage`/`schedules.read` role grants in `docs/10` §Schedule permission grants; 34 → 44
+grants in all) and `20260927072142_Security_TimetableScheduleGrants` (what `ycr_app` may do). All
+three are additive on F-004's schema: no `timetable.Services` or `timetable.ServiceStops` column,
+constraint, index or grant changes, and nothing in `network`. Every key is inside the `timetable`
+schema, so ADR-0025's cross-module conditions do not apply. Every foreign key is `NO ACTION`. Every
+`*Utc` column is `datetimeoffset(3)` with a `CK_<Table>_<Column>_Utc` check, and every check
+constraint is declared in the EF model as well as the migration, so `has-pending-model-changes`
+sees drift. No timetable version is seeded (OQ1; spec R37).
+
+**BUSINESS DECISION — provisional tech-lead rulings (hein, 2026-09-26; T-053, OQ51–OQ60; Amendments
+1–2, 2026-09-27) — not a Myanma Railways answer:** one version covers the whole network; a draft is
+created whole and never edited; a published version never changes except that it may be cancelled
+before it takes effect; no version is ever deleted; start dates are unique among published versions;
+no time runs past 23:59. The constraints, the lock and the grants below are the database statement
+of those rulings.
+
+### `timetable.ScheduleVersions`
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| `Id` | `uniqueidentifier` | no | PK, clustered, application-assigned through `IIdGenerator` (ADR-0006) |
+| `Number` | `int` | no | System-assigned under the Timetable-wide lock: `1`, then the highest number ever assigned + 1, so contiguous and never reused (R7) |
+| `NameEn` | `nvarchar(100)` | no | Owned value object `BilingualName`; required, 1–100 characters after trimming, not unique |
+| `NameMy` | `nvarchar(100)` | no | Myanmar Unicode, never Zawgyi (`docs/20` §6); same rules as `NameEn` |
+| `EffectiveFrom` | `date` | no | The start date; set at creation, never changed. There is no end date: a version is in force until the next published version's start date (R8) |
+| `Status` | `nvarchar(10)` | no | `Draft`, `Published`, `Discarded` or `Cancelled`, stored as text. EF concurrency token (R47) |
+| `CreatedAtUtc` | `datetimeoffset(3)` | no | UTC value (ADR-0018) |
+| `PublishedAtUtc` | `datetimeoffset(3)` | yes | Set by publish; kept by cancel |
+| `DiscardedAtUtc` | `datetimeoffset(3)` | yes | Set by discard |
+| `CancelledAtUtc` | `datetimeoffset(3)` | yes | Set by cancel |
+
+There is no `rowversion`. "In force" and "applies" are never stored: they are derived from the
+published rows' start dates (R21).
+
+| Object | Definition | Why it is there |
+|---|---|---|
+| `PK_ScheduleVersions` | clustered on `Id` | ADR-0006 |
+| `UX_ScheduleVersions_Number` | unique on `Number` | R7 backstop behind the lock; also the list order and the "highest number" backward seek |
+| `UX_ScheduleVersions_EffectiveFrom_Published` | unique on `EffectiveFrom` **`WHERE [Status] = N'Published'`** (filtered) | R22: no two published versions share a start date. Drafts, discarded and cancelled versions may share one with anything. It is the authority for that rule: publish does not pre-read, and the handler maps this constraint name to `409 Timetable.ScheduleVersionEffectiveFromTaken`. It also serves the timeline scan (in force, withdrawal guard) |
+| `CK_ScheduleVersions_Number` | `[Number] >= 1` | From any writer |
+| `CK_ScheduleVersions_Status` | `[Status] IN (N'Draft', N'Published', N'Discarded', N'Cancelled')` | From any writer |
+| `CK_ScheduleVersions_StatusInstants` | `Draft`: all three transition instants null · `Published`: `PublishedAtUtc` only · `Discarded`: `DiscardedAtUtc` only · `Cancelled`: `PublishedAtUtc` and `CancelledAtUtc`, not `DiscardedAtUtc` | The lifecycle (Draft → Published → Cancelled, or Draft → Discarded) from any writer |
+| `CK_ScheduleVersions_CreatedAtUtc_Utc` | `DATEPART(TZOFFSET, [CreatedAtUtc]) = 0` | ADR-0018 |
+| `CK_ScheduleVersions_PublishedAtUtc_Utc`, `…_DiscardedAtUtc_Utc`, `…_CancelledAtUtc_Utc` | `[<column>] IS NULL OR DATEPART(TZOFFSET, [<column>]) = 0` | ADR-0018 |
+
+### `timetable.ScheduleVersionServices`
+
+One row per service a version lists.
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| `ScheduleVersionId` | `uniqueidentifier` | no | `FK_ScheduleVersionServices_ScheduleVersions_ScheduleVersionId` → `timetable.ScheduleVersions(Id)` |
+| `ServiceId` | `uniqueidentifier` | no | `FK_ScheduleVersionServices_Services_ServiceId` → `timetable.Services(Id)`; no navigation |
+
+| Object | Definition | Why it is there |
+|---|---|---|
+| `PK_ScheduleVersionServices` | clustered on `(ScheduleVersionId, ServiceId)` | A service is listed once per version (R17); covers the key to `ScheduleVersions` |
+| `IX_ScheduleVersionServices_ServiceId` | nonclustered on `ServiceId` | Covers the key to `Services`, and answers "which versions list S" for the withdrawal guard (R19) |
+| `FK_ScheduleVersionServices_ScheduleVersions_ScheduleVersionId` | → `ScheduleVersions(Id)`, `NO ACTION` | An entry never names a missing version |
+| `FK_ScheduleVersionServices_Services_ServiceId` | → `timetable.Services(Id)`, `NO ACTION` | An entry never names a missing service, whoever writes it |
+
+### `timetable.ScheduleStopTimes`
+
+One row per stop of each listed service. A time is a whole number of minutes after local midnight
+of the service's operating date (ADR-0027), exchanged in the API as `HH:mm`.
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| `ScheduleVersionId` | `uniqueidentifier` | no | With `ServiceId`, `FK_ScheduleStopTimes_ScheduleVersionServices_ScheduleVersionId_ServiceId` → `ScheduleVersionServices` |
+| `ServiceId` | `uniqueidentifier` | no | With `Position`, `FK_ScheduleStopTimes_ServiceStops_ServiceId_Position` → `timetable.ServiceStops(ServiceId, Position)` |
+| `Position` | `int` | no | The service's stop position, `1..k` |
+| `ArrivalMinute` | `smallint` | yes | `0`–`1439`; null at stop 1 (R10) |
+| `DepartureMinute` | `smallint` | yes | `0`–`1439`; null at the last stop (R10) |
+
+| Object | Definition | Why it is there |
+|---|---|---|
+| `PK_ScheduleStopTimes` | clustered on `(ScheduleVersionId, ServiceId, Position)` | One time row per stop; covers the key to `ScheduleVersionServices`, and every read of one version's times is a range on it |
+| `IX_ScheduleStopTimes_ServiceId_Position` | nonclustered on `(ServiceId, Position)`, **not unique** (one row per version) | Covers the key to `ServiceStops` (plan P21) |
+| `FK_ScheduleStopTimes_ScheduleVersionServices_ScheduleVersionId_ServiceId` | → `ScheduleVersionServices(ScheduleVersionId, ServiceId)`, `NO ACTION` | A time belongs to a listed service |
+| `FK_ScheduleStopTimes_ServiceStops_ServiceId_Position` | → `timetable.ServiceStops(ServiceId, Position)`, `NO ACTION`; no navigation | A time names a real stop of a real service, whoever writes it |
+| `CK_ScheduleStopTimes_Minutes` | `([ArrivalMinute] IS NULL OR [ArrivalMinute] BETWEEN 0 AND 1439) AND ([DepartureMinute] IS NULL OR [DepartureMinute] BETWEEN 0 AND 1439)` | No running past midnight (R15, R16; OQ53) |
+| `CK_ScheduleStopTimes_AnyTime` | `[ArrivalMinute] IS NOT NULL OR [DepartureMinute] IS NOT NULL` | Every stop has at least one time (R10) |
+| `CK_ScheduleStopTimes_Dwell` | `[ArrivalMinute] IS NULL OR [DepartureMinute] IS NULL OR [DepartureMinute] >= [ArrivalMinute]` | Arrival ≤ departure at one stop (R12) |
+
+Which stop may have which time (stop 1 a departure only, the last stop an arrival only, the others
+both), that every position `1..k` is given once, and that each arrival is later than the previous
+stop's departure are enforced by the `ScheduleVersion` aggregate, because a check constraint cannot
+see other rows.
+
+**The two convention indexes are declared.** EF Core adds an index for every foreign key that no
+other index leads with: here `IX_ScheduleVersionServices_ServiceId` and
+`IX_ScheduleStopTimes_ServiceId_Position`. Both are declared with `HasDatabaseName`, and
+`ScheduleModelTests.ScheduleModel_HasExactlyTheDeclaredIndexes` pins the exact index set of each
+table. `IX_ScheduleStopTimes_ServiceId_Position` serves no F-005
+query; it is kept because leading the primary key with `(ServiceId, Position)` would lose the
+per-version clustering every read uses and bring back a convention index for the other key.
+
+| Query or write | Access path |
+|---|---|
+| Timeline: the published versions' `(Id, EffectiveFrom)` (in force; withdrawal guard) | `UX_ScheduleVersions_EffectiveFrom_Published` scan (filtered, covering); the guard adds `PK_ScheduleVersionServices` seeks |
+| Highest number, under the lock (create) | `UX_ScheduleVersions_Number` backward seek |
+| Service facts for create and publish | `PK_Services` seeks; `PK_ServiceStops` prefix for the stop count |
+| A version's listed services (publish, get, in force) | `PK_ScheduleVersionServices` range on `ScheduleVersionId`; `PK_Services` seeks |
+| One listed service's times | `PK_ScheduleStopTimes` range on `(ScheduleVersionId, ServiceId)`; `PK_ServiceStops` range for station ids |
+| List: `ORDER BY Number`, `COUNT`, `OFFSET/FETCH`, `?status=` | `UX_ScheduleVersions_Number` ordered scan; `status` is a residual filter |
+| Publish, discard, cancel: one status `UPDATE` | `PK_ScheduleVersions` |
+| `INSERT` foreign-key validation | `PK_ScheduleVersions`, `PK_ScheduleVersionServices`, `PK_Services`, `PK_ServiceStops` |
+| Reverse key checks on `DELETE` of `Services` / `ServiceStops` | never run: `ycr_app` has no `DELETE` there |
+
+Rows are never deleted and a version's entries and times never change, so the rows are the history:
+which times applied on a past date is answered from rows, not the audit ledger (spec R25, R36). The
+creation audit event carries a digest of the times rather than the times themselves (spec §8, E13):
+`stopTimesSha256` is SHA-256, as 64 lower-case hex characters, of the UTF-8 text (no BOM) made of
+one line `"{serviceId}|{position}|{arrivalMinute}|{departureMinute}\n"` per stop time — `serviceId`
+in lower-case `D` format, numbers as invariant-culture integers, a missing time as the empty
+string — ordered by `serviceId` (ordinal) then `position`. A version with no stop times hashes the
+empty input (`e3b0c442…b855`). Anyone can recompute it from these rows. Changing the form bumps the
+event's `PayloadVersion` (ADR-0021 rule 3).
+
+`Down()` of `Timetable_CreateScheduleVersions` drops `ScheduleStopTimes`, `ScheduleVersionServices`,
+then `ScheduleVersions`; the `timetable` schema and F-004's tables stay. After real versions exist,
+recovery is a restore, not `Down()`.
+
+### The Timetable-wide lock (R46)
+
+"No published version that lists S applies on a date on or after D" (the withdrawal guard, R19)
+compares one service's period with other rows' dates, so no unique index can enforce it
+(ADR-0026 item 1). Create, publish, discard, cancel and service withdrawal therefore open a
+transaction and take an exclusive, transaction-owned `sp_getapplock` on the single resource
+**`timetable.ScheduleVersions`** (passed as a parameter; 30 s timeout; a negative result is raised as
+error `50036`, an opaque `500`) before the reads that decide, then save once and commit. The lock
+also serialises the number assignment (R7) and the service re-check at publication (R17). It is a
+whole-set lock (ADR-0026 item 2), like F-002's `identity.SystemAdministrators`. Service creation
+does not take it (a new service is listed by no version), and no read takes it. `sp_getapplock` is
+executable by `public`, so it needs no grant.
+
+| Operation | `timetable.ServiceCode:<CODE>` | `timetable.ScheduleVersions` |
+|---|---|---|
+| Create, publish, discard, cancel a version | — | ✓ |
+| Withdraw a service (F-004, changed) | ✓ first | ✓ second, after the reload and the Network reads, before the coverage read |
+| Create a service (F-004) | ✓ | — |
+| Every read | — | — |
+
+**Order: the service-code lock, then the Timetable-wide lock** (plan P9). Only withdrawal takes
+both, always in that order; no operation takes two code locks; no holder of
+`timetable.ScheduleVersions` ever requests a code lock. Every row write happens in the single
+`SaveChangesAsync` after all of a transaction's applocks are held. So no transaction waits for an
+applock while holding a higher one or a row lock that another applock holder needs, and the two
+locks cannot deadlock. `Status` is the concurrency token behind the lock, for a writer that bypasses
+it: `409 Timetable.ScheduleVersionChangedConcurrently` (R47). The general rule and the list of lock
+uses are in `docs/20` §6.
+
+### Grants to `ycr_app` (`Security_TimetableScheduleGrants`)
+
+| Table | Granted | Deliberately absent |
+|---|---|---|
+| `ScheduleVersions` | `SELECT`, `INSERT`; `UPDATE` of `Status`, `PublishedAtUtc`, `DiscardedAtUtc`, `CancelledAtUtc` only | `DELETE`; table-level `UPDATE`; `UPDATE` of `Id`, `Number`, `NameEn`, `NameMy`, `EffectiveFrom`, `CreatedAtUtc` |
+| `ScheduleVersionServices` | `SELECT`, `INSERT` | `UPDATE`; `DELETE` |
+| `ScheduleStopTimes` | `SELECT`, `INSERT` | `UPDATE`; `DELETE` |
+
+No DDL and no `EXECUTE` is granted (the lock needs none). The F-004 grants on `Services` and
+`ServiceStops` are unchanged. These grants are the database statement that a version's content
+never changes after creation, only its status moves forward, and nothing is deleted (spec R25, R27,
+R32), so even arbitrary SQL under the application credential cannot rewrite or delete a version,
+its entries or its times. `DatabasePrivilegeTests` asserts both the grants and the absences, and
+that `ycr_app` can take the lock. `Down()` revokes exactly these grants; widening them needs a new
+migration, a spec change and a review.

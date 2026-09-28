@@ -48,3 +48,4 @@ Negative:
 Follow-up work:
 - If Accepted: add a "Times of day" line to `docs/20` §6 and a row to ADR-0018's representation list by a superseding or amending note (ADR-0018 is Accepted, so its Decision is not edited; this ADR is cited next to it instead).
 - F-005 PLAN names the value object and its tests (bounds, rendering both ways, the midnight boundary under the configured zone).
+- **Done at F-005 (recorded 2026-09-28, T-059).** The value object is named `TimetableTime` (F-005 plan P2; `src/YCR.Domain/Timetable/TimetableTime.cs`): `short Minutes` in `0..1439`, parsed from exactly `HH:mm` with `[0-9]` (not `\d`, which also matches Myanmar digits). Item 2's check is `CK_ScheduleStopTimes_Minutes` (`docs/07` §F-005). Item 4's time-to-instant function is **not built**: nothing in F-005 consumes an instant; the first consumer builds it. The `docs/20` §6 "Times of day" line is added; ADR-0018 is not edited (it is Accepted), this ADR is cited next to it.
