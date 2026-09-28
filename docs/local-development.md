@@ -224,8 +224,8 @@ dotnet YCR.Api.dll
 ```
 
 Started from anywhere else (for example `dotnet src/YCR.Api/bin/Debug/net10.0/YCR.Api.dll` from the
-repository root), the API reads no `appsettings.json` and stops with `Time:LocalTimeZone is not
-configured`. The Worker's zone check and bootstrap command read the file next to `YCR.Worker.dll`
+repository root), the API reads no `appsettings.json` and stops with
+`Time:LocalTimeZone is not configured. Set it to an IANA time-zone id such as 'Asia/Yangon'.`. The Worker's zone check and bootstrap command read the file next to `YCR.Worker.dll`
 wherever they start, but run it from its output directory too. Windows resolves `Asia/Yangon`
 through ICU; on Linux (WSL, containers) the `tzdata` package must be installed, and a plain
 `-chiseled` .NET image has no zone data (`docs/15`).
@@ -349,8 +349,8 @@ and a secret scan. Keep `dotnet test YCR.sln` green locally before pushing.
 | EF says `YCR_DESIGN_TIME_CONNECTION must be set` | the variable is missing in this window | §2.3 |
 | API connects but every query fails with a permission error | §2.4 was skipped | re-run the init container |
 | API stops at startup | a missing or rejected signing key, no allowed origin, or a changed lifetime | §4; the error line names it |
-| API or Worker stops with `Time:LocalTimeZone is not configured` | the host was started outside its project or output directory, so its `appsettings.json` was not read | §5, Content root and the time zone |
-| `… is not a time zone this host can resolve; install IANA time-zone data` | no ICU (Windows) or no `tzdata` (Linux) | install the zone data (`docs/15` §F-004) |
+| API or Worker stops with `Time:LocalTimeZone is not configured. Set it to an IANA time-zone id such as 'Asia/Yangon'.` | the host was started outside its project or output directory, so its `appsettings.json` was not read | §5, Content root and the time zone |
+| `Time:LocalTimeZone '<id>' is not a time zone this host can resolve; install IANA time-zone data.` | no ICU (Windows) or no `tzdata` (Linux) | install the zone data (`docs/15` §F-004) |
 | `403 Auth.OriginRejected` | the request's `Origin` is not the allowed origin | open the API on exactly the origin in user-secrets, or send `Origin` |
 | `403 Auth.PasswordChangeRequired` | first sign-in with a must-change password | §6 step 3 |
 | `401 Auth.InvalidCredentials` on a correct password | the account is locked (10 failures lock it for 15 minutes) or disabled; the response is deliberately identical | wait 15 minutes, or have an administrator use `POST /users/{id}/unlock` |

@@ -2,7 +2,7 @@
 
 **Purpose:** provide a decision-ready list of the unresolved business questions in [`docs/19-open-questions.md`](../19-open-questions.md). This pack explains why each answer matters, what work it blocks or constrains, and presents neutral options for discussion with Myanma Railways.
 
-**Status:** all questions below are **OPEN QUESTION** items. OQ20 is resolved, OQ22 is an **ENGINEERING DECISION**, and OQ32 is an **ENGINEERING DECISION** for its schedule and ownership clauses with a remaining OPEN QUESTION that is not a Myanma Railways question either; all three are listed in §Items not requiring a Myanma Railways answer so that no gap in the numbering is unexplained. The options are discussion prompts only; none is a recommendation or a recorded business decision. Existing **ENGINEERING DECISION** references describe implementation constraints already accepted by the project and do not answer the business questions.
+**Status:** all questions below remain **OPEN QUESTION** items for Myanma Railways. OQ20 is resolved, OQ22 is an **ENGINEERING DECISION**, and OQ32 is an **ENGINEERING DECISION** for its schedule and ownership clauses with a remaining OPEN QUESTION that is not a Myanma Railways question either; all three are listed in §Items not requiring a Myanma Railways answer so that no gap in the numbering is unexplained. OQ28 and OQ34–OQ60 have provisional tech-lead rulings that unblock engineering; each ruling is explicitly **not a Myanma Railways answer** and remains open with Myanma Railways. The options are discussion prompts only; none is a recommendation or a recorded business decision. Existing **ENGINEERING DECISION** references describe implementation constraints already accepted by the project and do not answer the business questions.
 
 **Suggested response owner:** Myanma Railways should nominate the accountable role for each answer (for example, Network Operations, Commercial/Fares, Finance, Customer Service, Security, or IT). The role labels below are proposed routing labels, not assumed authorities.
 
@@ -43,22 +43,39 @@ The sections below are ordered thematically, for a workshop agenda. This table i
 | OQ25 | Records, governance, and key operations | Asked |
 | OQ26 | Network and operating model | Asked — F-001 runs on a provisional value; see its Status line |
 | OQ27 | Network and operating model | Asked — F-001 runs on a provisional value; see its Status line |
-| OQ28 | Network and operating model | Asked — F-001 runs on a provisional value; see its Status line |
+| OQ28 | Network and operating model | Asked — provisional ruling recorded; still open with Myanma Railways |
 | OQ29 | Network and operating model | Asked — F-001 implements no control; see its Status line |
 | OQ30 | Payments, refunds, and sales | Asked — a provisional tech-lead **ASSUMPTION** unblocks engineering; see its Status line |
 | OQ31 | Payments, refunds, and sales | Asked |
 | OQ32 | Items not requiring a Myanma Railways answer | **Excluded** — schedule and alert/DR ownership are **ENGINEERING DECISION**s (ADR-0017); the remaining storage-provider clause is blocked on an undecided hosting choice, not a Myanma Railways question |
 | OQ33 | Network and operating model | Asked |
-| OQ51 | Timetables | Asked — F-005 runs on a provisional tech-lead ruling; see its Status line |
-| OQ52 | Timetables | Asked — F-005 runs on a provisional tech-lead ruling; see its Status line |
-| OQ53 | Timetables | Asked — F-005 runs on a provisional tech-lead ruling; see its Status line |
-| OQ54 | Timetables | Asked — F-005 runs on a provisional tech-lead ruling; see its Status line |
-| OQ55 | Timetables | Asked — F-005 runs on a provisional tech-lead ruling; see its Status line |
-| OQ56 | Timetables | Asked — F-005 runs on a provisional tech-lead ruling; see its Status line |
-| OQ57 | Timetables | Asked — F-005 runs on a provisional tech-lead ruling; see its Status line |
-| OQ58 | Timetables | Asked — F-005 runs on a provisional tech-lead ruling; see its Status line |
-| OQ59 | Timetables | Asked — F-005 runs on a provisional tech-lead ruling; see its Status line |
-| OQ60 | Timetables | Asked — F-005 runs on a provisional tech-lead ruling, with Amendments 1–2; see its Status line |
+| OQ34 | Staff authentication and governance | Asked — provisional ruling recorded; still open with Myanma Railways |
+| OQ35 | Staff authentication and governance | Asked — provisional ruling recorded; still open with Myanma Railways |
+| OQ36 | Network and operating model | Asked — provisional ruling recorded; still open with Myanma Railways |
+| OQ37 | Network and operating model | Asked — provisional ruling recorded; still open with Myanma Railways |
+| OQ38 | Network and operating model | Asked — provisional ruling recorded; still open with Myanma Railways |
+| OQ39 | Network and operating model | Asked — provisional ruling recorded; still open with Myanma Railways |
+| OQ40 | Network and operating model | Asked — provisional ruling recorded; still open with Myanma Railways |
+| OQ41 | Network and operating model | Asked — provisional ruling recorded; still open with Myanma Railways |
+| OQ42 | Timetable and services | Asked — provisional ruling recorded; still open with Myanma Railways |
+| OQ43 | Timetable and services | Asked — provisional ruling recorded; still open with Myanma Railways |
+| OQ44 | Timetable and services | Asked — provisional ruling recorded; still open with Myanma Railways |
+| OQ45 | Timetable and services | Asked — provisional ruling recorded; still open with Myanma Railways |
+| OQ46 | Timetable and services | Asked — provisional ruling recorded; still open with Myanma Railways |
+| OQ47 | Timetable and services | Asked — partly resolved; holiday and date exceptions remain open with Myanma Railways |
+| OQ48 | Timetable and services | Asked — provisional ruling recorded; still open with Myanma Railways |
+| OQ49 | Timetable and services | Asked — provisional ruling recorded; still open with Myanma Railways |
+| OQ50 | Timetable and services | Asked — provisional ruling recorded; still open with Myanma Railways |
+| OQ51 | Timetable and services | Asked — provisional ruling recorded; still open with Myanma Railways |
+| OQ52 | Timetable and services | Asked — provisional ruling recorded; still open with Myanma Railways |
+| OQ53 | Timetable and services | Asked — provisional ruling recorded; still open with Myanma Railways |
+| OQ54 | Timetable and services | Asked — provisional ruling recorded; still open with Myanma Railways |
+| OQ55 | Timetable and services | Asked — provisional ruling recorded; still open with Myanma Railways |
+| OQ56 | Timetable and services | Asked — provisional ruling recorded; still open with Myanma Railways |
+| OQ57 | Timetable and services | Asked — provisional ruling recorded; still open with Myanma Railways |
+| OQ58 | Timetable and services | Asked — provisional ruling recorded; still open with Myanma Railways |
+| OQ59 | Timetable and services | Asked — provisional ruling recorded; still open with Myanma Railways |
+| OQ60 | Timetable and services | Asked — provisional ruling recorded, with Amendments 1–2; still open with Myanma Railways |
 
 
 ## Network and operating model
@@ -66,7 +83,7 @@ The sections below are ordered thematically, for a workshop agenda. This table i
 ### OQ1 — What is the authoritative current YCR station list?
 
 - **Why it matters:** Station identity, spelling, language forms, short codes, and stable QR indices must be consistent across routes, fares, timetables, tickets, reports, and printed material.
-- **Blocks or constrains:** Network seed data; station and route APIs; fare inputs; timetable references; the authenticated station-index mapping required by ADR-0014.
+- **Blocks or constrains:** Authoritative station and route data; fare inputs; timetable data that references stations and routes; the authenticated station-index mapping required by ADR-0014.
 - **Suggested options (non-binding):** (a) nominate one controlled MR master list and version it; (b) source the list from an existing operations registry with a named reconciliation owner; (c) publish a jointly approved list for an initial release and a change process for later additions.
 - **Suggested decision owner:** Network Operations / Planning (role to be nominated).
 - **Sources:** `docs/19-open-questions.md` OQ1; ADR-0014 station-index decision; `docs/20-coding-conventions.md` station-code note.
@@ -116,7 +133,7 @@ The sections below are ordered thematically, for a workshop agenda. This table i
 
 ### OQ28 — Which operator roles may manage stations, and is there a separate read permission?
 
-- **Status:** **OPEN QUESTION** for Myanma Railways. F-001 currently uses the provisional permission names `stations.manage` and `stations.read`, seeds no role-to-permission grants, and mints permissions directly in tests. This is a placeholder and an authorization containment measure, **not a Myanma Railways answer** about role grants.
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-22; T-014) — not a Myanma Railways answer:** `stations.manage` → `SystemAdministrator` and `RailwayAdministrator` only; `stations.read` → all eight roles: `SystemAdministrator`, `RailwayAdministrator`, `StationManager`, `TicketOperator`, `TicketInspector`, `FinanceOfficer`, `Auditor` and `ReportingUser` (the eighth role added under OQ12). The ruling remains open with Myanma Railways. F-001 seeds no role-to-permission grants and mints permissions directly in tests; the approved grants are recorded in `docs/10-authorization-matrix.md` for the F-002 provisioning work.
 - **Why it matters:** Station management and read access need explicit segregation-of-duties, least-privilege, provisioning, and audit rules. The existing matrix table is only a proposal; the permission inventory governs until grants are approved.
 - **Blocks or constrains:** Authorization matrix approval; role provisioning; station endpoint access; audit attribution; release of production role seed data; F-001 replacement work tracked by T-014.
 - **Suggested options (non-binding):** (a) approve role grants in the existing matrix; (b) use a separate station-manager role for `stations.manage` and one or more read-only roles for `stations.read`; (c) grant permissions by station/region assignment rather than global role; (d) require dual control for changes while allowing broader read access.
@@ -156,18 +173,117 @@ The sections below are ordered thematically, for a workshop agenda. This table i
 - **Suggested decision owner:** MR IT and business system owners (roles to be nominated).
 - **Sources:** `docs/19-open-questions.md` OQ16; `docs/07-database-design.md` if migration is confirmed.
 
-## Timetables
+## Staff authentication and governance
 
-These ten questions were raised by F-005 (timetable versions, FR-004). The project did not wait for
-the answers: hein gave a **provisional tech-lead ruling** on each (2026-09-26, T-053; OQ60's
-Amendments 1–2 on 2026-09-27, T-054), and F-005 is built on them. **None is a Myanma Railways
-answer.** Each is still asked here; an official, different answer supersedes the ruling and needs its
-own follow-up task. Suggested routing for all ten: Network Operations / Planning (a timetabling role
-to be nominated), as for the service questions.
+### OQ34 — How are staff accounts governed?
+
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-23; T-023) — not a Myanma Railways answer:** `SystemAdministrator` creates and disables accounts, assigns roles and resets passwords; no user may change their own roles; no second approver in Phase 1; usernames are 3–50 characters from lowercase `a-z`, `0-9` and `.`; hein holds the first administrator account until Myanma Railways names a holder. The ruling remains open with Myanma Railways.
+- **Blocks or constrains:** F-002 account administration and first-administrator bootstrap.
+- **Sources:** `docs/19-open-questions.md` OQ34; F-002 spec D9, D10, R20.
+
+### OQ35 — Does Myanma Railways or a government policy mandate an authentication policy?
+
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-23; T-023) — not a Myanma Railways answer:** no mandated policy is known, so password, lockout, MFA and session-length rules are engineering decisions recorded in ADR-0023. The ruling remains open with Myanma Railways.
+- **Blocks or constrains:** F-002 password, lockout, MFA and session-length rules where an external policy would apply.
+- **Sources:** `docs/19-open-questions.md` OQ35; F-002 spec D2, D3, D4, D12; ADR-0023.
+
+## Routes and network operations
+
+### OQ36 — Which routes does the Yangon Circular Railway have for this system's purposes?
+
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-24; T-032) — not a Myanma Railways answer:** the system may hold several routes, routes may share stations, routes have no direction attribute, there is no separate `Line` concept, and the YCR loop is entered as one route with no seed data. The ruling remains open with Myanma Railways.
+- **Blocks or constrains:** F-003 route shape, route direction, route master data and seed data.
+- **Sources:** `docs/19-open-questions.md` OQ36; F-003 spec R5, §0.8; OQ1.
+
+### OQ37 — What does a route's ordered station sequence look like?
+
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-24; T-032) — not a Myanma Railways answer:** each route has a closed/open setting; closed routes connect last to first without repeating the first station; stations do not repeat; minimum length is two for open routes and three for closed routes. The ruling remains open with Myanma Railways.
+- **Blocks or constrains:** F-003 sequence validation and database constraints.
+- **Sources:** `docs/19-open-questions.md` OQ37; F-003 spec R6–R8, §0.8.
+
+### OQ38 — Can a route's station sequence change after it is first defined?
+
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-24; T-032) — not a Myanma Railways answer:** routes are immutable; a network change creates a new route and deactivates the old one, with `RouteStations` insert-only. The ruling remains open with Myanma Railways.
+- **Blocks or constrains:** F-003 sequence-change operation and historical reconstruction.
+- **Sources:** `docs/19-open-questions.md` OQ38; F-003 spec R9, R10, §0.8; `docs/07-database-design.md`.
+
+### OQ39 — How do routes and inactive stations interact?
+
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-24; T-032) — not a Myanma Railways answer:** an inactive station cannot be placed in a route; deactivation of a station already in a route is allowed and leaves it in the sequence. The ruling remains open with Myanma Railways.
+- **Blocks or constrains:** F-003 sequence validation and the interaction with F-001 station deactivation.
+- **Sources:** `docs/19-open-questions.md` OQ39; F-003 spec R11, R12, S16–S18.
+
+### OQ40 — Which operator roles may manage routes, and which may view them?
+
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-24; T-032) — not a Myanma Railways answer:** `routes.manage` → `SystemAdministrator` and `RailwayAdministrator`; `routes.read` → all eight roles. The ruling remains open with Myanma Railways.
+- **Blocks or constrains:** F-003 endpoint permissions and the grant seed migration.
+- **Sources:** `docs/19-open-questions.md` OQ40; `docs/10-authorization-matrix.md` §Route permission grants; F-003 spec R2, R3.
+
+### OQ41 — What identifies a route, and what is its lifecycle?
+
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-24; T-032) — not a Myanma Railways answer:** routes use a code and `BilingualName` under the station rules; codes are unique across active and inactive routes and never reused; routes may be deactivated but not reactivated, deleted or edited. The ruling remains open with Myanma Railways.
+- **Blocks or constrains:** F-003 route fields, validation, uniqueness and deactivation.
+- **Sources:** `docs/19-open-questions.md` OQ41; F-003 spec R13–R15, §0.8; OQ26 and OQ27.
+
+## Timetable and services
+
+### OQ42 — What is a "train" for this system, and does Phase 1 need to record trains separately from services?
+
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-25; T-044) — not a Myanma Railways answer:** Phase 1 has no `Train` concept; core use case 3 is met by services, with no `/trains` endpoint, `Trains` table or `trains.manage` grant. The ruling remains open with Myanma Railways.
+- **Blocks or constrains:** F-004's train/service aggregate, endpoints, permission and tables.
+- **Sources:** `docs/19-open-questions.md` OQ42; F-004 spec R5, §6, §7; `docs/03-use-cases.md` core use case 3.
+
+### OQ43 — What identifies a service?
+
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-25; T-044) — not a Myanma Railways answer:** a service has a code and `BilingualName` under the station and route rules; a code is unique only among overlapping effective periods and may be reused after a non-overlapping period; there is no service type. The ruling remains open with Myanma Railways.
+- **Blocks or constrains:** F-004 service fields, validation and unique constraints.
+- **Sources:** `docs/19-open-questions.md` OQ43; F-004 spec R6, R7, R35; OQ26, OQ27 and OQ41.
+
+### OQ44 — How does a service express its direction and its extent on a route?
+
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-25; T-044) — not a Myanma Railways answer:** services store `Forward` or `Reverse` relative to route order; closed routes may wrap; a full circuit repeats the first stop as the last, only on a closed route and at most once; partial and reverse service on open routes are allowed. The ruling remains open with Myanma Railways.
+- **Blocks or constrains:** F-004 direction, extent and stopping-pattern order checks.
+- **Sources:** `docs/19-open-questions.md` OQ44; F-004 spec R9, R10, R12; OQ36 and OQ37.
+
+### OQ45 — What are the rules for a service's stopping pattern?
+
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-25; T-044) — not a Myanma Railways answer:** every stop is on the one route; stops follow direction order, passed stations are allowed, first and last stops are the extent, at least two stops are required, only a full-circuit closing stop may repeat, and no stop attributes exist in Phase 1. The ruling remains open with Myanma Railways.
+- **Blocks or constrains:** F-004 stopping-pattern validation and `ServiceStops` shape.
+- **Sources:** `docs/19-open-questions.md` OQ45; F-004 spec R10–R14, §7; OQ44.
+
+### OQ46 — How do services interact with inactive routes and inactive stations?
+
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-25; T-044) — not a Myanma Railways answer:** creation on an inactive route or with an inactive stop station is refused; later route or station deactivation remains allowed and existing services are unchanged. The ruling remains open with Myanma Railways.
+- **Blocks or constrains:** F-004 service-creation validation and changes to F-003/F-001 deactivation behavior.
+- **Sources:** `docs/19-open-questions.md` OQ46; F-004 spec R15, R16; OQ39; ADR-0025.
+
+### OQ47 — On which days does a service run?
+
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Partly resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-25; T-044) — not a Myanma Railways answer:** operating days are days of the week only and the operating date is the Asia/Yangon date on which the service starts; public-holiday calendars and per-date exceptions remain open with Myanma Railways and are a known limitation. The ruling remains open with Myanma Railways.
+- **Blocks or constrains:** F-004 operating-day model and storage.
+- **Sources:** `docs/19-open-questions.md` OQ47; F-004 spec R17, R18, §9.
+
+### OQ48 — What is a service's effective period, and can a service change after it is defined?
+
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-25; T-044) — not a Myanma Railways answer:** services are immutable except for withdrawal; `EffectiveFrom` is required, `EffectiveTo` is inclusive and nullable; withdrawal only shortens the period, cannot reopen or delete, and a timetable change withdraws the old service and creates a new one with the same code. The ruling remains open with Myanma Railways.
+- **Blocks or constrains:** F-004 service mutability, `PATCH /services`, grants and ADR-0024 applicability.
+- **Sources:** `docs/19-open-questions.md` OQ48; F-004 spec R19–R21, R35, R36; OQ38 and OQ4.
+
+### OQ49 — Which roles may manage and read services, trains and timetable versions?
+
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-25; T-044) — not a Myanma Railways answer:** `services.manage` → `SystemAdministrator` and `RailwayAdministrator`; `services.read` → all eight roles; no `trains.*` grants; `schedules.*` is deferred to FR-004. The ruling remains open with Myanma Railways.
+- **Blocks or constrains:** F-004 endpoint permissions and grant seed migration.
+- **Sources:** `docs/19-open-questions.md` OQ49; `docs/10-authorization-matrix.md` §Service permission grants; F-004 spec R3, R4; OQ42.
+
+### OQ50 — May a service be created with an effective period that starts, or ends, before today's Asia/Yangon date?
+
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-25; T-044) — not a Myanma Railways answer:** `EffectiveFrom` may be earlier than today's Asia/Yangon date; `EffectiveTo`, if given, may not be earlier than today; the overlap rule is unchanged and creation records `CreatedAtUtc` and the audit event. The ruling remains open with Myanma Railways.
+- **Blocks or constrains:** F-004 effective-period validation at creation.
+- **Sources:** `docs/19-open-questions.md` OQ50; F-004 spec §0.10, R39, S40, S40a; OQ48 and OQ1.
 
 ### OQ51 — What is a timetable version, what does it cover, and how is it identified and dated?
 
-- **Status:** **OPEN QUESTION** for Myanma Railways. F-005 runs on a provisional tech-lead ruling (hein, 2026-09-26; T-053): one version covers **the whole network**; it is identified by a system-assigned sequential **number**, never reused, plus an English and a Myanmar name; it has a **start date only** and is in force until the next published version's start date. This is **not a Myanma Railways answer**.
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-26; T-053) — not a Myanma Railways answer:** one version covers **the whole network**; it is identified by a system-assigned sequential **number**, never reused, plus an English and a Myanmar name; it has a **start date only** and is in force until the next published version's start date. The ruling remains open with Myanma Railways.
 - **Why it matters:** The scope and dating of a version decide what "the timetable on a given date" means for staff, for later ticketing and for reporting.
 - **Blocks or constrains:** The `ScheduleVersion` record, its identity and its dates; the "version in force on a date" read.
 - **Suggested options (non-binding):** Scope: (a) whole network; (b) per route; (c) per service. Identity: (a) system number; (b) bilingual name; (c) a code; or a combination. Dates: (a) start date only, in force until replaced; (b) start and end dates.
@@ -176,7 +292,7 @@ to be nominated), as for the service questions.
 
 ### OQ52 — Which times does a timetable give at each stop?
 
-- **Status:** **OPEN QUESTION** for Myanma Railways. F-005 runs on a provisional tech-lead ruling (hein, 2026-09-26; T-053): the first stop has a departure only, the last stop an arrival only, every other stop both; whole minutes; at each stop arrival ≤ departure; each arrival strictly later than the previous stop's departure; no passing times at stations a service does not stop at; the same times on every operating day of the service. This is **not a Myanma Railways answer**.
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-26; T-053) — not a Myanma Railways answer:** the first stop has a departure only, the last stop an arrival only, every other stop both; whole minutes; at each stop arrival ≤ departure; each arrival strictly later than the previous stop's departure; no passing times at stations a service does not stop at; the same times on every operating day of the service. The ruling remains open with Myanma Railways.
 - **Why it matters:** Stop times are the content of a timetable; their shape and precision fix what can be published, displayed and, later, printed or bound to tickets.
 - **Blocks or constrains:** The stop-time fields, their validation and storage; any later departure-based ticket rule (OQ4).
 - **Suggested options (non-binding):** Times: (a) arrival and departure at every stop; (b) departure at the first stop, arrival at the last, both in between; (c) departure only. Precision: minutes or seconds. Passing times: none, optional or required. Per weekday: the same on every operating day, or allowed to differ.
@@ -185,7 +301,7 @@ to be nominated), as for the service questions.
 
 ### OQ53 — May a service run past midnight?
 
-- **Status:** **OPEN QUESTION** for Myanma Railways. F-005 runs on a provisional tech-lead ruling (hein, 2026-09-26; T-053): **no running past midnight in Phase 1** — every time is 00:00–23:59 on the service's operating date, and a journey that would cross midnight cannot be entered. A known limitation. This is **not a Myanma Railways answer**.
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-26; T-053) — not a Myanma Railways answer:** **no running past midnight in Phase 1** — every time is 00:00–23:59 on the service's operating date, and a journey that would cross midnight cannot be entered. A known limitation. The ruling remains open with Myanma Railways.
 - **Why it matters:** A late-evening service that ends after midnight cannot be timetabled under the current ruling; how such times are written also affects printing and any ticket validity window (OQ19).
 - **Blocks or constrains:** The time range and past-midnight handling (ADR-0027 keeps a later change possible).
 - **Suggested options (non-binding):** (a) no; (b) yes, written `24:15`-style, with a journey under 24 hours; (c) yes, written `00:15` with a next-day marker.
@@ -194,7 +310,7 @@ to be nominated), as for the service questions.
 
 ### OQ54 — How do timetable versions relate to the services' own effective periods, and what happens when a listed service is withdrawn?
 
-- **Status:** **OPEN QUESTION** for Myanma Railways. F-005 runs on a provisional tech-lead ruling (hein, 2026-09-26; T-053): a service runs on a date only if the version in force that day lists it, the date is in the service's own period and it is one of its operating days; every listed service must be in effect on the version's start date; **withdrawing a service is refused** while a published version that lists it still applies on or after the withdrawal date; to drop a service, publish a version without it, then withdraw it from that version's start date; stopping-pattern changes use services, time changes use versions. A second ruling (Q2, same date) keeps a service withdrawn if the version that made the withdrawal possible is later cancelled; the earlier version then lists it but it does not run. This is **not a Myanma Railways answer**.
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-26; T-053) — not a Myanma Railways answer:** a service runs on a date only if the version in force that day lists it, the date is in the service's own period and it is one of its operating days; every listed service must be in effect on the version's start date; **withdrawing a service is refused** while a published version that lists it still applies on or after the withdrawal date; to drop a service, publish a version without it, then withdraw it from that version's start date; stopping-pattern changes use services, time changes use versions. A second ruling (Q2, same date) keeps a service withdrawn if the version that made the withdrawal possible is later cancelled; the earlier version then lists it but it does not run. The ruling remains open with Myanma Railways.
 - **Why it matters:** Two dating mechanisms (a service's period and a version's start date) must agree on which trains run on a date; the answer also decides how staff drop or replace a service.
 - **Blocks or constrains:** Version-content validation; the service-withdrawal operation (it now depends on published versions); how a timetable change is carried out.
 - **Suggested options (non-binding):** Period: (a) a service must be in effect throughout the version; (b) at some point in it; (c) independent. Withdrawal of a service in a published version: (a) allowed, version unchanged; (b) refused; (c) requires a new version. Timetable change: (a) a new version; (b) withdraw and recreate the service; (c) both.
@@ -203,7 +319,7 @@ to be nominated), as for the service questions.
 
 ### OQ55 — How do timetable versions follow one another?
 
-- **Status:** **OPEN QUESTION** for Myanma Railways. F-005 runs on a provisional tech-lead ruling (hein, 2026-09-26; T-053): exactly one version is in force on each date — the published, not-cancelled version with the latest start date on or before it; no two published versions share a start date; before the first version, no service runs; a version may be inserted between two future ones; every version is kept. This is **not a Myanma Railways answer**.
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-26; T-053) — not a Myanma Railways answer:** exactly one version is in force on each date — the published, not-cancelled version with the latest start date on or before it; no two published versions share a start date; before the first version, no service runs; a version may be inserted between two future ones; every version is kept. The ruling remains open with Myanma Railways.
 - **Why it matters:** Staff, and later ticketing and reports, must be able to tell which timetable applied on any past or future date.
 - **Blocks or constrains:** The supersession rule; the "version in force on a date" read; historical reconstruction.
 - **Suggested options (non-binding):** (a) one in force per date, superseded by the next start date, no overlaps; (b) explicit periods, no overlap; (c) overlaps allowed with a precedence rule. Gaps: allowed or refused. Insertion between versions: allowed or refused.
@@ -212,7 +328,7 @@ to be nominated), as for the service questions.
 
 ### OQ56 — How is a timetable version prepared before it is published?
 
-- **Status:** **OPEN QUESTION** for Myanma Railways. F-005 runs on a provisional tech-lead ruling (hein, 2026-09-26; T-053): a draft is **created whole** — every service with all its times, in one step — and never edited; a wrong draft is discarded (kept, never deleted) and created again; several drafts may exist at once. A known limitation: a draft cannot be corrected in place. This is **not a Myanma Railways answer**.
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-26; T-053) — not a Myanma Railways answer:** a draft is **created whole** — every service with all its times, in one step — and never edited; a wrong draft is discarded (kept, never deleted) and created again; several drafts may exist at once. A known limitation: a draft cannot be corrected in place. The ruling remains open with Myanma Railways.
 - **Why it matters:** How timetablers work — building up a draft over days, or preparing it complete elsewhere — decides whether the system must support editing drafts.
 - **Blocks or constrains:** Draft operations; whether draft editing (and ADR-0024) is ever needed.
 - **Suggested options (non-binding):** (a) created whole, never changed, discarded if wrong; (b) built up by adding and removing whole service entries; (c) freely edited. Discarded drafts: kept or deleted. Several drafts at once: yes or no.
@@ -221,7 +337,7 @@ to be nominated), as for the service questions.
 
 ### OQ57 — Who publishes a timetable version, and under what conditions?
 
-- **Status:** **OPEN QUESTION** for Myanma Railways. F-005 runs on a provisional tech-lead ruling (hein, 2026-09-26; T-053): any holder of the timetable-management permission may publish, including the person who prepared the draft; **no second approver** in Phase 1; the start date must be today or later at publication (a version may take effect on the day it is published); a start date in the past is refused. This is **not a Myanma Railways answer**.
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-26; T-053) — not a Myanma Railways answer:** any holder of the timetable-management permission may publish, including the person who prepared the draft; **no second approver** in Phase 1; the start date must be today or later at publication (a version may take effect on the day it is published); a start date in the past is refused. The ruling remains open with Myanma Railways.
 - **Why it matters:** Publishing changes which trains run for the whole network; the approval control and the notice period are governance choices.
 - **Blocks or constrains:** The publish operation, its guards and whether a separate publish permission exists.
 - **Suggested options (non-binding):** Approver: (a) any holder of the right, including the author; (b) a different person; (c) a different role. Start date: (a) today or later; (b) at least N days ahead; (c) past dates allowed.
@@ -230,7 +346,7 @@ to be nominated), as for the service questions.
 
 ### OQ58 — Can a published timetable version be cancelled or withdrawn?
 
-- **Status:** **OPEN QUESTION** for Myanma Railways. F-005 runs on a provisional tech-lead ruling (hein, 2026-09-26; T-053): a published version may be **cancelled only while its start date is later than today**; after that it is corrected only by publishing a later version; a cancelled version is kept and never applies. Withdrawing a version that has already taken effect is not provided. A second ruling (Q2, same date): cancelling is not refused because a service was withdrawn while that version applied; the service stays withdrawn. This is **not a Myanma Railways answer**.
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-26; T-053) — not a Myanma Railways answer:** a published version may be **cancelled only while its start date is later than today**; after that it is corrected only by publishing a later version; a cancelled version is kept and never applies. Withdrawing a version that has already taken effect is not provided. A second ruling (Q2, same date): cancelling is not refused because a service was withdrawn while that version applied; the service stays withdrawn. The ruling remains open with Myanma Railways.
 - **Why it matters:** A mistake found after publication must be correctable; once a version is in force, changing it retroactively would change what already ran.
 - **Blocks or constrains:** The cancel operation; the absence of a withdraw-version operation.
 - **Suggested options (non-binding):** (a) never; correct by publishing a later version; (b) cancel only before it takes effect; (c) withdraw from a date, the previous version resumes; (d) withdraw from a date, no version in force.
@@ -239,7 +355,7 @@ to be nominated), as for the service questions.
 
 ### OQ59 — Which roles may prepare, publish and read timetable versions?
 
-- **Status:** **OPEN QUESTION** for Myanma Railways. F-005 runs on a provisional tech-lead ruling (hein, 2026-09-26; T-053): `schedules.manage` (create, discard, publish, cancel) → `SystemAdministrator` and `RailwayAdministrator`; `schedules.read` → all eight roles; no separate publish permission. This is **not a Myanma Railways answer**.
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-26; T-053) — not a Myanma Railways answer:** `schedules.manage` (create, discard, publish, cancel) → `SystemAdministrator` and `RailwayAdministrator`; `schedules.read` → all eight roles; no separate publish permission. The ruling remains open with Myanma Railways.
 - **Why it matters:** Least privilege and segregation of duties for a change that affects the whole network.
 - **Blocks or constrains:** The seeded role grants (a reviewed migration); endpoint access.
 - **Suggested options (non-binding):** for example the service-management pattern (manage: `SystemAdministrator`, `RailwayAdministrator`; read: all eight roles) — a prompt, not a proposal of grants.
@@ -248,7 +364,7 @@ to be nominated), as for the service questions.
 
 ### OQ60 — May a timetable version list no services?
 
-- **Status:** **OPEN QUESTION** for Myanma Railways. F-005 runs on a provisional tech-lead ruling (hein, 2026-09-26; T-053): **yes** — a version may list no services; once in force, no service runs until the next version (a network-wide suspension). **Amendments 1–2** (hein, 2026-09-27; T-054): such a version may be created and published only with a start date **later than today**, so it can always be cancelled before it takes effect. This is **not a Myanma Railways answer**.
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-26; T-053) — not a Myanma Railways answer:** **yes** — a version may list no services; once in force, no service runs until the next version (a network-wide suspension). **Amendments 1–2** (hein, 2026-09-27; T-054): such a version may be created and published only with a start date **later than today**, so it can always be cancelled before it takes effect. The ruling remains open with Myanma Railways.
 - **Why it matters:** An empty version stops every train on the network; whether that is a legitimate operation, and with what safeguards, is a business decision.
 - **Blocks or constrains:** Request validation for creating a version; the publication guard for an empty version.
 - **Suggested options (non-binding):** (a) refused: at least one service; (b) allowed.

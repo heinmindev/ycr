@@ -117,9 +117,9 @@ the configured local zone, never the server's own local time and never a fixed o
 | `Time:LocalTimeZone` | `Asia/Yangon` (in the `appsettings.json` of both `YCR.Api` and `YCR.Worker`) | An **IANA** time-zone id that the host can resolve |
 
 - **API:** the setting is validated at startup (`ValidateOnStart`), so the host stops before it
-  serves a request, with `Time:LocalTimeZone is not configured…` when the value is missing or
-  blank, or `Time:LocalTimeZone '<id>' is not a time zone this host can resolve; install IANA
-  time-zone data.` when it cannot be resolved.
+  serves a request, with `Time:LocalTimeZone is not configured. Set it to an IANA time-zone id such as
+  'Asia/Yangon'.` when the value is missing or blank, or `Time:LocalTimeZone '<id>' is not a time zone
+  this host can resolve; install IANA time-zone data.` when it cannot be resolved.
 - **Worker:** checked before either start path (the `bootstrap-administrator` command and the bare
   host); on failure it writes the same message to standard error and exits `1`, doing nothing
   else.
@@ -151,7 +151,7 @@ The API reads `appsettings.json` from its **content root**, which is the process
 directory. It must therefore be started **with its build or publish output directory as the
 working directory** (for example `cd <output>` then `dotnet YCR.Api.dll`), so that it reads its
 shipped `appsettings.json`, including `Time:LocalTimeZone`. Started from any other directory, it
-reads no `appsettings.json` and refuses to start (`Time:LocalTimeZone is not configured`). CI's
+reads no `appsettings.json` and refuses to start (`Time:LocalTimeZone is not configured. Set it to an IANA time-zone id such as 'Asia/Yangon'.`). CI's
 API smoke job starts it this way (`working-directory: src/YCR.Api/bin/Release/net10.0`), sets no
 `Time__` override, and asserts that the logged `Content root path:` is that directory (F-004 plan
 Amendment 2).
