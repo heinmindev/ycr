@@ -479,3 +479,27 @@ Correction (claude, T-054, 2026-09-27 12:32 Asia/Yangon): the entry stamped "202
 **Blockers / open questions:** none. Environment note: `C:\dn302` (SDK 10.0.302 side by side) can be removed once the machine has a 10.0.3xx SDK again.
 
 **State of the branch:** committed and pushed.
+
+---
+
+## 2026-09-28 13:33 Asia/Yangon — claude — T-059
+
+**Stage:** 8 (DOCUMENT) — **done; T-059 → review** (T-060, codex, re-reviews the docs).
+**Commit:** docs `9dc4b18`; merge of `origin/main` `5da6231` (CI head). Checked against the implemented code at `2bc591e`, not only the plan.
+**Done this session:**
+- `docs/07`: §Core tables; the F-004 code-lock section (ADR-0026 now Accepted; withdrawal also takes `timetable.ScheduleVersions` after the code lock); new §F-005 — the three tables with columns, the checks (minutes 0–1439, dwell, any-time, status vs instants, number, UTC), `UX_ScheduleVersions_Number`, the filtered `UX_ScheduleVersions_EffectiveFrom_Published`, the four `NO ACTION` FKs, the two declared convention indexes, access paths, the digest's canonical form, the three migration names, the Timetable-wide lock with its order, and the `ycr_app` grants with what is withheld.
+- `docs/08`: Initial resources (what exists; not provided: withdrawing a version in force, editable drafts); the F-004 withdraw row and check order gain `422 Timetable.ServiceInPublishedScheduleVersion` (last); new §Implemented in F-005 — eight endpoints, permissions, contracts, the create order (P4, checks 1–13), publish/cancel/discard/read orders, in-force with `runsOnDate`, 2 MiB and the 250 / 200 / 10,000 caps.
+- `docs/20` §4 (C4: ADR-0002 covers fares; timetables follow by this project's rule) and §6 (ADR-0026 Accepted; the three lock uses and the keyed-before-whole-set order; a "Times of day" line, ADR-0027's open follow-up).
+- `docs/19`: the Q2 ruling (R49) added to the OQ54 and OQ58 blocks. `docs/10`: the seed migration's name (prose, not a bullet; the parser test still passes).
+- `docs/business/mr-questions-pack.md`: OQ51–OQ60 with provisional rulings, "not a Myanma Railways answer", no Myanmar text.
+- Glossary: `ScheduleVersion` (timetable version = same thing, C3), status (Draft/Published/Discarded/Cancelled), version number, stop time / timetable time, version in force / applies, empty version; `Withdrawal` gains the R19 refusal; `Service` row; source key to ADR-0027. Myanmar terms stay OPEN QUESTION.
+- F-004 spec: dated amendment notes at R21 (F-005 R19) and R22 (superseded; plan Q4). ADR-0024: Proposed-stage note (C5), Status unchanged. ADR-0027: follow-up recorded (`TimetableTime`; item 4 not built).
+- **Merge of `origin/main` (hein's go-ahead, 2026-09-28):** T-043's housekeeping (PR #13) had added OQ28 and OQ34–OQ50 to the MR pack, so PR #14 turned `CONFLICTING` after `9dc4b18` and no pull_request run could start. Resolved in `5da6231`: main's entries kept, OQ51–OQ60 moved into main's "Timetable and services" section with main's status wording; `TASKS.md` is main's.
+
+**Evidence:** `dotnet test YCR.sln --max-parallel-test-modules 1` (SDK 10.0.302 from `C:\dn302`) on the `9dc4b18` tree → **1624 total, 1624 passed, 0 failed, 0 skipped**; the merge adds only docs no test reads. CI on `9dc4b18` push https://github.com/heinmindev/ycr/actions/runs/36381625840 (green; no PR run — conflict). CI on `5da6231`: push https://github.com/heinmindev/ycr/actions/runs/36387050835 (Build and test ✅, API smoke ✅, Secret scan ✅, Trunk-only skipped by design) and pull_request https://github.com/heinmindev/ycr/actions/runs/36387053867 (Build and test ✅ 1624/0 skipped, API smoke ✅, Secret scan ✅, **Trunk-only ✅ 4/4**). No code, spec ruling or plan ruling changed; no code/spec mismatch found.
+
+**Next step (exact):** codex — T-060, re-review every changed doc against the code at `2bc591e`, naming `5da6231`.
+
+**Blockers / open questions:** none.
+
+**State of the branch:** committed and pushed; PR #14 mergeable.
