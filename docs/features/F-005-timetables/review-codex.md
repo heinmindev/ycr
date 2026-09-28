@@ -126,4 +126,38 @@ None. No Critical, High, Medium or Low code-review finding was identified agains
 
 ## Stage 7 — Security review
 
-Not started. T-056 is blocked and the task ledger requires the stages in order.
+Security reviewer: codex
+Reviewed SHA: `2bc591e` (stage-4 implementation; stage-5 test/report commit `ae32ba1`)
+Threat categories from `docs/18`: Unauthorized configuration, API abuse, Data disclosure, Privilege escalation, Insider manipulation, Audit tampering.
+
+### Authorization and grants
+
+- All eight schedule endpoints carry an explicit policy: create/publish/cancel/discard use `schedules.manage`; get, service-times, list and in-force use `schedules.read` (`ScheduleVersionEndpoints.cs:63,85,103,118,136,153,171,187`). The changed `/services/{id}/withdraw` route remains `services.manage` (`ServiceEndpoints.cs:123-131`). There is no schedule route without authorization.
+- `ScheduleVersionEndpointsTests.AnyScheduleEndpoint_Anonymous_Returns401` covers every schedule route; `WriteEndpoints_WithOnlySchedulesRead_Return403`, `ScheduleEndpoints_WithOnlyServiceRouteOrStationPermissions_Return403`, and `Withdraw_WithOnlySchedulePermissions_Returns403` cover privilege separation. The real-token `SchedulePermissionGrantTests` exercises all eight roles and verifies the two manager roles versus six read-only roles; its manager flow creates, publishes and cancels.
+- The seed migration inserts exactly the ten `docs/10` schedule grants: `schedules.manage` only for `SystemAdministrator` and `RailwayAdministrator`, `schedules.read` for all eight, and no `schedules.publish`. `IdentitySeedTests`, `ScheduleMigrationTests` and the full suite passed.
+
+### Database and abuse controls
+
+- `Security_TimetableScheduleGrants` grants `ycr_app` only `SELECT, INSERT` on the three schedule tables and `UPDATE` only on `Status` plus the three status timestamps. There is no `DELETE`, child-row update, DDL or grant-edit capability. `DatabasePrivilegeTests.ApplicationCredential_HasExactlyTheScheduleGrants`, `CanMoveAVersionsStatusButNotRewriteIt`, the direct backstop/FK tests, and `ApplicationCredential_CanTakeTheScheduleVersionsApplock` execute both presences and absences.
+- The Timetable-wide lock is a bounded API-abuse lever: an accepted max-cap create (250 services / 10,000 stop times) measured 767–779 ms in the implementer evidence, and a 2 MiB request is rejected by Kestrel before binding or lock acquisition. Only holders of `schedules.manage` can create/publish/cancel/discard; `services.manage` can also enter the withdrawal path. Repeated authorized requests could still serialize that resource, so this remains a **Low residual finding S-1**: add authenticated schedule-write rate limiting or operational alerting before hostile multi-user deployment. It is bounded by the caps and does not block this stage; no Critical or High issue is open.
+- `ScheduleVersionRequestLimitTests` runs real Kestrel declared-length and chunked over-limit requests, exact caps, each cap overflow and malformed JSON. The full suite passed these tests with 0 skips. The stage-5 mutation proved that the 10,000 total cap is active with exactly 250 services.
+
+### Input, audit and disclosure
+
+- Timetable times use the anchored ASCII `HH:mm` parser and domain bounds 0–1439; the Unicode digit and newline cases are tested. The known framework number handling (`position: "1"` accepted; fractional JSON number gets a framework 400 without `errorCode`) is the pre-existing T-042 limitation recorded in progress V10, not an F-005 finding.
+- Audit actors come from `ICurrentUser`; request actor fields are ignored (`Post_WhenRequestTriesToSupplyActorFields_RecordsTheAuthenticatedActor`). Refused create/publish/cancel requests write no event. Snapshot records contain version/service metadata and a SHA-256 stop-time digest only; no passwords, tokens, refresh cookies, QR payloads, private keys or personal data are present. Digest canonicalization has independent vectors and the full suite passed.
+- No F-005 production code adds logging of request bodies, stop times, credentials or personal data. The API error tests assert bounded, opaque 413/400 responses without stack traces, exception types or server paths.
+
+### Smoke and security verdict
+
+The CI `api-smoke` additions exercise anonymous 401, schedule create/read/times/list/publish/in-force, effective-version cancel refusal, empty-version create/publish/cancel/discard, and the withdrawal guard. The secret scan, API smoke and full test suite passed for the reviewed implementation history.
+
+Findings:
+
+| ID | Severity | Status | Evidence / action |
+|---|---|---|---|
+| S-1 | Low | Open residual | Repeated authorized max-cap writes can serialize the Timetable-wide lock; measured valid max create is under 0.8 s and 2 MiB bodies are rejected before the lock. Add rate limiting/alerting before hostile multi-user deployment. |
+
+Open Critical/High findings: **none**.
+
+Verdict: **Ready.** Authorization, least privilege, abuse limits, input handling, audit provenance/content, disclosure controls and smoke coverage meet the approved F-005 security surface. The sole Low residual is bounded and does not block stage exit.

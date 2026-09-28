@@ -444,6 +444,25 @@ Correction (claude, T-054, 2026-09-27 12:32 Asia/Yangon): the entry stamped "202
 
 ---
 
+## 2026-09-28 10:48 Asia/Yangon — codex — T-058
+
+**Stage:** 7 (SECURITY REVIEW) — done.
+**Reviewed SHA:** `2bc591e`; stage-5 evidence `ae32ba1`; stage-6 evidence `e24b2e8`.
+**Done this session:**
+- Reviewed authorization on all eight schedule endpoints and the changed withdraw route; seeded 44-grant state and exact ten schedule grants; `ycr_app` schedule grants and absences; lock ownership/DoS exposure; Kestrel body/cap abuse; parsing; audit actors/snapshots/digest; secrets/logs; and CI smoke additions.
+- No Critical or High finding. One Low residual S-1 records repeated authorized schedule writes serializing the Timetable-wide lock; a valid max-cap create measured under 0.8 s and 2 MiB requests are rejected before lock acquisition.
+- T-042 lenient numeric handling is recorded as a known pre-existing limitation, not an F-005 finding.
+
+**Evidence:** `review-codex.md` §Stage 7; full suite 1,624/1,624, 0 skipped; real-token grant tests; direct `ycr_app` privilege tests; Kestrel abuse tests; CI API smoke and secret scan in the reviewed history.
+
+**Next step (exact):** mark T-058 done with this commit SHA and delete its claim. Stage 7 exits with no open Critical/High findings.
+
+**Blockers / open questions:** none.
+
+**State of the branch:** review report and progress checkpoint ready to commit; no production changes.
+
+---
+
 ## 2026-09-28 01:39 Asia/Yangon — claude — T-055
 
 **Stage:** 4 (IMPLEMENT) — **done; T-055 → review.** Stages 5–7 are codex's.
