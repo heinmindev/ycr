@@ -161,3 +161,43 @@ Findings:
 Open Critical/High findings: **none**.
 
 Verdict: **Ready.** Authorization, least privilege, abuse limits, input handling, audit provenance/content, disclosure controls and smoke coverage meet the approved F-005 security surface. The sole Low residual is bounded and does not block stage exit.
+
+## Re-review of `9dc4b18` / `5da6231`
+
+Reviewer: codex (hein, 2026-09-28)
+
+### Scope and evidence
+
+- Reviewed `git diff 61c4dd8 9dc4b18`: exactly ten changed files, all under `docs/`; no source, test, build or configuration file changed by `9dc4b18`.
+- Reviewed the merge resolution with `git show 5da6231 -- docs/business/mr-questions-pack.md`. The merge keeps main's OQ1–OQ50 content and adds F-005's OQ51–OQ60; the only conflict was the MR questions pack.
+- Compared the changed docs with the implementation at `2bc591e`, including the three F-005 migrations, EF configurations, schedule endpoints/contracts, handlers, domain transitions, lock implementation and authorization seed. The database tables/checks/indexes/FKs, migration names, `ycr_app` grants and withheld permissions, endpoint contracts/error order, 2 MiB and 250/200/10,000 controls, `runsOnDate`, lock order, seed grants, Q2 rulings, glossary terms and amendment notes agree with the code.
+- Full suite: `C:\dn302\dotnet.exe test YCR.sln` with `PATH`/`DOTNET_ROOT` set to `C:\dn302` (SDK 10.0.302), Docker running — **1624 passed, 0 failed, 0 skipped**.
+
+### Per-document results
+
+| Document | Result | Evidence |
+|---|---|---|
+| `docs/07-database-design.md` | Correct | The three tables, checks, unique `Number`, filtered published-start index, four `NO ACTION` FKs, migration names, `ycr_app` grants/absences and service-code → timetable lock order match the EF model, migrations and handlers. |
+| `docs/08-api-specification.md` | Correct | All eight endpoints, permissions, contracts, error codes, create checks 1–13, publish/cancel/discard/read order, limits/caps, `runsOnDate`, last-position 422 withdrawal guard and Initial resources notes match the endpoint mappings and handlers. |
+| `docs/10-authorization-matrix.md` | Correct | The ten schedule grants and `44 grants in all` match `Identity_SeedSchedulePermissionGrants`; the `IdentitySeedTests` docs parser and the full suite pass. |
+| `docs/19-open-questions.md` | Correct | OQ54 and OQ58 include the Q2 ruling with the same provisional-tech-lead/non-Myanma-Railways label and the implemented cancel/withdraw behavior. |
+| `docs/20-coding-conventions.md` | Correct | C4 distinguishes fare ADR-0002 from timetable convention; §6 lists the code-lock then timetable-lock order and all uses; the ADR-0027 times-of-day line matches `TimetableTime` and the 0–1439 checks. |
+| `docs/business/mr-questions-pack.md` | Findings M-1 and M-2 | OQ51–OQ60 match `docs/19`; main's OQ1–OQ50 content survived the merge. OQ48 and OQ49 still contain superseded statements; see findings. |
+| `docs/glossary.md` | Correct | ScheduleVersion states, version number, stop time, in-force/applies, empty version and withdrawal entries match the approved rulings; Myanmar terminology remains OPEN QUESTION. |
+| `docs/features/F-004-service-management/spec.md` | Correct | R21 records the F-005 withdrawal guard and lock amendment; R22 records that schedule versions and the endpoint now exist while services still have no times. |
+| `docs/decisions/ADR-0024-client-held-version-for-edits.md` | Correct | The Proposed-stage note is present, identifies stale context and leaves Status `Proposed`. |
+| `docs/decisions/ADR-0027-timetable-times-of-day.md` | Correct | The follow-up records the implemented `TimetableTime`, database check, and that no time-to-instant consumer was built yet. |
+
+### Findings
+
+| ID | Severity | Evidence | One-line fix |
+|---|---|---|---|
+| M-1 | Medium | `docs/business/mr-questions-pack.md:268` (OQ48) still says “a timetable change withdraws the old service and creates a new one with the same code.” OQ54 now rules that stopping-pattern changes use services, but timetable-time changes use versions, and service withdrawal is refused while a published version listing it applies. This stale sentence can mislead Myanma Railways readers about the current engineering behavior. | Append: **“This timetable-change sentence is superseded by OQ54: stopping-pattern changes use services; time changes use timetable versions.”** |
+| M-2 | Medium | `docs/business/mr-questions-pack.md:274` (OQ49) still says “`schedules.*` is deferred to FR-004.” OQ59 has resolved `schedules.manage`/`schedules.read`, those grants are seeded, and the schedule endpoints are implemented. This stale sentence can mislead readers about the permission decision being taken to the workshop. | Append: **“The `schedules.*` clause is superseded by OQ59; schedule grants and endpoints are now recorded provisionally.”** |
+
+- **M-1 Status:** Fixed at `69b297e`.
+- **M-2 Status:** Fixed at `69b297e`.
+
+### Verdict
+
+**Ready with two Medium documentation findings.** No implementation-facing documentation mismatch, and no Critical or High finding was found. The two MR-pack lines should be corrected before the pack is used with Myanma Railways; they do not block the implemented F-005 stage from exiting T-060 under the ledger rule.

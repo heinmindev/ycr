@@ -266,12 +266,14 @@ The sections below are ordered thematically, for a workshop agenda. This table i
 ### OQ48 — What is a service's effective period, and can a service change after it is defined?
 
 - **Status:** **OPEN QUESTION** for Myanma Railways. **Resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-25; T-044) — not a Myanma Railways answer:** services are immutable except for withdrawal; `EffectiveFrom` is required, `EffectiveTo` is inclusive and nullable; withdrawal only shortens the period, cannot reopen or delete, and a timetable change withdraws the old service and creates a new one with the same code. The ruling remains open with Myanma Railways.
+- **Note:** Superseded for timetables by OQ54 (hein, 2026-09-26; T-053).
 - **Blocks or constrains:** F-004 service mutability, `PATCH /services`, grants and ADR-0024 applicability.
 - **Sources:** `docs/19-open-questions.md` OQ48; F-004 spec R19–R21, R35, R36; OQ38 and OQ4.
 
 ### OQ49 — Which roles may manage and read services, trains and timetable versions?
 
 - **Status:** **OPEN QUESTION** for Myanma Railways. **Resolved for engineering by a provisional tech-lead ruling (hein, 2026-09-25; T-044) — not a Myanma Railways answer:** `services.manage` → `SystemAdministrator` and `RailwayAdministrator`; `services.read` → all eight roles; no `trains.*` grants; `schedules.*` is deferred to FR-004. The ruling remains open with Myanma Railways.
+- **Note:** `schedules.*` resolved by OQ59 (hein, 2026-09-26; T-053).
 - **Blocks or constrains:** F-004 endpoint permissions and grant seed migration.
 - **Sources:** `docs/19-open-questions.md` OQ49; `docs/10-authorization-matrix.md` §Service permission grants; F-004 spec R3, R4; OQ42.
 
