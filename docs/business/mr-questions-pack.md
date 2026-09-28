@@ -2,7 +2,9 @@
 
 **Purpose:** provide a decision-ready list of the unresolved business questions in [`docs/19-open-questions.md`](../19-open-questions.md). This pack explains why each answer matters, what work it blocks or constrains, and presents neutral options for discussion with Myanma Railways.
 
-**Status:** all questions below remain **OPEN QUESTION** items for Myanma Railways. OQ20 is resolved, OQ22 is an **ENGINEERING DECISION**, and OQ32 is an **ENGINEERING DECISION** for its schedule and ownership clauses with a remaining OPEN QUESTION that is not a Myanma Railways question either; all three are listed in §Items not requiring a Myanma Railways answer so that no gap in the numbering is unexplained. OQ28 and OQ34–OQ60 have provisional tech-lead rulings that unblock engineering; each ruling is explicitly **not a Myanma Railways answer** and remains open with Myanma Railways. The options are discussion prompts only; none is a recommendation or a recorded business decision. Existing **ENGINEERING DECISION** references describe implementation constraints already accepted by the project and do not answer the business questions.
+**Status:** all questions below remain **OPEN QUESTION** items for Myanma Railways. OQ20 is resolved, OQ22 is an **ENGINEERING DECISION**, and OQ32 is an **ENGINEERING DECISION** for its schedule and ownership clauses with a remaining OPEN QUESTION that is not a Myanma Railways question either; all three are listed in §Items not requiring a Myanma Railways answer so that no gap in the numbering is unexplained. OQ2–OQ4, OQ9–OQ11, OQ17, OQ19, OQ21, OQ23, OQ24, OQ28 and OQ34–OQ60 have provisional tech-lead rulings that unblock engineering; each ruling is explicitly **not a Myanma Railways answer** and remains open with Myanma Railways. The options are discussion prompts only; none is a recommendation or a recorded business decision. Existing **ENGINEERING DECISION** references describe implementation constraints already accepted by the project and do not answer the business questions.
+
+**Priority questions (hein, 2026-09-28; T-062):** OQ9, OQ17, OQ21 and OQ10. Each is marked **Priority** in the table and in its entry below.
 
 **Suggested response owner:** Myanma Railways should nominate the accountable role for each answer (for example, Network Operations, Commercial/Fares, Finance, Customer Service, Security, or IT). The role labels below are proposed routing labels, not assumed authorities.
 
@@ -17,29 +19,29 @@ The sections below are ordered thematically, for a workshop agenda. This table i
 | OQ | Section in this pack | Status |
 |---|---|---|
 | OQ1 | Network and operating model | Asked |
-| OQ2 | Network and operating model | Asked |
-| OQ3 | Ticket product and validation | Asked |
-| OQ4 | Ticket product and validation | Asked |
+| OQ2 | Network and operating model | Asked — provisional ruling recorded (T-062); still open with Myanma Railways |
+| OQ3 | Ticket product and validation | Asked — provisional ruling recorded (T-062); still open with Myanma Railways |
+| OQ4 | Ticket product and validation | Asked — provisional ruling recorded (T-062); still open with Myanma Railways |
 | OQ5 | Ticket product and validation | Asked — a project-side **ASSUMPTION** exists; see its Status line |
 | OQ6 | Ticket product and validation | Asked |
 | OQ7 | Ticket product and validation | Asked |
 | OQ8 | Ticket product and validation | Asked |
-| OQ9 | Fares and money | Asked |
-| OQ10 | Payments, refunds, and sales | Asked |
-| OQ11 | Payments, refunds, and sales | Asked — a project-side **ASSUMPTION** exists; see its Status line |
+| OQ9 | Fares and money | **Priority** — Asked — provisional ruling recorded (T-062); still open with Myanma Railways |
+| OQ10 | Payments, refunds, and sales | **Priority** — Asked — provisional ruling recorded (T-062); still open with Myanma Railways |
+| OQ11 | Payments, refunds, and sales | Asked — provisional ruling recorded (T-062); still open with Myanma Railways (the former cash-only ASSUMPTION) |
 | OQ12 | Network and operating model | Asked |
 | OQ13 | Network and operating model | Asked |
 | OQ14 | Records, governance, and key operations | Asked |
 | OQ15 | Network and operating model | Asked |
 | OQ16 | Network and operating model | Asked |
-| OQ17 | Fares and money | Asked |
+| OQ17 | Fares and money | **Priority** — Asked — provisional ruling recorded (T-062); still open with Myanma Railways |
 | OQ18 | Payments, refunds, and sales | Asked |
-| OQ19 | Ticket product and validation | Asked |
+| OQ19 | Ticket product and validation | Asked — provisional ruling recorded (T-062); still open with Myanma Railways |
 | OQ20 | Items not requiring a Myanma Railways answer | **Resolved** by ADR-0017 (SQL Server 2022) |
-| OQ21 | Fares and money | Asked |
+| OQ21 | Fares and money | **Priority** — Asked — provisional ruling recorded (T-062); still open with Myanma Railways |
 | OQ22 | Items not requiring a Myanma Railways answer | **Excluded** — **ENGINEERING DECISION** for the tech lead (ADR-0005) |
-| OQ23 | Ticket product and validation | Asked |
-| OQ24 | Payments, refunds, and sales | Asked |
+| OQ23 | Ticket product and validation | Asked — provisional ruling recorded (T-062); still open with Myanma Railways |
+| OQ24 | Payments, refunds, and sales | Asked — provisional ruling recorded (T-062); still open with Myanma Railways |
 | OQ25 | Records, governance, and key operations | Asked |
 | OQ26 | Network and operating model | Asked — F-001 runs on a provisional value; see its Status line |
 | OQ27 | Network and operating model | Asked — F-001 runs on a provisional value; see its Status line |
@@ -90,6 +92,7 @@ The sections below are ordered thematically, for a workshop agenda. This table i
 
 ### OQ2 — Which stations sell tickets?
 
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Provisional tech-lead ruling (hein, 2026-09-28; T-062) — not a Myanma Railways answer:** every active station sells tickets; a per-station switch is added only if Myanma Railways asks. The ruling remains open with Myanma Railways.
 - **Why it matters:** Sales capability, cashier-session setup, staffing, cash reconciliation, and passenger guidance depend on the list of selling stations.
 - **Blocks or constrains:** Station-level sales permissions; cashier configuration; operational reports; rollout and counter testing.
 - **Suggested options (non-binding):** (a) every station; (b) a nominated subset; (c) station-dependent hours or temporary service flags managed through an approved schedule.
@@ -377,6 +380,7 @@ The sections below are ordered thematically, for a workshop agenda. This table i
 
 ### OQ3 — Is ticketing per journey, per day, or another model?
 
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Provisional tech-lead ruling (hein, 2026-09-28; T-062) — not a Myanma Railways answer:** one ticket is one journey, not tied to a train or service (ruled together with OQ4; consistent with OQ5, no seat reservation). The ruling remains open with Myanma Railways.
 - **Why it matters:** The ticket unit determines what a sale creates, how validity and repeat use are evaluated, and what passengers receive for a payment.
 - **Blocks or constrains:** Sale/Ticket aggregate shape; validity and expiry; validation evidence; fare inputs; customer-facing wording and print layout.
 - **Suggested options (non-binding):** (a) one ticket for one journey; (b) a day-based ticket; (c) another explicitly bounded product such as a time-window or multi-journey product.
@@ -385,6 +389,7 @@ The sections below are ordered thematically, for a workshop agenda. This table i
 
 ### OQ4 — Are tickets tied to a specific train or service?
 
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Provisional tech-lead ruling (hein, 2026-09-28; T-062) — not a Myanma Railways answer:** one ticket is one journey, not tied to a train or service (ruled together with OQ3; consistent with OQ5, no seat reservation). The ruling remains open with Myanma Railways.
 - **Why it matters:** Binding a ticket to a service changes sale inputs, timetable dependency, validation checks, disruption handling, and the information printed or encoded.
 - **Blocks or constrains:** Ticket fields and QR payload interpretation; service selection; validation policy; refund/cancellation handling after service changes.
 - **Suggested options (non-binding):** (a) ticket is service-specific; (b) ticket is valid on any eligible service for the chosen product; (c) service binding is optional by product category.
@@ -426,6 +431,7 @@ The sections below are ordered thematically, for a workshop agenda. This table i
 
 ### OQ19 — What is a ticket's validity window, and what must be printed on it?
 
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Provisional tech-lead ruling (hein, 2026-09-28; T-062) — not a Myanma Railways answer:** a ticket is valid on the business date it was sold, and is printed in English and Myanmar with Myanmar numerals; the printed layout stays open. The ruling remains open with Myanma Railways.
 - **Why it matters:** Validity and print content define what a passenger may use, what inspectors can verify, and which fields belong in the signed/printed representation.
 - **Blocks or constrains:** Ticket validity calculation; QR fields and printer layout; language and numeral requirements; cancellation/refund timing; customer communications.
 - **Suggested options (non-binding):** (a) same calendar day; (b) a duration from issue; (c) a specific train/service window; (d) product-specific windows. Printed content may be defined as a minimum set plus optional operational fields.
@@ -434,6 +440,7 @@ The sections below are ordered thematically, for a workshop agenda. This table i
 
 ### OQ23 — Does a reprint invalidate earlier printed tickets?
 
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Provisional tech-lead ruling (hein, 2026-09-28; T-062) — not a Myanma Railways answer:** a reprint invalidates every earlier copy; validation accepts only the current signed `printSequence` (ADR-0013/ADR-0014). The ruling remains open with Myanma Railways.
 - **Why it matters:** The answer determines whether a lost or duplicated print can still be used and whether validation must compare a signed `printSequence` to the current record.
 - **Blocks or constrains:** Reprint command guard; validation behavior; customer support; fraud controls; audit wording.
 - **Suggested options (non-binding):** (a) invalidate all earlier prints and accept only the current sequence; (b) keep all prints valid until ticket cancellation/expiry; (c) invalidate earlier prints only under a defined reprint reason or approval flow.
@@ -444,6 +451,7 @@ The sections below are ordered thematically, for a workshop agenda. This table i
 
 ### OQ9 — What are current fares and passenger categories?
 
+- **Status:** **Priority question.** **OPEN QUESTION** for Myanma Railways. **Provisional tech-lead ruling (hein, 2026-09-28; T-062) — not a Myanma Railways answer:** the fare is 800 MMK per journey; one fare for every passenger in Phase 1. Passenger categories and an AC-coach fare are expected later and stay open. The ruling remains open with Myanma Railways.
 - **Why it matters:** Fare values and category eligibility are the commercial basis of every sale and must remain explainable for historical tickets.
 - **Blocks or constrains:** Fare rule data; quote and sale flows; category validation; reports and reconciliation; fare approval and publication.
 - **Suggested options (non-binding):** (a) provide an MR-approved fare table and category catalogue; (b) define fares by route/service/category in versioned rule sets; (c) publish an initial set with an explicit effective period and change authority.
@@ -452,6 +460,7 @@ The sections below are ordered thematically, for a workshop agenda. This table i
 
 ### OQ17 — How is the loop fare determined, and can a passenger choose the direction?
 
+- **Status:** **Priority question.** **OPEN QUESTION** for Myanma Railways. **Provisional tech-lead ruling (hein, 2026-09-28; T-062) — not a Myanma Railways answer:** in principle the fare depends on journey length; Phase 1 charges the flat 800 MMK for every origin → destination, but the fare is held as data (a fare table), so distance bands or an AC-coach fare can be added later without a code change. How length is measured on the loop (shortest arc or direction travelled), and whether a passenger may choose the direction, stay open. The ruling remains open with Myanma Railways.
 - **Why it matters:** A circular route has more than one path between two stations; the policy changes the fare, displayed journey, and audit explanation.
 - **Blocks or constrains:** `RouteSegmentResolver`; fare calculation; quote and ticket details; dispute and refund explanations.
 - **Suggested options (non-binding):** (a) direction travelled; (b) shortest arc; (c) flat origin/destination fare; (d) zones; and separately decide whether the passenger may choose direction where more than one path exists.
@@ -460,6 +469,7 @@ The sections below are ordered thematically, for a workshop agenda. This table i
 
 ### OQ21 — How are MMK fares rounded?
 
+- **Status:** **Priority question.** **OPEN QUESTION** for Myanma Railways. **Provisional tech-lead ruling (hein, 2026-09-28; T-062) — not a Myanma Railways answer:** fares are whole kyat; no fractional amounts. The ruling remains open with Myanma Railways.
 - **Why it matters:** Rounding affects the amount collected, refunds, reconciliation, and whether historical calculations reproduce exactly.
 - **Blocks or constrains:** Fare calculator and `Money` policy; payment totals; refund amounts; reports and financial tests.
 - **Suggested options (non-binding):** (a) retain two decimal places; (b) round to whole kyats using a named rule; (c) use denomination-aware rounding; (d) define different rules by operation, if Finance requires it.
@@ -470,6 +480,7 @@ The sections below are ordered thematically, for a workshop agenda. This table i
 
 ### OQ10 — What are cancellation/refund rules, including eligibility and amount?
 
+- **Status:** **Priority question.** **OPEN QUESTION** for Myanma Railways. **Provisional tech-lead ruling (hein, 2026-09-28; T-062) — not a Myanma Railways answer:** sold tickets are final: no cancellation and no refund in Phase 1. The documented Cancel and Refund transitions are out of Phase 1 scope; they are not deleted. The ruling remains open with Myanma Railways.
 - **Why it matters:** Cancellation and refund policy controls customer rights, financial exposure, fraud prevention, and the allowed lifecycle transitions.
 - **Blocks or constrains:** Ticket cancellation; refund request/approval/disbursement/rejection; refund amount calculation; business-date assignment; authorization and audit tests.
 - **Suggested options (non-binding):** (a) no refund except defined operational cancellation; (b) full refund before a cutoff; (c) partial refund by time/product/reason; (d) case-by-case approval under a documented policy.
@@ -479,7 +490,7 @@ The sections below are ordered thematically, for a workshop agenda. This table i
 
 ### OQ11 — What payment methods are required?
 
-- **Status:** **OPEN QUESTION** for Myanma Railways. `docs/19-open-questions.md` item 11 carries an **ASSUMPTION**: "Phase 1 currently models cash only; **this is not a BUSINESS DECISION**." Option (a) below restates that provisional position, **not a Myanma Railways answer**.
+- **Status:** **OPEN QUESTION** for Myanma Railways. `docs/19-open-questions.md` item 11 carries an **ASSUMPTION**: "Phase 1 currently models cash only; **this is not a BUSINESS DECISION**." Option (a) below restates that provisional position, **not a Myanma Railways answer**. **Provisional tech-lead ruling (hein, 2026-09-28; T-062) — not a Myanma Railways answer:** cash only in Phase 1 — the existing assumption, now a ruling. The ruling remains open with Myanma Railways.
 - **Why it matters:** Payment methods determine integration, settlement, failure states, cashier reconciliation, and whether the current cash-only assumption is acceptable.
 - **Blocks or constrains:** Payment model and permissions; sale transaction flow; reversal/refund mechanics; cashier close; PCI/security scope.
 - **Suggested options (non-binding):** (a) cash only for Phase 1 — this restates the project's current provisional position; (b) cash plus approved electronic methods; (c) electronic methods only at selected stations; (d) phase payment methods by rollout, with a named settlement owner.
@@ -496,6 +507,7 @@ The sections below are ordered thematically, for a workshop agenda. This table i
 
 ### OQ24 — Can one Sale contain multiple Tickets, and what payment/fare semantics apply?
 
+- **Status:** **OPEN QUESTION** for Myanma Railways. **Provisional tech-lead ruling (hein, 2026-09-28; T-062) — not a Myanma Railways answer:** one Sale may hold several Tickets, all for the same origin, destination and fare, paid as one cash amount. The ruling remains open with Myanma Railways.
 - **Why it matters:** The sale boundary affects atomicity, receipts, per-passenger pricing, refunds, cancellation, and reconciliation.
 - **Blocks or constrains:** Sale aggregate and API shape; fare calculation; payment allocation; partial cancellation/refund; audit and reporting.
 - **Suggested options (non-binding):** (a) one sale contains one ticket; (b) one sale may contain multiple tickets with one total payment; (c) multiple tickets share a sale but retain itemized fares and independent cancellation/refund; (d) introduce an order/booking layer above ticket items.

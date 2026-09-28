@@ -4,6 +4,11 @@
 
 This document follows ADR-0013. Business-dependent guards remain blocked until the referenced open questions are decided.
 
+**Phase 1 scope (provisional tech-lead rulings, hein, 2026-09-28; T-062) — not Myanma Railways answers; still open with Myanma Railways:**
+
+- **Cancel and Refund are out of Phase 1 scope.** Sold tickets are final: no cancellation and no refund in Phase 1 (`docs/19-open-questions.md` OQ10). The Cancel, RequestRefund, Approve, Disburse, Reject and RefundApproved transitions below stay documented and are not deleted; they are not built in Phase 1.
+- **Payment is cash only in Phase 1** (OQ11).
+
 ## Independent records
 
 Ticket status, Sale status, Payment status, Refund status, and validation evidence are separate. A refund is against a Sale/Payment, not against Ticket as a financial object.
