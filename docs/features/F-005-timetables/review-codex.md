@@ -101,7 +101,28 @@ Verdict: **Ready**. Every live scenario and listed rule has named coverage; the 
 
 ## Stage 6 — Code review
 
-Not started. T-056 is blocked and the task ledger requires the stages in order.
+Reviewer: codex
+Reviewed SHA: `2bc591e` (stage-4 implementation; stage-5 test/report commit is `ae32ba1`)
+
+### Review scope and evidence
+
+- **Lock order:** every schedule writer starts a transaction, then acquires `timetable.ScheduleVersions`, then performs deciding reads and one save: `CreateScheduleVersionHandler.cs:51-87`, `PublishScheduleVersionHandler.cs:37-69`, `CancelScheduleVersionHandler.cs:32-58`, and `DiscardScheduleVersionHandler.cs:29-55`. `WithdrawServiceHandler.cs:63-97` takes the service-code lock first, then the schedule lock at line 79, and reads coverage only after it. No other handler that takes the schedule lock depends on `IServiceCodeLock`; the stage-5 `ScheduleHandlers_DoNotDependOnTheServiceCodeLock` test asserts this. No row lock is requested before either applock.
+- **Lock implementation and errors:** `SqlServerScheduleVersionsLock.cs:26-50` requires an open transaction, uses an exclusive transaction-owned `sp_getapplock` with a 30-second timeout, and throws on any negative return. The handlers do not translate timeout/deadlock SQL errors to business errors, so the API's opaque 500 path applies. The stage-5 no-op mutation failed the forced races and the strengthened held-lock assertion, proving the lock calls are live.
+- **Transaction ownership and one-save pattern:** each create/publish/cancel/discard/withdraw path has one explicit transaction and one `SaveChangesAsync`; transition SQL is asserted by `ScheduleVersionTransitionSqlTests.Transitions_UpdateOnlyStatusAndOneInstantAndNoChildRows`. Refused outcomes return before save and transaction disposal rolls them back.
+- **F-004 withdrawal:** the old date/past/shortening checks precede the new R19 guard in `Service.cs`; the published-only filter is in `PublishedTimelineReader.LoadCoverageAsync`. SV36–SV39 and SV54, plus the SQL-backed guard mutation (2/7 failures with the guard removed), cover published, boundary, draft/discarded/cancelled, superseded, and cancellation-revival cases. F-004 tests remained strict and the full suite passed.
+- **Lifecycle and concurrency:** `ScheduleVersion` has only create, publish, discard and cancel transitions; database status/timestamp checks are declared in both the EF model and `20260927070804_Timetable_CreateScheduleVersions`. The `Status` concurrency token maps bypassing writers to the documented 409 tests. Published start-date uniqueness is the filtered index `UX_ScheduleVersions_EffectiveFrom_Published`; numbering is protected by `UX_ScheduleVersions_Number` plus the lock.
+- **In-force query and indexes:** `PublishedTimelineReader` filters `Status = Published` for both timeline and withdrawal coverage. `ScheduleVersionConfiguration` declares the filtered unique index and `IX_ScheduleVersionServices_ServiceId`; model tests pin the exact index set. Supersession, insertion, cancellation and `runsOnDate` are covered by SV27–SV32 and SV53–SV54.
+- **Migrations:** the three migrations match the model and plan: timetable tables/checks/indexes/FKs with child-first `Down`, ten schedule permission seed rows with exact `Down`, and the `ycr_app` grants with reverse `REVOKE`. `ScheduleModelTests`, `ScheduleMigrationTests`, `DatabasePrivilegeTests`, and the full suite passed; the progress log records `has-pending-model-changes` clean during implementation.
+- **Body limits and caps:** `RequestSizeLimitAttribute` sets 2 MiB before binding; the validator enforces 250 services, 200 stop times per service, and 10,000 total. `ScheduleVersionRequestLimitTests` runs on real Kestrel for declared-length and chunked over-limit bodies, exact caps, malformed JSON, and each cap. The full suite passed; V12's chunked case remains a real-Kestrel test. The 10,001-total mutation failed its 250-service case and passed after restoring 10,000.
+- **Test-host stability:** the progress log's known V7 intermittent start failure did not recur in the full run; API tests passed in 22m 45s.
+
+### Findings
+
+None. No Critical, High, Medium or Low code-review finding was identified against `2bc591e`. The only stage-5 change was a test-strengthening assertion committed separately at `ae32ba1`; it does not alter the reviewed production SHA.
+
+### Verdict
+
+**Ready.** The reviewed implementation satisfies the requested lock, transaction, lifecycle, query, migration, limit and test-quality checks. Full solution evidence: `dotnet test YCR.sln --no-restore --max-parallel-test-modules 1` — 1,624 passed, 0 failed, 0 skipped.
 
 ## Stage 7 — Security review
 

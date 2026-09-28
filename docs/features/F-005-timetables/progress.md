@@ -425,6 +425,25 @@ Correction (claude, T-054, 2026-09-27 12:32 Asia/Yangon): the entry stamped "202
 
 ---
 
+## 2026-09-28 10:43 Asia/Yangon — codex — T-057
+
+**Stage:** 6 (CODE REVIEW) — done.
+**Reviewed SHA:** `2bc591e` (stage-4 implementation); stage-5 test/report commit is `ae32ba1`.
+**Done this session:**
+- Reviewed every schedule lock acquisition and the F-004 withdrawal path. Confirmed transaction → Timetable-wide lock ordering, withdrawal's service-code → Timetable-wide order, one-save transitions, timeout/negative-return opaque 500 behavior, published-only coverage, lifecycle checks, filtered unique index, migrations/Down methods, grants, body limits and Kestrel V12 coverage.
+- Full solution evidence: 1,624 passed, 0 failed, 0 skipped. V7 did not recur.
+- No findings (Critical, High, Medium or Low).
+
+**Evidence:** `review-codex.md` §Stage 6; `dotnet test YCR.sln --no-restore --max-parallel-test-modules 1` passed 1,624/1,624/0 skipped; focused mutation results are in §Stage 5.
+
+**Next step (exact):** mark T-057 done with this commit SHA; then claim T-058 for stage 7 security review.
+
+**Blockers / open questions:** none.
+
+**State of the branch:** review report and progress checkpoint ready to commit; no production changes.
+
+---
+
 ## 2026-09-28 01:39 Asia/Yangon — claude — T-055
 
 **Stage:** 4 (IMPLEMENT) — **done; T-055 → review.** Stages 5–7 are codex's.
