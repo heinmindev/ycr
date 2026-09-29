@@ -524,6 +524,9 @@ endpoints appear in the Development-only OpenAPI document under the tag `Schedul
 
 ## Blocked behavior
 
-- **OPEN QUESTION:** fare quote inputs, loop direction, ticket validity, cancellation guards, refund eligibility/amount, and repeat-use handling remain blocked by `docs/19-open-questions.md`.
+- **Phase 1 fare — provisional tech-lead rulings (hein, 2026-09-28; T-062) on OQ9, OQ17 and OQ21, not Myanma Railways answers, still open with Myanma Railways:** one flat fare of 800 MMK per journey for every passenger and every origin → destination, held as data (a fare table), in whole kyat (`docs/12-fare-engine.md`).
+- **Ticket validity — provisional tech-lead ruling (hein, 2026-09-28; T-062) on OQ19, not a Myanma Railways answer, still open with Myanma Railways:** a ticket is valid on the business date it was sold.
+- **Cancel and Refund — provisional tech-lead ruling (hein, 2026-09-28; T-062) on OQ10, not a Myanma Railways answer, still open with Myanma Railways:** sold tickets are final, so Cancel and Refund are out of Phase 1 scope; their transitions are kept in `docs/11-ticket-lifecycle.md` for later.
+- **OPEN QUESTION, still blocking (still open with Myanma Railways):** how journey length is measured on the loop and whether a passenger may choose the direction (OQ17); repeat-use handling (OQ7).
 - **OPEN QUESTION:** `AuthenticUnverified` ticket validation handling is blocked by OQ8.
-- **OPEN QUESTION:** whether reprint invalidates earlier prints is blocked by OQ23.
+- **Provisional tech-lead ruling (hein, 2026-09-28; T-062) — OQ23, not a Myanma Railways answer, still open with Myanma Railways:** a reprint invalidates every earlier copy; validation accepts only the current signed `printSequence`.
