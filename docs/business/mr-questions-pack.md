@@ -596,7 +596,7 @@ The following dependencies should be considered when scheduling decisions:
 - **Outage and validation:** OQ8, OQ18, and OQ33 must align with the fraud, reconciliation, and operational controls in ADR-0014 and ADR-0015.
 - **Station master data and access:** OQ1, OQ2, OQ12, OQ26, OQ27, OQ28, and OQ29 determine authoritative station data, naming, text encoding, identifiers, and access ownership.
 - **Governance:** OQ13, OQ14, OQ15, OQ16, OQ25, and the role decision in OQ28 determine ownership, evidence, and operating readiness.
-- **Timetables:** OQ51–OQ60 are answered together; OQ47 (holidays and per-date exceptions, still open) and OQ4 and OQ19 (whether tickets bind to a departure) depend on the same timetable model.
+- **Timetables:** OQ51–OQ60 are answered together; OQ47 (holidays and per-date exceptions, still open) and OQ4 and OQ19 (under the T-062 provisional tech-lead rulings, a ticket is not tied to a train or service (OQ4) and is valid on its business date (OQ19); both are still open with Myanma Railways, and an official answer could still make tickets bind to a departure) depend on the same timetable model.
 - **Session length and idempotency:** OQ30 directly blocks `docs/20-coding-conventions.md` §5's idempotency-key retention rule. The pack's provisional 12-hour value is a placeholder that keeps engineering moving; it is not a decision already made, and should not be read as one.
 
 No dependency listed here is a proposed sequencing decision; it is a prompt for the MR workshop agenda.
