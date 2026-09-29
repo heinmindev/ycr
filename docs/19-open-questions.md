@@ -144,6 +144,12 @@
     **Amendment 1 — provisional tech-lead ruling (hein, 2026-09-27; T-054) — not a Myanma Railways answer.** A version that lists no services may only be **published with a start date later than today** (Asia/Yangon); publishing one on its start date is refused (`422 Timetable.EmptyScheduleVersionNotInFuture`) and nothing is written. A network-wide suspension can therefore always be cancelled before it takes effect. Creating an empty draft is unchanged. See `docs/features/F-005-timetables/spec.md` §0.10 Amendment 1, R50, SV55, SV56. **Still open with Myanma Railways**, as above.
     **Amendment 2 — provisional tech-lead ruling (hein, 2026-09-27; T-054 Q3) — not a Myanma Railways answer.** An empty draft whose start date is not later than today is **refused at creation too**, with the same `422 Timetable.EmptyScheduleVersionNotInFuture`, and nothing is written (such a draft could never be published). Amendment 1's "Creating an empty draft is unchanged" is replaced by this. The publication check stays, for a draft created with a later start date that has since become today. See `docs/features/F-005-timetables/spec.md` §0.10 Amendment 2, R50, SV55. **Still open with Myanma Railways**, as above.
 
+61. Is a ticket still valid for a journey that starts before midnight but ends after it, or for a late-running train? If so, for how long after the end of its business date? (Raised by T-063: the ADR-0014 `validUntil` ENGINEERING DECISION ends validity at 00:00 Asia/Yangon on the calendar day after the ticket's business date, with no grace period; any grace is this question. Related to OQ19.)
+    **Open with Myanma Railways.** No provisional value is assumed; until it is answered, ADR-0014's no-grace rule applies.
+
+62. When may a ticket be reprinted: how many times, by which role, and up to when (same business date, before first use, or any time)? **BLOCKS:** the reprint feature only. (Raised by the T-062 review: reprint eligibility had no OQ; OQ23 covers only invalidation. Added by hein, 2026-09-29. `docs/11-ticket-lifecycle.md` Reprint row; ADR-0013.)
+    **Open with Myanma Railways.** No provisional value is assumed.
+
 ## Engineering decisions resolved on 2026-09-19
 
 Module layout, application pattern, frontend split, identifiers, ticket QR, counter online mode, authentication, audit, time and money. See ADR-0012 to ADR-0018 and their superseded ADRs.

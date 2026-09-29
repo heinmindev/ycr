@@ -66,3 +66,7 @@ Negative:
 - Every transition needs explicit guards and error codes before implementation.
 - Refund approval/cancellation requires one transaction across module contracts.
 - Reprint behavior remains blocked until the business decision is recorded.
+
+## Open questions — dated note 2026-09-28 (T-063)
+
+**2026-09-28 (T-063):** open questions this ADR lists now have provisional tech-lead rulings in `docs/19-open-questions.md` (hein, 2026-09-28; T-062): **OQ3** — one ticket is one journey, not tied to a train or service; **OQ10** — sold tickets are final, no cancellation and no refund in Phase 1, and the Cancel and Refund transitions are out of Phase 1 scope, not deleted; **OQ11** — cash only in Phase 1; **OQ19** — a ticket is valid on the business date it was sold and is printed in English and Myanmar with Myanmar numerals, the printed layout staying open; **OQ23** — a reprint invalidates every earlier copy, and validation accepts only the current signed `printSequence`. These rulings are **not Myanma Railways answers**; each is **still open with Myanma Railways**. The Decision text, the guards in the state table and this ADR's status are unchanged; nothing is superseded. Reprint eligibility is OQ62, open with no provisional value.

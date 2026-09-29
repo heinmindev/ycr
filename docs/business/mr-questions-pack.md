@@ -78,6 +78,8 @@ The sections below are ordered thematically, for a workshop agenda. This table i
 | OQ58 | Timetable and services | Asked — provisional ruling recorded; still open with Myanma Railways |
 | OQ59 | Timetable and services | Asked — provisional ruling recorded; still open with Myanma Railways |
 | OQ60 | Timetable and services | Asked — provisional ruling recorded, with Amendments 1–2; still open with Myanma Railways |
+| OQ61 | Ticket product and validation | Asked |
+| OQ62 | Ticket product and validation | Asked |
 
 
 ## Network and operating model
@@ -446,6 +448,24 @@ The sections below are ordered thematically, for a workshop agenda. This table i
 - **Suggested options (non-binding):** (a) invalidate all earlier prints and accept only the current sequence; (b) keep all prints valid until ticket cancellation/expiry; (c) invalidate earlier prints only under a defined reprint reason or approval flow.
 - **Suggested decision owner:** Commercial / Security / Operations (roles to be nominated).
 - **Sources:** `docs/19-open-questions.md` OQ23; ADR-0013; ADR-0014; `docs/11-ticket-lifecycle.md`.
+
+### OQ61 — Is a ticket still valid for a journey that crosses midnight, or on a late-running train?
+
+- **Question:** Is a ticket still valid for a journey that starts before midnight but ends after it, or for a late-running train? If so, for how long after the end of its business date?
+- **Status:** **OPEN QUESTION** for Myanma Railways. No provisional value is assumed.
+- **Why it matters:** The current engineering rule (ADR-0014, T-063) ends a ticket's validity at 00:00 Asia/Yangon on the calendar day after its business date, with no grace period. A passenger still travelling at that time would hold an expired ticket.
+- **Blocks or constrains:** the `validUntil` signed into each ticket; validation near midnight.
+- **Suggested decision owner:** Operations / Commercial (roles to be nominated).
+- **Sources:** `docs/19-open-questions.md` OQ61; ADR-0014; related to OQ19.
+
+### OQ62 — When may a ticket be reprinted?
+
+- **Question:** When may a ticket be reprinted: how many times, by which role, and up to when (same business date, before first use, or any time)?
+- **Status:** **OPEN QUESTION** for Myanma Railways. No provisional value is assumed.
+- **Why it matters:** OQ23's provisional ruling says what a reprint does to earlier copies, but not who may reprint, how often, or until when.
+- **Blocks or constrains:** the reprint feature only (the Reprint command guard in `docs/11-ticket-lifecycle.md` and ADR-0013).
+- **Suggested decision owner:** Commercial / Operations (roles to be nominated).
+- **Sources:** `docs/19-open-questions.md` OQ62; ADR-0013; `docs/11-ticket-lifecycle.md`; related to OQ23.
 
 ## Fares and money
 
