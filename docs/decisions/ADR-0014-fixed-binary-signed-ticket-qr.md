@@ -95,4 +95,6 @@ Negative:
 
 ## Dated note - 2026-09-29 (T-063): `validUntil`
 
-**ENGINEERING DECISION (tech lead, hein, 2026-09-29; T-063; cite ADR-0014):** a ticket's signed `validUntil` is 00:00 Asia/Yangon on the calendar day after the ticket's **business date** (ADR-0019), not the day after the sale's clock time. A cashier session that crosses midnight therefore still issues tickets valid to the end of the business date it opened on (OQ30's 12-hour session). There is no grace period; any grace is OQ61.
+**ENGINEERING DECISION (tech lead, hein, 2026-09-28; T-063; cite ADR-0014):** a ticket's signed `validUntil` is 00:00 Asia/Yangon on the calendar day after the ticket's **business date** (ADR-0019), not the day after the sale's clock time. A cashier session that crosses midnight therefore still issues tickets valid to the end of the business date it opened on (the 12-hour session length is OQ30's provisional ASSUMPTION (hein, 2026-09-22), not a ruling). There is no grace period; any grace is OQ61.
+
+**ENGINEERING DECISION (tech lead, hein, 2026-09-28; T-063; cite ADR-0014):** ADR-0013's `now > ValidUntil` is kept, so 00:00:00 Asia/Yangon after the business date is the last valid instant; no grace (OQ61).
