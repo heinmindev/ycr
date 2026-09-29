@@ -47,6 +47,9 @@ ADR-0011.
 ## Blocked behaviour
 
 - **OPEN QUESTION — OQ21:** MMK rounding and whole-kyat behavior.
+- **2026-09-28 (T-063):** OQ21 now has a provisional tech-lead ruling in `docs/19-open-questions.md` (hein, 2026-09-28; T-062): fares are whole kyat; there are no fractional amounts. It is **not a Myanma Railways answer** and is **still open with Myanma Railways**. The Decision text and this ADR's status are unchanged; nothing is superseded.
+- **2026-09-28 (T-063):** amounts are whole kyat (OQ21 provisional ruling); `Money` keeps `decimal(18,2)`.
+- **2026-09-28 (T-063):** the two unnumbered open questions below (maximum session length and one open session per operator; Finance confirmation for no-session refund business dates) are tracked in `docs/19-open-questions.md` as OQ30 and OQ31.
 - **OPEN QUESTION:** maximum session length and whether one operator may have more than one open session.
 - **OPEN QUESTION:** Finance confirmation for no-session refund business dates.
 

@@ -74,6 +74,7 @@ All signing and verification implementations must pass `docs/test-vectors/ticket
 - **OPEN QUESTION — OQ8:** whether `AuthenticUnverified` is admitted during network loss.
 - **OPEN QUESTION — OQ19:** validity window and printed ticket content.
 - **OPEN QUESTION — OQ23:** whether a reprint invalidates earlier `printSequence` values.
+- **2026-09-28 (T-063):** OQ19 and OQ23 now have provisional tech-lead rulings in `docs/19-open-questions.md` (hein, 2026-09-28; T-062): a ticket is valid on the business date it was sold and is printed in English and Myanmar with Myanmar numerals, the printed layout staying open (OQ19); a reprint invalidates every earlier copy, and validation accepts only the current signed `printSequence` (OQ23). These rulings are **not Myanma Railways answers**; each is **still open with Myanma Railways**. The Decision text and this ADR's status are unchanged; nothing is superseded.
 - **VERIFY:** printer/scanner readability and exact Base45 implementation in physical tests.
 
 ## Consequences
@@ -91,3 +92,9 @@ Negative:
 ## Dated amendment - 2026-09-19
 
 **ENGINEERING DECISION (tech lead, cite ADR-0014):** QR v1 uses a one-byte binary version. The signed header is `"YCR" + 0x01`, four bytes total; the signed payload is 36 bytes before the 64-byte P1363 signature. The `YCR1:` text prefix digit must equal the binary version byte (`YCR1:` <-> `0x01`). The `YCR` magic remains inside the signed bytes for domain separation. Any mismatch is invalid and must be rejected before ticket fields are accepted.
+
+## Dated note - 2026-09-29 (T-063): `validUntil`
+
+**ENGINEERING DECISION (tech lead, hein, 2026-09-28; T-063; cite ADR-0014):** a ticket's signed `validUntil` is 00:00 Asia/Yangon on the calendar day after the ticket's **business date** (ADR-0019), not the day after the sale's clock time. A cashier session that crosses midnight therefore still issues tickets valid to the end of the business date it opened on (the 12-hour session length is OQ30's provisional ASSUMPTION (hein, 2026-09-22), not a ruling). There is no grace period; any grace is OQ61.
+
+**ENGINEERING DECISION (tech lead, hein, 2026-09-28; T-063; cite ADR-0014):** ADR-0013's `now > ValidUntil` is kept, so 00:00:00 Asia/Yangon after the business date is the last valid instant; no grace (OQ61).

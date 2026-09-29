@@ -40,6 +40,7 @@ Reports group by the operation's stored `BusinessDate` and retain UTC operationa
 - **OPEN QUESTION:** maximum cashier-session length and one-open-session policy.
 - **OPEN QUESTION:** exact business-date source for no-session Finance refund operations.
 - **OPEN QUESTION:** whether future operation types need business-date ownership.
+- **2026-09-28 (T-063):** OQ2, OQ10 and OQ11, cited in the Decision table's "Blocked by" column, now have provisional tech-lead rulings in `docs/19-open-questions.md` (hein, 2026-09-28; T-062): every active station sells tickets (OQ2); sold tickets are final, with no cancellation and no refund in Phase 1 (OQ10); cash only in Phase 1 (OQ11). These rulings are **not Myanma Railways answers**; each is **still open with Myanma Railways**. The Decision text, its table and this ADR's status are unchanged; nothing is superseded. The first two unnumbered open questions above (maximum cashier-session length and one-open-session policy; business-date source for no-session Finance refund operations) are tracked in `docs/19-open-questions.md` as OQ30 and OQ31. **Erratum:** the Decision table's Sale row cites "OQ2/OQ15 session policy"; it should read OQ30 (session length/ownership). The table itself is left as it is.
 
 ## Consequences
 

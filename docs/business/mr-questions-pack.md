@@ -78,6 +78,8 @@ The sections below are ordered thematically, for a workshop agenda. This table i
 | OQ58 | Timetable and services | Asked — provisional ruling recorded; still open with Myanma Railways |
 | OQ59 | Timetable and services | Asked — provisional ruling recorded; still open with Myanma Railways |
 | OQ60 | Timetable and services | Asked — provisional ruling recorded, with Amendments 1–2; still open with Myanma Railways |
+| OQ61 | Ticket product and validation | Asked |
+| OQ62 | Ticket product and validation | Asked |
 
 
 ## Network and operating model
@@ -447,6 +449,24 @@ The sections below are ordered thematically, for a workshop agenda. This table i
 - **Suggested decision owner:** Commercial / Security / Operations (roles to be nominated).
 - **Sources:** `docs/19-open-questions.md` OQ23; ADR-0013; ADR-0014; `docs/11-ticket-lifecycle.md`.
 
+### OQ61 — Is a ticket still valid for a journey that crosses midnight, or on a late-running train?
+
+- **Question:** Is a ticket still valid for a journey that starts before midnight but ends after it, or for a late-running train? If so, for how long after the end of its business date?
+- **Status:** **OPEN QUESTION** for Myanma Railways. No provisional value is assumed.
+- **Why it matters:** The current engineering rule (ADR-0014, T-063) ends a ticket's validity at 00:00 Asia/Yangon on the calendar day after its business date, with no grace period. A passenger still travelling at that time would hold an expired ticket.
+- **Blocks or constrains:** the `validUntil` signed into each ticket; validation near midnight.
+- **Suggested decision owner:** Operations / Commercial (roles to be nominated).
+- **Sources:** `docs/19-open-questions.md` OQ61; ADR-0014; related to OQ19.
+
+### OQ62 — When may a ticket be reprinted?
+
+- **Question:** When may a ticket be reprinted: how many times, by which role, and up to when (same business date, before first use, or any time)?
+- **Status:** **OPEN QUESTION** for Myanma Railways. No provisional value is assumed.
+- **Why it matters:** OQ23's provisional ruling says what a reprint does to earlier copies, but not who may reprint, how often, or until when.
+- **Blocks or constrains:** the reprint feature only (the Reprint command guard in `docs/11-ticket-lifecycle.md` and ADR-0013).
+- **Suggested decision owner:** Commercial / Operations (roles to be nominated).
+- **Sources:** `docs/19-open-questions.md` OQ62; ADR-0013; `docs/11-ticket-lifecycle.md`; related to OQ23.
+
 ## Fares and money
 
 ### OQ9 — What are current fares and passenger categories?
@@ -576,7 +596,7 @@ The following dependencies should be considered when scheduling decisions:
 - **Outage and validation:** OQ8, OQ18, and OQ33 must align with the fraud, reconciliation, and operational controls in ADR-0014 and ADR-0015.
 - **Station master data and access:** OQ1, OQ2, OQ12, OQ26, OQ27, OQ28, and OQ29 determine authoritative station data, naming, text encoding, identifiers, and access ownership.
 - **Governance:** OQ13, OQ14, OQ15, OQ16, OQ25, and the role decision in OQ28 determine ownership, evidence, and operating readiness.
-- **Timetables:** OQ51–OQ60 are answered together; OQ47 (holidays and per-date exceptions, still open) and OQ4 and OQ19 (whether tickets bind to a departure) depend on the same timetable model.
+- **Timetables:** OQ51–OQ60 are answered together; OQ47 (holidays and per-date exceptions, still open) and OQ4 and OQ19 (under the T-062 provisional tech-lead rulings, a ticket is not tied to a train or service (OQ4) and is valid on its business date (OQ19); both are still open with Myanma Railways, and an official answer could still make tickets bind to a departure) depend on the same timetable model.
 - **Session length and idempotency:** OQ30 directly blocks `docs/20-coding-conventions.md` §5's idempotency-key retention rule. The pack's provisional 12-hour value is a placeholder that keeps engineering moving; it is not a decision already made, and should not be read as one.
 
 No dependency listed here is a proposed sequencing decision; it is a prompt for the MR workshop agenda.

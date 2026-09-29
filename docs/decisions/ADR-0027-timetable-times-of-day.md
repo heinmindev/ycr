@@ -14,7 +14,7 @@ Accepted — 2026-09-26 (hein, T-053), with a maximum of **1439 minutes** under 
 
 **Asked at discovery as OQ53** (whether a service may run past midnight, how a later time is written, the maximum journey length) **and OQ52** (whole minutes or seconds). **Resolved by tech-lead rulings (hein, 2026-09-26; T-053) — not Myanma Railways answers:** whole minutes; no running past midnight in Phase 1 (every time 00:00–23:59 on the operating date). Still open with Myanma Railways; an official, different answer supersedes the rulings and needs its own follow-up task.
 
-**Why a decision is needed now.** Times will be stored by the Timetable module and, if OQ4 binds tickets to a service departure, read by Ticketing and perhaps printed or encoded (OQ19). A representation chosen per feature would diverge; this one is cross-module, so it is recorded here rather than inside the F-005 spec.
+**Why a decision is needed now.** Times will be stored by the Timetable module and, if tickets were bound to a service departure, read by Ticketing (2026-09-28, T-063: the OQ4 provisional tech-lead ruling, hein, 2026-09-28; T-062, is that a ticket is not tied to a train or service; not a Myanma Railways answer, still open with Myanma Railways) and perhaps printed or encoded (OQ19). A representation chosen per feature would diverge; this one is cross-module, so it is recorded here rather than inside the F-005 spec.
 
 ## Options considered
 
