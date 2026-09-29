@@ -18,7 +18,7 @@ Validation is append-only evidence (`TicketValidation`) and is not a Ticket stat
 
 Payment methods: see the OQ11 provisional tech-lead ruling in `docs/19-open-questions.md` (cash only in Phase 1; not a Myanma Railways answer; still open with Myanma Railways). Pending/gateway payment states are out of scope until a gateway is approved.
 
-Refund flow is `Requested -> Approved -> Disbursed` or `Requested -> Rejected`; eligibility, amount, and void/cancellation guards remain BLOCKED by OQ10 and related questions.
+Refund flow is `Requested -> Approved -> Disbursed` or `Requested -> Rejected`. Cancel and Refund are out of Phase 1 scope under the OQ10 provisional tech-lead ruling (hein, 2026-09-28; T-062: sold tickets are final; still open with Myanma Railways); this flow is kept for later, and refund eligibility and amount await an official Myanma Railways answer. Void guards remain BLOCKED by related questions.
 
 Financial operations require:
 
