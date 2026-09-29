@@ -126,6 +126,10 @@ control below is exercised by tests named in
 - **No secrets in output:** passwords, hashes, tokens and cookies never reach logs, audit rows or
   ProblemDetails; request and command types redact them in `ToString`; logs carry no usernames.
   An unhandled exception is a `500 Common.UnexpectedError` with no internals.
+- **Request size and JSON (T-042, `docs/20` §4):** Kestrel caps every body at 64 KiB. Each body
+  endpoint sets its own limit, 4 KiB for every F-002 body. JSON binding refuses a number sent as a
+  string and nesting over 32. A refused request is `413 Common.RequestTooLarge` or `400
+  Common.MalformedRequest`, and echoes nothing of the parser.
 - **Signing keys** come from configuration, never the repository. Startup refuses no active key, a
   key that is not a P-256 private key, and — outside Development and Testing — a key marked
   `DevelopmentOnly` or with a `kid` starting `dev-` or `test-` (`docs/15`).

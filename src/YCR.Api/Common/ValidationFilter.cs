@@ -23,6 +23,14 @@ public sealed class ValidationFilter<T>(IValidator<T> validator) : IEndpointFilt
         ArgumentNullException.ThrowIfNull(next);
 
         var argument = context.Arguments.OfType<T>().FirstOrDefault();
+        if (argument is null && context.HttpContext.Response.StatusCode == StatusCodes.Status400BadRequest)
+        {
+            // The framework could not bind the body (empty, or the JSON literal null) and has already
+            // set 400; it still runs the filters. Short-circuit with no body so status-code pages
+            // answer Common.MalformedRequest (T-042 ruling 3), rather than a 500 from the throw below.
+            return Results.Empty;
+        }
+
         if (argument is null)
         {
             // The filter is registered for a body type the endpoint does not take. That is a

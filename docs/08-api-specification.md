@@ -39,7 +39,7 @@ The walking skeleton implements the station slice. Everything else above remains
 
 | Method | Path | Request | Success | Error codes | Permission |
 |---|---|---|---|---|---|
-| POST | `/api/v1/stations` | `CreateStationRequest { code, nameEn, nameMy }` | `201` + `CreateStationResponse { id }` and a `Location` header | `400` `Common.ValidationFailed` (missing or blank field) · `400` `Network.InvalidStationCode` · `400` `Network.InvalidStationName` · `401` · `403` · `409` `Network.StationCodeAlreadyExists` | `stations.manage` |
+| POST | `/api/v1/stations` | `CreateStationRequest { code, nameEn, nameMy }`. Body at most **4 KiB** | `201` + `CreateStationResponse { id }` and a `Location` header | `400` `Common.ValidationFailed` (missing or blank field) · `400` `Network.InvalidStationCode` · `400` `Network.InvalidStationName` · `400` `Common.MalformedRequest` · `401` · `403` · `409` `Network.StationCodeAlreadyExists` · `413` `Common.RequestTooLarge` | `stations.manage` |
 | POST | `/api/v1/stations/{id}/deactivate` | — | `204` | `401` · `403` · `404` `Network.StationNotFound` · `422` `Network.StationAlreadyInactive` | `stations.manage` |
 | GET | `/api/v1/stations/{id}` | — | `200` + `StationResponse { id, code, nameEn, nameMy, isActive, createdAtUtc }` | `401` · `403` · `404` `Network.StationNotFound` | `stations.read` |
 | GET | `/api/v1/stations` | `?page=1&pageSize=50` (max 200) | `200` + `{ items, page, pageSize, totalCount }` | `400` `Network.InvalidPageRequest` · `401` · `403` | `stations.read` |
@@ -47,6 +47,13 @@ The walking skeleton implements the station slice. Everything else above remains
 | GET | `/health/ready` | — | `200` / `503` | — | anonymous — readiness probe used by the reverse proxy |
 
 Every error response is RFC 9457 ProblemDetails carrying `errorCode` and `traceId` (ADR-0004).
+This includes the requests the framework refuses before any application code runs (T-042,
+`docs/20` §4). A body over the endpoint's limit, with a declared length or chunked, is **`413
+Common.RequestTooLarge`**. A request the framework cannot read or bind is **`400
+Common.MalformedRequest`**: malformed JSON, the wrong JSON type, a number sent as a string (`"1"`),
+nesting deeper than 32, an empty body or the JSON literal `null` where a body is required, or an unparsable route or query value. Both are `application/problem+json` whatever the request's `Accept` header says. Neither carries a `detail` or any parser or server message. Unknown JSON properties are
+ignored. Kestrel caps every body at 64 KiB unless the endpoint declares its own limit, as each
+endpoint with a body does below.
 `ErrorType` maps to status as ADR-0004 fixes it: `Validation` 400, `Unauthorized` 401,
 `Forbidden` 403, `NotFound` 404, `Conflict` 409, `BusinessRule` 422. Station management is neither
 financial nor retryable, so no `Idempotency-Key` is required (`docs/20` §5).
@@ -86,11 +93,11 @@ or blank required field is `400 Common.ValidationFailed` on every endpoint below
 
 | Method | Path | Request | Success | Error codes | Permission |
 |---|---|---|---|---|---|
-| POST | `/api/v1/auth/login` | `LoginRequest { userName, password }` | `200` + `AccessTokenResponse { accessToken, expiresAtUtc }` and the refresh cookie | `400` `Common.ValidationFailed` · `401` `Auth.InvalidCredentials` (identical for a wrong password, an unknown username, a disabled and a locked account) · `403` `Auth.OriginRejected` · `429` `Auth.TooManyRequests` | anonymous; `Origin` must be an allowed origin |
-| POST | `/api/v1/auth/refresh` | the `ycr_refresh` cookie; no body | `200` + `AccessTokenResponse` and a rotated cookie | `401` `Auth.RefreshInvalid` (missing, unknown, revoked or expired, or a reused older token, which also revokes the session) · `403` `Auth.OriginRejected` · `409` `Auth.RefreshSuperseded` (the token just rotated, presented again within 20 seconds; nothing changes) · `429` `Auth.TooManyRequests` | anonymous (the cookie authenticates); `Origin` must be an allowed origin |
+| POST | `/api/v1/auth/login` | `LoginRequest { userName, password }`. Body at most **4 KiB** | `200` + `AccessTokenResponse { accessToken, expiresAtUtc }` and the refresh cookie | `400` `Common.ValidationFailed` · `400` `Common.MalformedRequest` · `401` `Auth.InvalidCredentials` (identical for a wrong password, an unknown username, a disabled and a locked account) · `403` `Auth.OriginRejected` · `413` `Common.RequestTooLarge` · `429` `Auth.TooManyRequests` | anonymous; `Origin` must be an allowed origin |
+| POST | `/api/v1/auth/refresh` | the `ycr_refresh` cookie; no body (capped at **4 KiB**, never read) | `200` + `AccessTokenResponse` and a rotated cookie | `401` `Auth.RefreshInvalid` (missing, unknown, revoked or expired, or a reused older token, which also revokes the session) · `403` `Auth.OriginRejected` · `409` `Auth.RefreshSuperseded` (the token just rotated, presented again within 20 seconds; nothing changes) · `429` `Auth.TooManyRequests` | anonymous (the cookie authenticates); `Origin` must be an allowed origin |
 | POST | `/api/v1/auth/logout` | — | `204`; the session named by the token's `sid` is revoked and the cookie expired | `401` `Auth.Unauthenticated` · `403` `Auth.OriginRejected` | any signed-in user; `Origin` must be an allowed origin |
 | GET | `/api/v1/auth/me` | — | `200` + `CurrentUserResponse { userId, userName, roles, permissions }` | `401` `Auth.Unauthenticated` | any signed-in user |
-| POST | `/api/v1/auth/password` | `ChangePasswordRequest { currentPassword, newPassword }` | `204`; every other session of the caller is revoked, this one survives | `400` `Common.ValidationFailed` · `400` `Auth.PasswordRejected` · `401` `Auth.Unauthenticated` · `422` `Auth.CurrentPasswordIncorrect` | any signed-in user |
+| POST | `/api/v1/auth/password` | `ChangePasswordRequest { currentPassword, newPassword }`. Body at most **4 KiB** | `204`; every other session of the caller is revoked, this one survives | `400` `Common.ValidationFailed` · `400` `Auth.PasswordRejected` · `400` `Common.MalformedRequest` · `401` `Auth.Unauthenticated` · `413` `Common.RequestTooLarge` · `422` `Auth.CurrentPasswordIncorrect` | any signed-in user |
 
 **Refresh cookie:** `ycr_refresh`, `HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth/refresh`,
 expiring with the session, 12 hours after sign-in; a refresh does not extend it. The refresh
@@ -109,12 +116,12 @@ shipped common-password blocklist.
 |---|---|---|---|---|---|
 | GET | `/api/v1/users` | `?page=1&pageSize=50` (max 200) | `200` + `{ items: UserResponse[], page, pageSize, totalCount }`, ordered by username | `400` `Identity.InvalidPageRequest` · `401` · `403` | `users.read` |
 | GET | `/api/v1/users/{id}` | — | `200` + `UserResponse { id, userName, roles, isDisabled, lockedUntilUtc, createdAtUtc }` | `401` · `403` · `404` `Identity.UserNotFound` | `users.read` |
-| POST | `/api/v1/users` | `CreateUserRequest { userName, password, roles }` | `201` + `CreateUserResponse { id }` and a `Location` header; the password is must-change | `400` `Common.ValidationFailed` (also for a role name outside the catalogue) · `400` `Identity.InvalidUserName` · `400` `Identity.PasswordRejected` · `401` · `403` · `409` `Identity.UserNameAlreadyExists` · `422` `Identity.PrivilegedRoleRequiresMfa` (Production only) | `users.manage` |
+| POST | `/api/v1/users` | `CreateUserRequest { userName, password, roles }`. Body at most **4 KiB** | `201` + `CreateUserResponse { id }` and a `Location` header; the password is must-change | `400` `Common.ValidationFailed` (also for a role name outside the catalogue) · `400` `Identity.InvalidUserName` · `400` `Identity.PasswordRejected` · `400` `Common.MalformedRequest` · `401` · `403` · `409` `Identity.UserNameAlreadyExists` · `413` `Common.RequestTooLarge` · `422` `Identity.PrivilegedRoleRequiresMfa` (Production only) | `users.manage` |
 | POST | `/api/v1/users/{id}/disable` | — | `204`; all the user's sessions are revoked | `401` · `403` · `404` `Identity.UserNotFound` · `422` `Identity.CannotDisableOwnAccount` · `422` `Identity.LastAdministrator` | `users.manage` |
 | POST | `/api/v1/users/{id}/enable` | — | `204` | `401` · `403` · `404` `Identity.UserNotFound` | `users.manage` |
 | POST | `/api/v1/users/{id}/unlock` | — | `204`; clears the lockout and the failed-attempt count | `401` · `403` · `404` `Identity.UserNotFound` | `users.manage` |
-| PUT | `/api/v1/users/{id}/roles` | `ReplaceUserRolesRequest { roles }` — the complete new set; `[]` removes every role | `204`; live sessions see the change within 30 seconds | `400` `Common.ValidationFailed` (missing `roles`, or a role outside the catalogue) · `401` · `403` · `404` `Identity.UserNotFound` · `422` `Identity.CannotChangeOwnRoles` · `422` `Identity.PrivilegedRoleRequiresMfa` (Production only) · `422` `Identity.LastAdministrator` | `users.roles.manage` |
-| POST | `/api/v1/users/{id}/password-reset` | `ResetUserPasswordRequest { newPassword }` | `204`; the password is must-change and all the user's sessions are revoked | `400` `Common.ValidationFailed` · `400` `Identity.PasswordRejected` · `401` · `403` · `404` `Identity.UserNotFound` · `422` `Identity.CannotResetOwnPassword` | `users.manage` |
+| PUT | `/api/v1/users/{id}/roles` | `ReplaceUserRolesRequest { roles }` — the complete new set; `[]` removes every role. Body at most **4 KiB** | `204`; live sessions see the change within 30 seconds | `400` `Common.ValidationFailed` (missing `roles`, or a role outside the catalogue) · `400` `Common.MalformedRequest` · `401` · `403` · `404` `Identity.UserNotFound` · `413` `Common.RequestTooLarge` · `422` `Identity.CannotChangeOwnRoles` · `422` `Identity.PrivilegedRoleRequiresMfa` (Production only) · `422` `Identity.LastAdministrator` | `users.roles.manage` |
+| POST | `/api/v1/users/{id}/password-reset` | `ResetUserPasswordRequest { newPassword }`. Body at most **4 KiB** | `204`; the password is must-change and all the user's sessions are revoked | `400` `Common.ValidationFailed` · `400` `Identity.PasswordRejected` · `400` `Common.MalformedRequest` · `401` · `403` · `404` `Identity.UserNotFound` · `413` `Common.RequestTooLarge` · `422` `Identity.CannotResetOwnPassword` | `users.manage` |
 | GET | `/api/v1/users/{id}/auth-sessions` | `?page=1&pageSize=50` (max 200) | `200` + `{ items: AuthSessionResponse[], page, pageSize, totalCount }`, newest first; `AuthSessionResponse { id, createdAtUtc, expiresAtUtc, revokedAtUtc, revocationReason }` | `400` `Identity.InvalidPageRequest` · `401` · `403` · `404` `Identity.UserNotFound` | `users.read` |
 | POST | `/api/v1/auth-sessions/{id}/revoke` | — | `204` | `401` · `403` · `404` `Identity.SessionNotFound` | `auth-sessions.revoke` |
 | GET | `/api/v1/roles` | — | `200` + `RoleResponse[] { name, permissions }` — read-only; no endpoint edits grants | `401` · `403` | `users.read` |
@@ -145,7 +152,7 @@ route endpoint takes an `Idempotency-Key` (route management is neither financial
 
 | Method | Path | Request | Success | Error codes | Permission |
 |---|---|---|---|---|---|
-| POST | `/api/v1/routes` | `CreateRouteRequest { code, nameEn, nameMy, isClosed, stationIds }`. Body at most **32 KB** | `201` + `CreateRouteResponse { id }` and `Location: /api/v1/routes/{id}` | `400` `Common.ValidationFailed` · `400` `Network.InvalidRouteCode` · `400` `Network.InvalidRouteName` · `400` malformed JSON · `401` · `403` · `409` `Network.RouteCodeAlreadyExists` · `413` body over 32 KB · `422` `Network.RouteStationNotFound` · `422` `Network.RouteStationInactive` · `422` `Network.RouteStationRepeated` · `422` `Network.RouteTooFewStations` | `routes.manage` |
+| POST | `/api/v1/routes` | `CreateRouteRequest { code, nameEn, nameMy, isClosed, stationIds }`. Body at most **32 KB** | `201` + `CreateRouteResponse { id }` and `Location: /api/v1/routes/{id}` | `400` `Common.ValidationFailed` · `400` `Network.InvalidRouteCode` · `400` `Network.InvalidRouteName` · `400` `Common.MalformedRequest` · `401` · `403` · `409` `Network.RouteCodeAlreadyExists` · `413` `Common.RequestTooLarge` (body over 32 KB) · `422` `Network.RouteStationNotFound` · `422` `Network.RouteStationInactive` · `422` `Network.RouteStationRepeated` · `422` `Network.RouteTooFewStations` | `routes.manage` |
 | POST | `/api/v1/routes/{id}/deactivate` | — | `204` | `401` · `403` · `404` `Network.RouteNotFound` · `422` `Network.RouteAlreadyInactive` | `routes.manage` |
 | GET | `/api/v1/routes/{id}` | — | `200` + `RouteResponse` | `401` · `403` · `404` `Network.RouteNotFound` | `routes.read` |
 | GET | `/api/v1/routes` | `?page=1&pageSize=50` (max 200); ordered by `code`; inactive routes included | `200` + `{ items: RouteSummaryResponse[], page, pageSize, totalCount }` | `400` `Network.InvalidPageRequest` · `401` · `403` | `routes.read` |
@@ -203,12 +210,10 @@ When a request breaks several rules, the code is checked first, then the names, 
 200 ids, a 10-character code and two 100-character names — is under 10 KB. The limit is endpoint
 metadata (`IRequestSizeLimitMetadata`) that endpoint routing applies to the server before the body
 is read, so Kestrel refuses a larger body, with a declared length or chunked, **before JSON
-binding**. The answer is `413` as the framework's ProblemDetails (`type`, `title` "Content Too
-Large", `status`, `instance`, `traceId`), with no stack trace, exception type or server path.
-Malformed JSON is `400` in the same framework shape. Neither carries an `errorCode`, because
-neither reaches the application; that is the existing framework behaviour for a body that cannot be
-read or parsed, on every endpoint. The limit applies to this endpoint only: every other endpoint
-keeps the server's default until T-042 sets deliberate limits.
+binding**. The answer is `413 Common.RequestTooLarge` as ProblemDetails (`type`, `title` "Content
+Too Large", `status`, `instance`, `traceId`, `errorCode`), with no stack trace, exception type or
+server path. Malformed or unbindable JSON is `400 Common.MalformedRequest` in the same shape. Since
+T-042 both codes apply on every endpoint (see the note under the F-001 table and `docs/20` §4).
 
 **Not provided** (OQ38 and OQ41 rulings): no `PATCH /routes/{id}` (code, names and `isClosed` are
 fixed at creation), no `PUT /routes/{id}/stations` or other sequence replacement (to change the
@@ -228,10 +233,10 @@ endpoint takes an `Idempotency-Key` (spec R25), and no request or response carri
 
 | Method | Path | Request | Success | Error codes | Permission |
 |---|---|---|---|---|---|
-| POST | `/api/v1/services` | `CreateServiceRequest`. Body at most **32 KiB** | `201` + `CreateServiceResponse { id }` and `Location: /api/v1/services/{id}` | `400` `Common.ValidationFailed` · `400` `Timetable.InvalidServiceCode` · `400` `Timetable.InvalidServiceName` · `400` `Timetable.InvalidEffectivePeriod` · `400` malformed JSON · `401` · `403` · `409` `Timetable.ServiceCodePeriodOverlap` · `413` body over 32 KiB · `422` `Timetable.ServiceEffectiveToInPast` · `422` `Timetable.ServiceRouteNotFound` · `422` `Timetable.ServiceRouteInactive` · `422` `Timetable.ServiceStopNotOnRoute` · `422` `Timetable.ServiceStopRepeated` · `422` `Timetable.ServiceTooFewStops` · `422` `Timetable.ServiceStopsOutOfOrder` · `422` `Timetable.ServiceStopStationInactive` | `services.manage` |
+| POST | `/api/v1/services` | `CreateServiceRequest`. Body at most **32 KiB** | `201` + `CreateServiceResponse { id }` and `Location: /api/v1/services/{id}` | `400` `Common.ValidationFailed` · `400` `Timetable.InvalidServiceCode` · `400` `Timetable.InvalidServiceName` · `400` `Timetable.InvalidEffectivePeriod` · `400` `Common.MalformedRequest` · `401` · `403` · `409` `Timetable.ServiceCodePeriodOverlap` · `413` `Common.RequestTooLarge` (body over 32 KiB) · `422` `Timetable.ServiceEffectiveToInPast` · `422` `Timetable.ServiceRouteNotFound` · `422` `Timetable.ServiceRouteInactive` · `422` `Timetable.ServiceStopNotOnRoute` · `422` `Timetable.ServiceStopRepeated` · `422` `Timetable.ServiceTooFewStops` · `422` `Timetable.ServiceStopsOutOfOrder` · `422` `Timetable.ServiceStopStationInactive` | `services.manage` |
 | GET | `/api/v1/services/{id}` | — | `200` + `ServiceResponse` | `401` · `403` · `404` `Timetable.ServiceNotFound` | `services.read` |
 | GET | `/api/v1/services` | `?page=1&pageSize=50` (max 200) `&routeId=` (optional); ordered by `code`, then `effectiveFrom`, then `id`; withdrawn services included; an unknown `routeId` gives an empty page | `200` + `{ items: ServiceSummaryResponse[], page, pageSize, totalCount }` | `400` `Timetable.InvalidPageRequest` · `401` · `403` | `services.read` |
-| POST | `/api/v1/services/{id}/withdraw` | `WithdrawServiceRequest { withdrawFrom }`. Body at most **1 KiB** | `204` | `400` `Common.ValidationFailed` · `400` malformed JSON · `401` · `403` · `404` `Timetable.ServiceNotFound` · `409` `Timetable.ServiceChangedConcurrently` · `413` body over 1 KiB · `422` `Timetable.WithdrawalDateInPast` · `422` `Timetable.WithdrawalDoesNotShorten` · `422` `Timetable.ServiceInPublishedScheduleVersion` (added by F-005) | `services.manage` |
+| POST | `/api/v1/services/{id}/withdraw` | `WithdrawServiceRequest { withdrawFrom }`. Body at most **1 KiB** | `204` | `400` `Common.ValidationFailed` · `400` `Common.MalformedRequest` · `401` · `403` · `404` `Timetable.ServiceNotFound` · `409` `Timetable.ServiceChangedConcurrently` · `413` `Common.RequestTooLarge` (body over 1 KiB) · `422` `Timetable.WithdrawalDateInPast` · `422` `Timetable.WithdrawalDoesNotShorten` · `422` `Timetable.ServiceInPublishedScheduleVersion` (added by F-005) | `services.manage` |
 
 `services.manage` is held by `SystemAdministrator` and `RailwayAdministrator`; `services.read` by
 all eight roles (`docs/10` §Service permission grants). A station or route permission gives no
@@ -332,8 +337,8 @@ bypassed the locks; nothing is written. A refused withdrawal writes no audit eve
 because it only shortens a period, and it has no route or station guard. "Today" is always the
 Asia/Yangon date of the server clock (`Time:LocalTimeZone`, `docs/15`).
 
-A malformed `page`, `pageSize` or `routeId` query value (for example `?routeId=abc`) is a framework
-`400` without an `errorCode`, as for every other list endpoint (T-042). A lock timeout is the
+A malformed `page`, `pageSize` or `routeId` query value (for example `?routeId=abc`) is `400
+Common.MalformedRequest`, as for every other list endpoint (T-042). A lock timeout is the
 opaque `500` (`Common.UnexpectedError`, ADR-0026).
 
 **Request-body limits (REQUIRED CONTROL, spec R31, plan P20).** `POST /api/v1/services` accepts a
@@ -341,9 +346,8 @@ body of at most **32 KiB (32,768 bytes)**; the largest valid request — 200 ids
 10-character code and two 100-character names escaped as `\uXXXX` — is 9,280 bytes. `POST
 /api/v1/services/{id}/withdraw` accepts at most **1 KiB (1,024 bytes)**; its only valid body is 29
 bytes. Both are endpoint metadata applied to Kestrel before the body is read, so a larger body,
-with a declared length or chunked, is refused with the framework's `413` before JSON binding.
-Malformed JSON is the framework's `400`. Neither carries an `errorCode` (as for `POST /routes`
-above).
+with a declared length or chunked, is refused with `413 Common.RequestTooLarge` before JSON binding.
+Malformed or unbindable JSON is `400 Common.MalformedRequest` (as for `POST /routes` above).
 
 **Not provided** (OQ42 and OQ48 rulings): no `PATCH` or `PUT /services/{id}` and no other edit (to
 change a stopping pattern, withdraw the old service from date D and create a new one with the same
@@ -366,7 +370,7 @@ request or response carries a version token (R47).
 
 | Method | Path | Request | Success | Error codes | Permission |
 |---|---|---|---|---|---|
-| POST | `/api/v1/schedules/versions` | `CreateScheduleVersionRequest`. Body at most **2 MiB** | `201` + `CreateScheduleVersionResponse { id, number }` and `Location: /api/v1/schedules/versions/{id}` | `400` `Common.ValidationFailed` · `400` `Timetable.InvalidScheduleVersionName` · `400` `Timetable.InvalidTimetableTime` · `400` malformed JSON · `401` · `403` · `413` body over 2 MiB · `422` `Timetable.ScheduleVersionEffectiveFromInPast` · `422` `Timetable.EmptyScheduleVersionNotInFuture` · `422` `Timetable.ScheduleServiceNotFound` · `422` `Timetable.ScheduleServiceRepeated` · `422` `Timetable.ScheduleServiceNotEffective` · `422` `Timetable.ScheduleStopNotInService` · `422` `Timetable.ScheduleStopTimesIncomplete` · `422` `Timetable.ScheduleStopTimeUnexpected` · `422` `Timetable.ScheduleDwellNegative` · `422` `Timetable.ScheduleTimesNotIncreasing` | `schedules.manage` |
+| POST | `/api/v1/schedules/versions` | `CreateScheduleVersionRequest`. Body at most **2 MiB** | `201` + `CreateScheduleVersionResponse { id, number }` and `Location: /api/v1/schedules/versions/{id}` | `400` `Common.ValidationFailed` · `400` `Timetable.InvalidScheduleVersionName` · `400` `Timetable.InvalidTimetableTime` · `400` `Common.MalformedRequest` · `401` · `403` · `413` `Common.RequestTooLarge` (body over 2 MiB) · `422` `Timetable.ScheduleVersionEffectiveFromInPast` · `422` `Timetable.EmptyScheduleVersionNotInFuture` · `422` `Timetable.ScheduleServiceNotFound` · `422` `Timetable.ScheduleServiceRepeated` · `422` `Timetable.ScheduleServiceNotEffective` · `422` `Timetable.ScheduleStopNotInService` · `422` `Timetable.ScheduleStopTimesIncomplete` · `422` `Timetable.ScheduleStopTimeUnexpected` · `422` `Timetable.ScheduleDwellNegative` · `422` `Timetable.ScheduleTimesNotIncreasing` | `schedules.manage` |
 | GET | `/api/v1/schedules/versions/{id}` | — | `200` + `ScheduleVersionResponse` | `401` · `403` · `404` `Timetable.ScheduleVersionNotFound` | `schedules.read` |
 | GET | `/api/v1/schedules/versions/{id}/services/{serviceId}` | — | `200` + `ScheduleServiceTimesResponse` | `401` · `403` · `404` `Timetable.ScheduleVersionNotFound` · `404` `Timetable.ScheduleServiceNotInVersion` | `schedules.read` |
 | GET | `/api/v1/schedules/versions` | `?page=1&pageSize=50` (max 200) `&status=` (optional: exactly `Draft`, `Published`, `Discarded` or `Cancelled`); ordered by `number`; every status included unless filtered | `200` + `{ items: ScheduleVersionSummaryResponse[], page, pageSize, totalCount }` | `400` `Common.ValidationFailed` (an unknown `status`) · `400` `Timetable.InvalidPageRequest` · `401` · `403` | `schedules.read` |
@@ -486,7 +490,7 @@ never applies.
 **Reads.** `GET /{id}/services/{serviceId}`: `404 Timetable.ScheduleVersionNotFound`, then `404
 Timetable.ScheduleServiceNotInVersion`. The list checks `status` in the request validator first
 (`400 Common.ValidationFailed`), then `page`/`pageSize` (`400 Timetable.InvalidPageRequest`). A
-malformed `page` or `pageSize` value is a framework `400` without an `errorCode` (T-042).
+malformed `page` or `pageSize` value is `400 Common.MalformedRequest` (T-042).
 
 **The version in force (`GET /in-force?date=`).** Returns the published version with the latest
 start date on or before `date`; cancelled, discarded and draft versions never apply. Before the
@@ -507,8 +511,10 @@ writes no audit event; each accepted create, publish, discard and cancel writes 
 **Request-body limit and caps (REQUIRED CONTROL, spec R41, plan P15; Q1).** `POST
 /api/v1/schedules/versions` accepts a body of at most **2 MiB (2,097,152 bytes)**, as endpoint
 metadata applied to Kestrel before the body is read, so a larger body, with a declared length or
-chunked, is refused with the framework's `413` before JSON binding; malformed JSON is the
-framework's `400`; neither carries an `errorCode` (as for `POST /routes` above). The validator caps a
+chunked, is refused with `413 Common.RequestTooLarge` before JSON binding; malformed or unbindable
+JSON, including a stop `position` sent as a string, is `400 Common.MalformedRequest` (as for `POST
+/routes` above). This limit is above Kestrel's 64 KiB global limit and raises it for this endpoint
+only. The validator caps a
 version at **250 services**, **200 stop times per service** and **10,000 stop times in all**; one
 over any cap is `400 Common.ValidationFailed` before the handler runs. The caps admit a
 whole-network version of 200 services × 40 stops; the largest body the caps allow is about 554 KB

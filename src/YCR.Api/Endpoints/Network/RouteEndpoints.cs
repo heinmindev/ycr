@@ -34,7 +34,7 @@ public static class RouteEndpoints
     /// endpoint metadata (<see cref="RequestSizeLimitAttribute"/> implements
     /// <c>IRequestSizeLimitMetadata</c>): endpoint routing copies it into the server's
     /// <c>IHttpMaxRequestBodySizeFeature</c> before the body is read, so Kestrel refuses a larger
-    /// body before JSON binding allocates it. Every other endpoint keeps the server default (T-042).
+    /// body before JSON binding allocates it. The policy for every endpoint is docs/20 §4 (T-042).
     /// </remarks>
     public const long CreateRouteMaxRequestBodyBytes = 32 * 1024;
 

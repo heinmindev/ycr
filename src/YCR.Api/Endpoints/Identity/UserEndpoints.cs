@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using YCR.Api.Common;
 using YCR.Api.Common.Authentication;
 using YCR.Api.Contracts.Identity;
@@ -70,6 +71,7 @@ public static class UserEndpoints
                 (await handler.Handle(request.ToCommand(), cancellationToken))
                 .ToHttpResult(id => Results.Created($"/api/v1/users/{id}", new CreateUserResponse(id))))
             .RequireAuthorization(Permissions.UsersManage)
+            .WithMetadata(new RequestSizeLimitAttribute(RequestLimits.SmallJsonBodyMaxBytes))
             .AddEndpointFilter<ValidationFilter<CreateUserRequest>>()
             .WithName("CreateUser")
             .WithSummary("Creates a staff account with a must-change password.")
@@ -118,6 +120,7 @@ public static class UserEndpoints
                 CancellationToken cancellationToken) =>
                 (await handler.Handle(request.ToCommand(id), cancellationToken)).ToHttpResult(Results.NoContent))
             .RequireAuthorization(Permissions.UsersRolesManage)
+            .WithMetadata(new RequestSizeLimitAttribute(RequestLimits.SmallJsonBodyMaxBytes))
             .AddEndpointFilter<ValidationFilter<ReplaceUserRolesRequest>>()
             .WithName("ReplaceUserRoles")
             .WithSummary("Replaces an account's roles with the given set.")
@@ -135,6 +138,7 @@ public static class UserEndpoints
                 CancellationToken cancellationToken) =>
                 (await handler.Handle(request.ToCommand(id), cancellationToken)).ToHttpResult(Results.NoContent))
             .RequireAuthorization(Permissions.UsersManage)
+            .WithMetadata(new RequestSizeLimitAttribute(RequestLimits.SmallJsonBodyMaxBytes))
             .AddEndpointFilter<ValidationFilter<ResetUserPasswordRequest>>()
             .WithName("ResetUserPassword")
             .WithSummary("Sets a must-change password and revokes all the account's sessions.")

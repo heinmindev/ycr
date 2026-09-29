@@ -57,6 +57,10 @@ builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProv
 builder.Services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
 
 builder.Services.AddYcrProblemDetails();
+
+// T-042 (docs/20 §4): Kestrel's 64 KiB backstop body limit, and strict JSON binding.
+builder.WebHost.ConfigureYcrRequestLimits();
+builder.Services.ConfigureYcrJson();
 builder.Services.AddOpenApi();
 
 builder.Services.AddHealthChecks()
@@ -72,7 +76,7 @@ app.ValidateSigningKeys();
 app.UseMiddleware<SecurityHeadersMiddleware>();
 
 app.UseYcrExceptionHandler();
-app.UseStatusCodePages();
+app.UseYcrStatusCodePages();
 
 app.UseAuthentication();
 // R26: after authentication (the server-built principal) and before authorization (N1).
