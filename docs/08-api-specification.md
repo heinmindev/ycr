@@ -51,7 +51,7 @@ This includes the requests the framework refuses before any application code run
 `docs/20` §4). A body over the endpoint's limit, with a declared length or chunked, is **`413
 Common.RequestTooLarge`**. A request the framework cannot read or bind is **`400
 Common.MalformedRequest`**: malformed JSON, the wrong JSON type, a number sent as a string (`"1"`),
-nesting deeper than 32, or an unparsable route or query value. Neither carries a `detail` or any parser or server message. Unknown JSON properties are
+nesting deeper than 32, an empty body or the JSON literal `null` where a body is required, or an unparsable route or query value. Both are `application/problem+json` whatever the request's `Accept` header says. Neither carries a `detail` or any parser or server message. Unknown JSON properties are
 ignored. Kestrel caps every body at 64 KiB unless the endpoint declares its own limit, as each
 endpoint with a body does below.
 `ErrorType` maps to status as ADR-0004 fixes it: `Validation` 400, `Unauthorized` 401,

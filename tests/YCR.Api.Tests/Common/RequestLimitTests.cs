@@ -47,6 +47,9 @@ public sealed class RequestLimitTests(SqlServerFixture fixture) : ApiTestBase(fi
         new("CreateScheduleVersion", "POST", "/api/v1/schedules/versions", 2 * 1024 * 1024, "nameEn", """{"nameEn":""}"""),
     }.ToDictionary(endpoint => endpoint.Name);
 
+    /// <summary>Stands for a login body nested 33 deep; an attribute argument cannot be computed.</summary>
+    private const string NestedDeeperThan32 = "nested:33";
+
     protected override string DatabasePrefix => "api_request_limits";
 
     public static TheoryData<string> CappedNames => [.. Capped.Keys];
@@ -61,6 +64,9 @@ public sealed class RequestLimitTests(SqlServerFixture fixture) : ApiTestBase(fi
             (name, "{\"a\": 1,, }"),
             (name, "not json"),
         })];
+
+    public static TheoryData<string, string> CappedNamesEmpty =>
+        [.. Capped.Keys.SelectMany(name => new[] { (name, string.Empty), (name, "null") })];
 
     [Fact]
     public void Limits_AreTheRuledValues()
@@ -164,6 +170,34 @@ public sealed class RequestLimitTests(SqlServerFixture fixture) : ApiTestBase(fi
         await AssertMalformedAsync(Capped[name], body);
     }
 
+    /// <summary>Ruling 3: a body that binds to nothing — empty, or the JSON literal <c>null</c>.</summary>
+    [Theory]
+    [MemberData(nameof(CappedNamesEmpty))]
+    public async Task Post_WithEmptyOrNullBody_Returns400MalformedRequest(string name, string body)
+    {
+        await AssertMalformedAsync(Capped[name], body);
+    }
+
+    /// <summary>
+    /// Ruling 3 whatever the caller accepts: a client asking for HTML still gets the coded
+    /// ProblemDetails, not an empty or plain-text 400 and not a 500.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(CappedNames))]
+    public async Task Post_MalformedJsonAcceptingOnlyHtml_Returns400MalformedRequest(string name)
+    {
+        var endpoint = Capped[name];
+        await using var kestrel = StartKestrel();
+        using var client = Client(kestrel);
+        client.DefaultRequestHeaders.Accept.Clear();
+        client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("text/html"));
+
+        using var response = await SendAsync(client, endpoint, "not json", chunked: false);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        await AssertCodedAndOpaqueAsync(response, RequestLimits.MalformedRequestCode);
+    }
+
     /// <summary>Ruling 3: well-formed JSON that cannot bind — a number where the contract has a string.</summary>
     [Theory]
     [MemberData(nameof(CappedNames))]
@@ -249,16 +283,26 @@ public sealed class RequestLimitTests(SqlServerFixture fixture) : ApiTestBase(fi
     /// setting the status: the exception handler gives the same coded answer, never a 500.
     /// </summary>
     [Theory]
-    [InlineData("not json")]
-    [InlineData("{\"userName\": 1}")]
-    public async Task Development_MalformedJson_Returns400MalformedRequest(string body)
+    [InlineData("not json", "application/json")]
+    [InlineData("{\"userName\": 1}", "application/json")]
+    [InlineData("", "application/json")]
+    [InlineData("null", "application/json")]
+    [InlineData(NestedDeeperThan32, "application/json")]
+    [InlineData("not json", "text/html")]
+    public async Task Development_MalformedJson_Returns400MalformedRequest(string body, string accept)
     {
+        if (body == NestedDeeperThan32)
+        {
+            body = WithNesting(Capped["Login"].Sample, depth: 33);
+        }
+
         // The anonymous login endpoint, because the test authentication handler is refused outside
         // the Testing environment (ADR-0020 item 5).
         await using var development = new YcrApiFactory(
             Database.ApplicationConnectionString, environment: "Development", mode: AuthMode.RealTokens);
         using var client = development.CreateAnonymousClient();
         client.DefaultRequestHeaders.Add("Origin", YcrApiFactory.AllowedOrigin);
+        client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue(accept));
 
         using var response = await client.PostAsync(
             "/api/v1/auth/login", new StringContent(body, Encoding.UTF8, "application/json"), CancellationToken);

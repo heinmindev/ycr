@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.Mvc;
 
 namespace YCR.Api.Common;
 
@@ -17,14 +18,17 @@ public static class ProblemDetailsSetup
             // Every problem response carries a traceId, including the ones ASP.NET Core produces
             // itself (401, 403, 404 on an unmatched route), so a caller can always quote one
             // identifier back to an operator.
-            context.ProblemDetails.Extensions["traceId"] =
-                Activity.Current?.Id ?? context.HttpContext.TraceIdentifier;
-
-            context.ProblemDetails.Instance ??=
-                $"{context.HttpContext.Request.Method} {context.HttpContext.Request.Path}";
+            Stamp(context.ProblemDetails, context.HttpContext);
         });
 
         return services;
+    }
+
+    /// <summary>The <c>traceId</c> and <c>instance</c> every problem response carries.</summary>
+    private static void Stamp(ProblemDetails problem, HttpContext context)
+    {
+        problem.Extensions["traceId"] = Activity.Current?.Id ?? context.TraceIdentifier;
+        problem.Instance ??= $"{context.Request.Method} {context.Request.Path}";
     }
 
     /// <summary>
@@ -105,7 +109,7 @@ public static class ProblemDetailsSetup
         {
             HandleAsync = context =>
                 FrameworkErrorCode(context.HttpContext.Response.StatusCode) is { } errorCode
-                    ? WriteFrameworkProblemAsync(context.HttpContext, errorCode).AsTask()
+                    ? WriteFrameworkProblemAsync(context.HttpContext, errorCode)
                     : defaults.HandleAsync(context),
         });
 
@@ -120,17 +124,25 @@ public static class ProblemDetailsSetup
     };
 
     /// <summary>
-    /// The framework's own title and type for the response's status, plus <paramref name="errorCode"/>;
-    /// <c>traceId</c> and <c>instance</c> come from <see cref="AddYcrProblemDetails"/>. No detail.
+    /// The framework's own title and type for the response's status, plus <paramref name="errorCode"/>,
+    /// <c>traceId</c> and <c>instance</c>. No detail.
     /// </summary>
-    private static ValueTask WriteFrameworkProblemAsync(HttpContext context, string errorCode) =>
-        context.RequestServices.GetRequiredService<IProblemDetailsService>().WriteAsync(new ProblemDetailsContext
+    /// <remarks>
+    /// Written as <c>application/problem+json</c> whatever the request's <c>Accept</c> says.
+    /// <c>IProblemDetailsService.WriteAsync</c> throws when no writer accepts the request (an
+    /// <c>Accept: text/html</c> caller), which turned this 400 into a 500. <c>ProblemHttpResult</c>
+    /// falls back to plain JSON instead, and that fallback skips <see cref="AddYcrProblemDetails"/>'s
+    /// customization, so the trace id and instance are stamped here.
+    /// </remarks>
+    private static Task WriteFrameworkProblemAsync(HttpContext context, string errorCode)
+    {
+        var problem = new ProblemDetails
         {
-            HttpContext = context,
-            ProblemDetails =
-            {
-                Status = context.Response.StatusCode,
-                Extensions = { ["errorCode"] = errorCode },
-            },
-        });
+            Status = context.Response.StatusCode,
+            Extensions = { ["errorCode"] = errorCode },
+        };
+        Stamp(problem, context);
+
+        return TypedResults.Problem(problem).ExecuteAsync(context);
+    }
 }
